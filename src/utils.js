@@ -11,3 +11,7 @@ export function parseMarkdown(content) {
         return { meta: {} };
     }
 }
+
+export function openLink(url) {
+    window.open(url, '_blank');
+}

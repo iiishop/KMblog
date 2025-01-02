@@ -2,6 +2,7 @@
 import { config } from '@/config';
 import { ref } from 'vue';
 import { Icon } from '@iconify/vue';
+import { openLink } from '@/utils';
 
 const avatarUrl = ref(config.HeadImg);
 const name = ref(config.Name);
@@ -32,8 +33,7 @@ const links = ref(config.Links.map(link => ({
     </div>
     <div class="icons">
         <div v-for="(link, index) in links" :key="index" class="link">
-            <Icon :icon="`mdi:${link.name}`" />
-            <a :href="link.url">{{ link.name }}</a>
+            <Icon :icon="`mdi:${link.name}`" @click="openLink(link.url)" style="cursor: pointer;"/>
         </div>
     </div>
   </div>
@@ -77,10 +77,20 @@ const links = ref(config.Links.map(link => ({
 .stats span {
   display: block;
 }
+.icons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
 
-.icons img {
-  width: 30px;
-  height: 30px;
-  margin: 5px;
+.link {
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+
+.link:hover {
+  color: #ff6347;
 }
 </style>
