@@ -46,8 +46,7 @@ const links = ref(config.Links.map(link => ({
   flex-direction: column;
   align-items: center;
   border-radius: 20px;
-  padding: 1rem;
-  width: 20rem;
+  width: 100%;
   background-color: #ffe;
   box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
   color:black;
