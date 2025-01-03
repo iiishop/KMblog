@@ -57,7 +57,7 @@ const adjustImagePanelWidth = (event) => {
     const naturalWidth = img.naturalWidth;
     const naturalHeight = img.naturalHeight;
     const aspectRatio = naturalWidth / naturalHeight;
-    
+
     // 计算新的宽度，最大不超过 30%
     const newWidth = Math.min(30, aspectRatio * 13); // 13 是 image-panel 的高度
     imagePanelWidth.value = `${newWidth}rem`;
@@ -332,15 +332,19 @@ onMounted(() => {
     0% {
         transform: translateY(0);
     }
+
     25% {
         transform: translateY(-2px);
     }
+
     50% {
         transform: translateY(0);
     }
+
     75% {
         transform: translateY(2px);
     }
+
     100% {
         transform: translateY(0);
     }
