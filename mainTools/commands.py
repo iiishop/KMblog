@@ -160,7 +160,7 @@ img:
             file.write(metadata)
         
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostsJson()
+        output_command = OutputJson()
         output_result = output_command.execute()
         
         return f"Post '{name}' created at {file_path}\n{output_result}"
@@ -202,7 +202,7 @@ class DeletePost(Command):
         os.remove(file_path)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostsJson()
+        output_command = OutputJson()
         output_result = output_command.execute()
 
         return f"Post '{name}' deleted.\n{output_result}"
@@ -244,7 +244,7 @@ class DeleteCollection(Command):
         os.rmdir(directory)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostsJson()
+        output_command = OutputJson()
         output_result = output_command.execute()
 
         return f"Collection '{collection}' and all its posts have been deleted.\n{output_result}"
