@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from utility import parse_markdown_metadata
+from utility import parse_markdown_metadata, read_markdowns, find_first_image
 
 class Command:
     description = "Base command class"
@@ -9,8 +9,8 @@ class Command:
     def execute(self):
         raise NotImplementedError("You should implement this method.")
 
-class ReadPostsDirectoryCommand(Command):
-    description = "Reads the posts directory and returns its structure."
+class ShowPostsJson(Command):
+    description = "Shows the posts directory structure in JSON format."
 
     def execute(self):
         posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
@@ -20,7 +20,7 @@ class ReadPostsDirectoryCommand(Command):
         result = {}
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            result['Markdowns'] = self.read_markdowns(markdowns_path)
+            result['Markdowns'] = read_markdowns(markdowns_path)
 
         directories = [
             file for file in os.listdir(posts_path)
@@ -35,9 +35,9 @@ class ReadPostsDirectoryCommand(Command):
                 stats = os.stat(dir_path)
                 sub_result['date'] = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
                 if os.path.exists(markdowns_sub_path):
-                    sub_result['Markdowns'] = self.read_markdowns(markdowns_sub_path)
+                    sub_result['Markdowns'] = read_markdowns(markdowns_sub_path)
 
-                image = self.find_first_image(dir_path)
+                image = find_first_image(dir_path)
                 if image:
                     sub_result['image'] = image
 
@@ -45,21 +45,7 @@ class ReadPostsDirectoryCommand(Command):
 
         return result
 
-    def read_markdowns(self, dir_path):
-        return [
-            os.path.join(dir_path, file)
-            for file in os.listdir(dir_path)
-            if file.endswith('.md')
-        ]
-
-    def find_first_image(self, dir_path):
-        image_extensions = ['.png', '.jpg', '.jpeg', '.gif']
-        for file in os.listdir(dir_path):
-            if any(file.endswith(ext) for ext in image_extensions):
-                return os.path.join(dir_path, file)
-        return None
-
-class ListCollectionsCommand(Command):
+class ListCollections(Command):
     description = "Lists all collections in the posts directory."
 
     def execute(self):
@@ -93,15 +79,15 @@ class ListCollectionsCommand(Command):
             )
         return "\n".join(formatted_output)
 
-class OutputPostDirectoryCommand(Command):
+class OutputPostsJson(Command):
     description = "Outputs the posts directory structure to a JSON file."
 
     def execute(self):
         posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
         output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
         
-        read_command = ReadPostsDirectoryCommand()
-        posts_directory = read_command.execute()
+        show_command = ShowPostsJson()
+        posts_directory = show_command.execute()
 
         # Ensure the output directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -111,7 +97,7 @@ class OutputPostDirectoryCommand(Command):
         
         return f"Post directory output to {output_path}"
 
-class AddPostCommand(Command):
+class AddPost(Command):
     description = "Adds a new post with the given name and optional collection."
 
     def execute(self):
@@ -152,12 +138,12 @@ img:
             file.write(metadata)
         
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostDirectoryCommand()
+        output_command = OutputPostsJson()
         output_result = output_command.execute()
         
         return f"Post '{name}' created at {file_path}\n{output_result}"
 
-class DeletePostCommand(Command):
+class DeletePost(Command):
     description = "Deletes a post with the given name from the optional collection."
 
     def execute(self):
@@ -194,12 +180,12 @@ class DeletePostCommand(Command):
         os.remove(file_path)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostDirectoryCommand()
+        output_command = OutputPostsJson()
         output_result = output_command.execute()
 
         return f"Post '{name}' deleted.\n{output_result}"
 
-class DeleteCollectionCommand(Command):
+class DeleteCollection(Command):
     description = "Deletes a collection and all its posts."
 
     def execute(self):
@@ -236,12 +222,12 @@ class DeleteCollectionCommand(Command):
         os.rmdir(directory)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputPostDirectoryCommand()
+        output_command = OutputPostsJson()
         output_result = output_command.execute()
 
         return f"Collection '{collection}' and all its posts have been deleted.\n{output_result}"
 
-class ListAllPostsCommand(Command):
+class ListAllPosts(Command):
     description = "Lists all posts and collections in the posts directory."
 
     def execute(self):
