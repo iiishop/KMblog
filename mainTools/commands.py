@@ -19,9 +19,12 @@ class ShowPostsJson(Command):
             raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
         
         result = {}
+        current_id = 1  # 初始化 ID 计数器
+
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_path))
+            result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_path), current_id)
+            current_id += len(result['Markdowns'])
 
         directories = [
             file for file in os.listdir(posts_path)
@@ -36,7 +39,8 @@ class ShowPostsJson(Command):
                 stats = os.stat(dir_path)
                 sub_result['date'] = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
                 if os.path.exists(markdowns_sub_path):
-                    sub_result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_sub_path))
+                    sub_result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_sub_path), current_id)
+                    current_id += len(sub_result['Markdowns'])
 
                 image = find_first_image(dir_path)
                 if image:
@@ -46,8 +50,8 @@ class ShowPostsJson(Command):
 
         return result
 
-    def _convert_to_relative_paths(self, paths, base_path='/src'):
-        return [self._convert_to_relative_path(path, base_path) for path in paths]
+    def _convert_to_relative_paths(self, paths, start_id, base_path='/src'):
+        return [{'id': start_id + i, 'path': self._convert_to_relative_path(path, base_path)} for i, path in enumerate(paths)]
 
     def _convert_to_relative_path(self, path, base_path='/src'):
         return base_path + path.split(base_path, 1)[1]

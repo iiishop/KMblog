@@ -10,11 +10,11 @@
                 </div>
                 <div class="info-panel">
                     <div class="category-panel">
-                        <IconCategory style="width: 1rem; height: 1rem;" />
+                        <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory"/>
                         <a :href="categoryLink">{{ lastCategory }}</a>
                     </div>
                     <div class="date-panel">
-                        <IconDate style="width: 1rem; height: 1rem;" />
+                        <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date"/>
                         <a :href="archiveLink">{{ metadata.date }}</a>
                     </div>
                 </div>
@@ -189,6 +189,11 @@ onMounted(() => {
     flex-grow: 1;
     flex-shrink: 1;
     overflow: hidden;
+    transition: all 0.5s ease;
+}
+
+.content-panel:hover {
+    transform: scale(1.02);
 }
 
 .title-panel {

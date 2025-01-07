@@ -3,6 +3,7 @@ import { config } from '@/config';
 import { ref } from 'vue';
 import { Icon } from '@iconify/vue';
 import { openLink } from '@/utils';
+import globalVar from '@/globalVar';
 
 const avatarUrl = ref(config.HeadImg);
 const name = ref(config.Name);
@@ -11,6 +12,8 @@ const links = ref(config.Links.map(link => ({
     name: link.name.toLowerCase(),
     url: link.url,
 })));
+
+const articleCount = ref(globalVar.markdowns.length);
 </script>
 <template>
   <div class="user-info">
@@ -20,7 +23,7 @@ const links = ref(config.Links.map(link => ({
     <div class="stats">
       <div>
         <span>文章数量</span>
-        <span>16</span>
+        <span>{{ articleCount }}</span>
       </div>
       <div>
         <span>分类数量</span>

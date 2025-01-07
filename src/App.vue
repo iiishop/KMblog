@@ -18,7 +18,7 @@ onMounted(() => {
 
     <div class="Posts">
       <!-- 使用 v-for 指令迭代 posts 数组 -->
-      <PostPanel v-for="(post, index) in posts" :key="index" :imageUrl="post.imageUrl"
+      <PostPanel v-for="(post, index) in posts" :key="post.id" :imageUrl="post.imageUrl"
         :markdownUrl="post.markdownUrl" />
     </div>
     <div class="RightList">

@@ -28,12 +28,13 @@ export async function loadMarkdownLinks() {
     const markdownLinks = extractMarkdownLinks(data);
 
     // 获取每个 Markdown 文件中的元数据
-    const markdownWithImages = await Promise.all(markdownLinks.map(async (link) => {
-      const markdownContent = await axios.get(link);
+    const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
+      const { path: markdownUrl, id } = item;
+      const markdownContent = await axios.get(markdownUrl);
       const { meta } = parseMarkdown(markdownContent.data);
       const imageName = meta.img;
       const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-      return { markdownUrl: link, imageUrl };
+      return { id, markdownUrl, imageUrl };
     }));
 
     console.log('Markdown with Images:', markdownWithImages);
@@ -52,7 +53,7 @@ function extractMarkdownLinks(data) {
     for (let key in obj) {
       if (Array.isArray(obj[key])) {
         obj[key].forEach(item => {
-          if (item.endsWith('.md')) {
+          if (item.path && item.id) {
             links.push(item);
           }
         });
