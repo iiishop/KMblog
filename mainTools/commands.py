@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import datetime
+from utility import parse_markdown_metadata
 
 class Command:
     description = "Base command class"
@@ -239,3 +240,51 @@ class DeleteCollectionCommand(Command):
         output_result = output_command.execute()
 
         return f"Collection '{collection}' and all its posts have been deleted.\n{output_result}"
+
+class ListAllPostsCommand(Command):
+    description = "Lists all posts and collections in the posts directory."
+
+    def execute(self):
+        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
+        if not os.path.exists(posts_path):
+            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+
+        formatted_output = []
+
+        # List Markdown files in the root directory
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        if os.path.exists(markdowns_path):
+            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            for file in root_files:
+                file_path = os.path.join(markdowns_path, file)
+                stats = os.stat(file_path)
+                creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
+                metadata = parse_markdown_metadata(file_path)
+                title = metadata.get('title', 'Untitled')
+                with open(file_path, 'r') as f:
+                    content_length = len(f.read())
+                formatted_output.append(f"Post: {file} | Title: {title} | Created on: {creation_date} | Characters: {content_length}")
+
+        # List collections and their posts
+        directories = [
+            file for file in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
+        ]
+
+        for dir_name in directories:
+            dir_path = os.path.join(posts_path, dir_name)
+            stats = os.stat(dir_path)
+            creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
+            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
+            formatted_output.append(f"Collection: {dir_name} | Created on: {creation_date} | Posts: {len(md_files)}")
+            for md_file in md_files:
+                md_file_path = os.path.join(dir_path, md_file)
+                md_stats = os.stat(md_file_path)
+                md_creation_date = datetime.fromtimestamp(md_stats.st_ctime).strftime('%Y-%m-%d')
+                metadata = parse_markdown_metadata(md_file_path)
+                title = metadata.get('title', 'Untitled')
+                with open(md_file_path, 'r') as f:
+                    content_length = len(f.read())
+                formatted_output.append(f"    Post: {md_file} | Title: {title} | Created on: {md_creation_date} | Characters: {content_length}")
+
+        return "\n".join(formatted_output)
