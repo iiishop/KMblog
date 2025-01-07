@@ -90,23 +90,34 @@ class ListCollections(Command):
             )
         return "\n".join(formatted_output)
 
-class OutputPostsJson(Command):
-    description = "Outputs the posts directory structure to a JSON file."
+class OutputJson(Command):
+    description = "Outputs the posts directory structure and tags to JSON files."
 
     def execute(self):
         posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
-        output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
+        posts_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
+        tags_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/Tags.json'))
         
-        show_command = ShowPostsJson()
-        posts_directory = show_command.execute()
+        show_posts_command = ShowPostsJson()
+        posts_directory = show_posts_command.execute()
+        
+        show_tags_command = ShowTagsJson()
+        tags_dictionary = show_tags_command.execute()
 
         # Ensure the output directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(posts_output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(tags_output_path), exist_ok=True)
 
-        with open(output_path, 'w') as json_file:
-            json.dump(posts_directory, json_file, indent=2)
+        # Output posts directory to JSON file
+        with open(posts_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(posts_directory, json_file, indent=2, ensure_ascii=False)
+
+        # Output tags dictionary to JSON file
+        with open(tags_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(tags_dictionary, json_file, indent=2, ensure_ascii=False)
         
-        return f"Post directory output to {output_path}"
+        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}"
+
 
 class AddPost(Command):
     description = "Adds a new post with the given name and optional collection."
@@ -286,3 +297,61 @@ class ListAllPosts(Command):
                 formatted_output.append(f"    Post: {md_file} | Title: {title} | Created on: {md_creation_date} | Characters: {content_length}")
 
         return "\n".join(formatted_output)
+
+class ShowTagsJson(Command):
+    description = "Shows the tags and their corresponding markdown files in JSON format."
+
+    def execute(self):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
+        if not os.path.exists(posts_path):
+            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+
+        tags_dict = {}
+
+        # List Markdown files in the root directory
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        if os.path.exists(markdowns_path):
+            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            for file in root_files:
+                file_path = os.path.join(markdowns_path, file)
+                metadata = parse_markdown_metadata(file_path)
+                print(f"Parsing metadata for {file_path}: {metadata}")  # Debug output
+
+                # Update tags_dict with tags from metadata
+                if 'tags' in metadata:
+                    for tag in metadata['tags']:
+                        if tag not in tags_dict:
+                            tags_dict[tag] = []
+                        tags_dict[tag].append(self._convert_to_relative_path(file_path))
+
+        # List collections and their posts
+        directories = [
+            file for file in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
+        ]
+
+        for dir_name in directories:
+            dir_path = os.path.join(posts_path, dir_name)
+            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
+            for md_file in md_files:
+                md_file_path = os.path.join(dir_path, md_file)
+                metadata = parse_markdown_metadata(md_file_path)
+                print(f"Parsing metadata for {md_file_path}: {metadata}")  # Debug output
+
+                # Update tags_dict with tags from metadata
+                if 'tags' in metadata and metadata['tags']:
+                    for tag in metadata['tags']:
+                        if tag not in tags_dict:
+                            tags_dict[tag] = []
+                        tags_dict[tag].append(self._convert_to_relative_path(md_file_path))
+
+        # 输出 tags_dict 以便调试
+        print(f"Tags dictionary: {tags_dict}")
+
+        return tags_dict
+
+    def _convert_to_relative_path(self, path, base_path='/src'):
+        relative_path = base_path + path.split(base_path, 1)[1]
+        # 去掉 '/src' 前面的部分
+        return relative_path

@@ -30,3 +30,4 @@ coverage
 *.tsbuildinfo
 mainTools/__pycache__/
 src/Posts/
+src/assets/Tags.json

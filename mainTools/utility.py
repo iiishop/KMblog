@@ -1,18 +1,26 @@
 import os
 import re
 from datetime import datetime
+# Util functions
+
 
 def parse_markdown_metadata(file_path):
-    """
-    解析 Markdown 文件中的元数据
-    """
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
-        metadata = {}
-        title_match = re.search(r'^title:\s*(.+)$', content, re.MULTILINE)
-        if title_match:
-            metadata['title'] = title_match.group(1).strip()
-    return metadata
+        metadata = parse_markdown(content)
+        return metadata
+
+
+def parse_markdown(content):
+    import yaml
+    metadata_regex = r'^---\n([\s\S]*?)\n---'
+    match = re.search(metadata_regex, content)
+
+    if match:
+        meta = yaml.safe_load(match.group(1))
+        return meta
+    else:
+        return {}
 
 
 
