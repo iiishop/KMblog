@@ -9,12 +9,7 @@ import globalVar from './globalVar';
 const posts = ref([]);
 
 onMounted(() => {
-  const mdLinks = globalVar.markdownLinks;
-  posts.value = mdLinks.map((link) => ({
-    imageUrl: '/src/Posts/Images/1.jpg',
-    markdownUrl: link,
-  }))
-  console.log(posts.value);
+  posts.value = globalVar.markdowns;
 });
 </script>
 
@@ -37,12 +32,13 @@ onMounted(() => {
 </template>
 
 <style>
-body{
+body {
   margin: 0;
   padding: 0;
   font-family: 'Noto Sans SC', sans-serif;
   background: white;
 }
+
 .Scene {
   display: flex;
   flex-direction: row;
@@ -69,6 +65,7 @@ body{
   justify-content: center;
   width: 25rem;
 }
+
 .CollectionPanel {
   display: flex;
   flex-direction: column;

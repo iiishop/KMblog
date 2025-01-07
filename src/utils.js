@@ -27,8 +27,17 @@ export async function loadMarkdownLinks() {
     // 解析 JSON 文件，提取所有 Markdown 文件的链接
     const markdownLinks = extractMarkdownLinks(data);
 
-    console.log('Markdown Links:', markdownLinks);
-    return markdownLinks;
+    // 获取每个 Markdown 文件中的元数据
+    const markdownWithImages = await Promise.all(markdownLinks.map(async (link) => {
+      const markdownContent = await axios.get(link);
+      const { meta } = parseMarkdown(markdownContent.data);
+      const imageName = meta.img;
+      const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
+      return { markdownUrl: link, imageUrl };
+    }));
+
+    console.log('Markdown with Images:', markdownWithImages);
+    return markdownWithImages;
   } catch (error) {
     console.error('Error loading PostDirectory.json:', error);
     return [];

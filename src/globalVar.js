@@ -1,5 +1,5 @@
 const globalVar = {
-    markdownLinks: []
+    markdowns: []
 };
 
 export default globalVar;

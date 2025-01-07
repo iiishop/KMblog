@@ -8,7 +8,7 @@ import App from './App.vue'
 const app = createApp(App);
 
 async function initGlobalVars() {
-    globalVar.markdownLinks = await loadMarkdownLinks();
+    globalVar.markdowns = await loadMarkdownLinks();
 }
 
 initGlobalVars().then(() => {
