@@ -13,14 +13,15 @@ class ShowPostsJson(Command):
     description = "Shows the posts directory structure in JSON format."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
         if not os.path.exists(posts_path):
             raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
         
         result = {}
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            result['Markdowns'] = read_markdowns(markdowns_path)
+            result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_path))
 
         directories = [
             file for file in os.listdir(posts_path)
@@ -35,15 +36,21 @@ class ShowPostsJson(Command):
                 stats = os.stat(dir_path)
                 sub_result['date'] = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
                 if os.path.exists(markdowns_sub_path):
-                    sub_result['Markdowns'] = read_markdowns(markdowns_sub_path)
+                    sub_result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_sub_path))
 
                 image = find_first_image(dir_path)
                 if image:
-                    sub_result['image'] = image
+                    sub_result['image'] = self._convert_to_relative_path(image)
 
                 result[dir_name] = sub_result
 
         return result
+
+    def _convert_to_relative_paths(self, paths, base_path='/src'):
+        return [self._convert_to_relative_path(path, base_path) for path in paths]
+
+    def _convert_to_relative_path(self, path, base_path='/src'):
+        return base_path + path.split(base_path, 1)[1]
 
 class ListCollections(Command):
     description = "Lists all collections in the posts directory."
@@ -231,7 +238,8 @@ class ListAllPosts(Command):
     description = "Lists all posts and collections in the posts directory."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
         if not os.path.exists(posts_path):
             raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
 

@@ -14,22 +14,19 @@ def parse_markdown_metadata(file_path):
             metadata['title'] = title_match.group(1).strip()
     return metadata
 
-def read_markdowns(dir_path):
-    """
-    读取给定目录中的 Markdown 文件
-    """
-    return [
-        os.path.join(dir_path, file)
-        for file in os.listdir(dir_path)
-        if file.endswith('.md')
-    ]
 
-def find_first_image(dir_path):
-    """
-    查找给定目录中的第一个图片文件
-    """
-    image_extensions = ['.png', '.jpg', '.jpeg', '.gif']
-    for file in os.listdir(dir_path):
-        if any(file.endswith(ext) for ext in image_extensions):
-            return os.path.join(dir_path, file)
+
+def read_markdowns(directory, relative_to=None):
+    markdowns = []
+    for file in os.listdir(directory):
+        if file.endswith('.md'):
+            file_path = os.path.join(directory, file)
+            markdowns.append(file_path)
+    return markdowns
+
+def find_first_image(directory, relative_to=None):
+    for file in os.listdir(directory):
+        if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            file_path = os.path.join(directory, file)
+            return file_path
     return None
