@@ -1,3 +1,4 @@
+import axios from 'axios';
 import yaml from 'yaml';
 // 解析 Markdown 文档的函数，只解析 meta 数据
 export function parseMarkdown(content) {
@@ -14,4 +15,44 @@ export function parseMarkdown(content) {
 
 export function openLink(url) {
     window.open(url, '_blank');
+}
+
+// 异步函数，用于加载和解析 JSON 文件
+export async function loadMarkdownLinks() {
+  try {
+    // 加载 PostDirectory.json 文件
+    const response = await axios.get('/src/assets/PostDirectory.json');
+    const data = response.data;
+
+    // 解析 JSON 文件，提取所有 Markdown 文件的链接
+    const markdownLinks = extractMarkdownLinks(data);
+
+    console.log('Markdown Links:', markdownLinks);
+    return markdownLinks;
+  } catch (error) {
+    console.error('Error loading PostDirectory.json:', error);
+    return [];
+  }
+}
+
+// 递归函数，用于遍历 JSON 数据并提取所有 Markdown 文件链接
+function extractMarkdownLinks(data) {
+  let links = [];
+
+  function traverse(obj) {
+    for (let key in obj) {
+      if (Array.isArray(obj[key])) {
+        obj[key].forEach(item => {
+          if (item.endsWith('.md')) {
+            links.push(item);
+          }
+        });
+      } else if (typeof obj[key] === 'object') {
+        traverse(obj[key]);
+      }
+    }
+  }
+
+  traverse(data);
+  return links;
 }

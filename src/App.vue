@@ -1,15 +1,21 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import PostPanel from './components/PostPanel.vue';
 import SelfIntroduction from './components/SelfIntroduction.vue';
 import Collection from './components/Collection.vue';
+import globalVar from './globalVar';
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
-const posts = ref([
-  { imageUrl: '/src/Posts/Images/1.jpg', markdownUrl: '/src/Posts/Markdowns/1.md' },
-  { imageUrl: '/src/Posts/Images/1.jpg', markdownUrl: '/src/Posts/Markdowns/1.md' },
-  { imageUrl: '/src/Posts/Images/1.jpg', markdownUrl: '/src/Posts/Markdowns/1.md' },
-]);
+const posts = ref([]);
+
+onMounted(() => {
+  const mdLinks = globalVar.markdownLinks;
+  posts.value = mdLinks.map((link) => ({
+    imageUrl: '/src/Posts/Images/1.jpg',
+    markdownUrl: link,
+  }))
+  console.log(posts.value);
+});
 </script>
 
 <template>
