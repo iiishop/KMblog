@@ -335,7 +335,7 @@ class ShowTagsJson(Command):
                 metadata = parse_markdown_metadata(file_path)
 
                 # Update tags_dict with tags from metadata
-                if 'tags' in metadata:
+                if 'tags' in metadata and metadata['tags']:
                     for tag in metadata['tags']:
                         if tag not in tags_dict:
                             tags_dict[tag] = []
