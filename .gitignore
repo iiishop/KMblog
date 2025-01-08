@@ -31,3 +31,5 @@ coverage
 mainTools/__pycache__/
 src/Posts/
 src/assets/Tags.json
+src/assets/PostDirectory.json
+.vscode
