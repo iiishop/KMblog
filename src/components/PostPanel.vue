@@ -63,8 +63,6 @@ const adjustImagePanelWidth = (event) => {
     imagePanelWidth.value = `${newWidth}rem`;
 };
 
-
-
 // 初始化 Markdown meta 数据的函数
 async function initializeMarkdown(url) {
     console.log('Initializing markdown with URL:', url);
@@ -330,30 +328,11 @@ onMounted(() => {
 .tag-panel {
     height: 2rem;
     display: flex;
-    justify-content: right;
+    justify-content: flex-end; /* 使用 flex-end 代替 right */
     align-items: center;
     gap: 0.5rem;
-}
-
-@keyframes wave {
-    0% {
-        transform: translateY(0);
-    }
-
-    25% {
-        transform: translateY(-2px);
-    }
-
-    50% {
-        transform: translateY(0);
-    }
-
-    75% {
-        transform: translateY(2px);
-    }
-
-    100% {
-        transform: translateY(0);
-    }
+    overflow-x: auto; /* 添加横向滚动条 */
+    width: 100%; /* 确保有固定宽度 */
+    white-space: nowrap; /* 确保内容不换行 */
 }
 </style>

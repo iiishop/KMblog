@@ -1,10 +1,11 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import globalVar from './globalVar';
+import config from './config';
 import PostPanel from './components/PostPanel.vue';
 import SelfIntroduction from './components/SelfIntroduction.vue';
 import Collection from './components/Collection.vue';
-import globalVar from './globalVar';
-import config from './config';
+import TagPanel from './components/TagPanel.vue';
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
 const posts = ref([]);
@@ -32,6 +33,7 @@ onMounted(() => {
         <Collection v-for="(collection, name) in collections" :name="name" :imageUrl="collection.image"
           :createDate="collection.date" :count="collection.count" />
       </div>
+      <TagPanel />
     </div>
   </div>
 </template>
@@ -51,6 +53,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 2rem;
+  padding-top: 4rem;
 }
 
 .Posts {

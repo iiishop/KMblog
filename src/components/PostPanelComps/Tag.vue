@@ -8,6 +8,11 @@ const props = defineProps({
         type: String,
         required: true,
         validator: value => value.length <= 8 // 确保 tagname 不超过 8 个字符
+    },
+    count: {
+        type: Number,
+        required: false,
+        default: 1 // 默认 count 为 1
     }
 });
 
@@ -42,16 +47,15 @@ function getContrastColor(hex) {
 const backgroundColor = ref(randomColor());
 const textColor = computed(() => getContrastColor(backgroundColor.value));
 
+// 计算尺寸比例
+const sizeFactor = computed(() => 1 + (props.count - 1) * 0.05);
+
 // 计算样式
 const tagStyle = computed(() => ({
     backgroundColor: backgroundColor.value,
     color: textColor.value,
-    padding: '0.1rem 0.5rem',
-    borderRadius: '0.5rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.8rem',
+    padding: `${0.7 * sizeFactor.value}rem ${0.4 * sizeFactor.value}rem`,
+    fontSize: `${0.8 * sizeFactor.value}rem`,
     fontFamily: 'Arial, sans-serif',
     fontWeight: 'bold',
     cursor: 'pointer' // 添加手型光标
@@ -77,5 +81,12 @@ function handleTagClick() {
 <style scoped>
 .tag {
     text-align: center;
+    flex-wrap: nowrap;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 </style>
