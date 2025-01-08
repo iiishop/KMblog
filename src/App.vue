@@ -4,6 +4,7 @@ import PostPanel from './components/PostPanel.vue';
 import SelfIntroduction from './components/SelfIntroduction.vue';
 import Collection from './components/Collection.vue';
 import globalVar from './globalVar';
+import config from './config';
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
 const posts = ref([]);
@@ -12,6 +13,7 @@ const collections = ref([]);
 onMounted(() => {
   posts.value = globalVar.markdowns;
   collections.value = globalVar.collections;
+  document.title = config.BlogName+"|"+config.ShortDesc;
 });
 </script>
 

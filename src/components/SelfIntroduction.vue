@@ -1,5 +1,5 @@
 <script setup>
-import { config } from '@/config';
+import config from '@/config';
 import { ref } from 'vue';
 import { Icon } from '@iconify/vue';
 import { openLink } from '@/utils';

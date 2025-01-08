@@ -35,7 +35,7 @@ import Tag from './PostPanelComps/Tag.vue';
 import IconCategory from './icons/IconCategory.vue';
 import IconDate from './icons/IconDate.vue';
 import axios from 'axios';
-import { config } from '@/config'; // 导入全局配置
+import config from '@/config'; // 导入全局配置
 import { parseMarkdown } from "@/utils";
 
 // 定义 props

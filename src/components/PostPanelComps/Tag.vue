@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue';
-import { config } from '@/config'; // 导入全局配置
+import config from '@/config'; // 导入全局配置
 
 // 定义 props
 const props = defineProps({

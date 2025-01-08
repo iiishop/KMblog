@@ -27,12 +27,12 @@ const props = defineProps({
     background-color: #f7f7f7;
     border-radius: 1rem;
     overflow: hidden;
-    box-shadow: 5px 5px 10px #ccc;
     transition: all 0.2s ease-in-out;
 }
 
 .collection:hover {
     transform: scale(1.02);
+    box-shadow: 0px 0px 10px #ccc;
 }
 
 .info {
