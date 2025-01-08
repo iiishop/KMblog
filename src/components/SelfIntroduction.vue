@@ -14,6 +14,7 @@ const links = ref(config.Links.map(link => ({
 })));
 
 const articleCount = ref(globalVar.markdowns.length);
+const tagCount = ref(Object.keys(globalVar.tags).length);
 </script>
 <template>
   <div class="user-info">
@@ -26,11 +27,11 @@ const articleCount = ref(globalVar.markdowns.length);
         <span>{{ articleCount }}</span>
       </div>
       <div>
-        <span>分类数量</span>
-        <span>4</span>
+        <span>标签数量</span>
+        <span>{{ tagCount }}</span>
       </div>
       <div>
-        <span>标签数量</span>
+        <span>目录数量</span>
         <span>19</span>
       </div>
     </div>
@@ -57,7 +58,7 @@ const articleCount = ref(globalVar.markdowns.length);
 
 .user-info img{
   width: 40%;
-  height: 40%;
+  height: auto;
   border-radius: 50%;
   box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
   transition: all 0.5s ease;
