@@ -15,6 +15,7 @@ const links = ref(config.Links.map(link => ({
 
 const articleCount = ref(globalVar.markdowns.length);
 const tagCount = ref(Object.keys(globalVar.tags).length);
+const categoryCount = ref(Object.keys(globalVar.categories).length);
 </script>
 <template>
   <div class="user-info">
@@ -32,7 +33,7 @@ const tagCount = ref(Object.keys(globalVar.tags).length);
       </div>
       <div>
         <span>目录数量</span>
-        <span>19</span>
+        <span>{{ categoryCount }}</span>
       </div>
     </div>
     <div class="icons">

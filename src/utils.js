@@ -1,47 +1,14 @@
 import axios from 'axios';
 import yaml from 'yaml';
-// 解析 Markdown 文档的函数，只解析 meta 数据
-export function parseMarkdown(content) {
-  const metadataRegex = /^---\n([\s\S]*?)\n---/;
-  const match = content.match(metadataRegex);
 
-  if (match) {
-    const meta = yaml.parse(match[1]);
-    return { meta };
-  } else {
-    return { meta: {} };
-  }
-}
-
-export function openLink(url) {
-  window.open(url, '_blank');
-}
-
-// 异步函数，用于加载和解析 JSON 文件
-export async function loadMarkdownLinks() {
+// 通用的异步函数，用于加载和解析 JSON 文件
+async function loadJsonFile(filePath) {
   try {
-    // 加载 PostDirectory.json 文件
-    const response = await axios.get('/src/assets/PostDirectory.json');
-    const data = response.data;
-
-    // 解析 JSON 文件，提取所有 Markdown 文件的链接
-    const markdownLinks = extractMarkdownLinks(data);
-
-    // 获取每个 Markdown 文件中的元数据
-    const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
-      const { path: markdownUrl, id } = item;
-      const markdownContent = await axios.get(markdownUrl);
-      const { meta } = parseMarkdown(markdownContent.data);
-      const imageName = meta.img;
-      const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-      return { id, markdownUrl, imageUrl };
-    }));
-
-    console.log('Markdown with Images:', markdownWithImages);
-    return markdownWithImages;
+    const response = await axios.get(filePath);
+    return response.data;
   } catch (error) {
-    console.error('Error loading PostDirectory.json:', error);
-    return [];
+    console.error(`Error loading ${filePath}:`, error);
+    return null;
   }
 }
 
@@ -67,19 +34,65 @@ function extractMarkdownLinks(data) {
   return links;
 }
 
+// 导出的函数
+
+export function openLink(url) {
+  window.open(url, '_blank');
+}
+
+// 解析 Markdown 文档的函数，只解析 meta 数据
+export function parseMarkdown(content) {
+  const metadataRegex = /^---\n([\s\S]*?)\n---/;
+  const match = content.match(metadataRegex);
+
+  if (match) {
+    const meta = yaml.parse(match[1]);
+    return { meta };
+  } else {
+    return { meta: {} };
+  }
+}
+
+// 异步函数，用于加载和解析 PostDirectory.json 文件
+export async function loadMarkdownLinks() {
+  const data = await loadJsonFile('/src/assets/PostDirectory.json');
+  if (data) {
+    const markdownLinks = extractMarkdownLinks(data);
+
+    const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
+      const { path: markdownUrl, id } = item;
+      const markdownContent = await loadJsonFile(markdownUrl);
+      if (markdownContent) {
+        const { meta } = parseMarkdown(markdownContent);
+        const imageName = meta.img;
+        const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
+        return { id, markdownUrl, imageUrl };
+      }
+      return null;
+    }));
+
+    console.log('Markdown with Images:', markdownWithImages);
+    return markdownWithImages.filter(item => item !== null);
+  }
+  return [];
+}
+
 // 异步函数，用于加载和解析 Tags.json 文件
 export async function loadTags() {
-  try {
-    // 使用 axios 读取 Tags.json 文件
-    const response = await axios.get('/src/assets/Tags.json');
-
-    // 解析响应为 JSON
-    const data = response.data;
-
+  const data = await loadJsonFile('/src/assets/Tags.json');
+  if (data) {
     console.log('Tags loaded successfully:', data);
     return data;
-  } catch (error) {
-    console.error('Error loading tags:', error);
-    return {};
   }
+  return {};
+}
+
+// 异步函数，用于加载和解析 Categories.json 文件
+export async function loadCategories() {
+  const data = await loadJsonFile('/src/assets/Categories.json');
+  if (data) {
+    console.log('Categories loaded successfully:', data);
+    return data;
+  }
+  return {};
 }
