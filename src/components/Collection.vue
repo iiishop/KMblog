@@ -9,7 +9,7 @@ const props = defineProps({
 
 <template>
     <div class="collection">
-        <img :src="imageUrl" alt="Collection" />
+        <img :src="imageUrl" />
         <div class="info">
             <h2>{{ name }}</h2>
             <p>{{ createDate }}</p>
@@ -24,10 +24,15 @@ const props = defineProps({
     align-items: center;
     gap: 1rem;
     width: 100%;
-    padding: 1rem;
     background-color: #f7f7f7;
-    border-radius: 15px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 5px 5px 10px #ccc;
+    transition: all 0.2s ease-in-out;
+}
+
+.collection:hover {
+    transform: scale(1.02);
 }
 
 .info {
@@ -38,10 +43,17 @@ const props = defineProps({
 }
 
 img {
-    width: 8rem;
-    height: 5rem;
+    width: auto;
+    max-width: 50%;
+    height: 8rem;
     object-fit: cover;
-    border-radius: 10px;
+    /* 使用 -webkit-mask-image 和 mask-image 实现从左向右的透明渐变 */
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 10%, rgba(0, 0, 0, 0));
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 10%, rgba(0, 0, 0, 0));
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
     transition: transform 0.2s ease;
 }
 

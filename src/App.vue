@@ -7,9 +7,11 @@ import globalVar from './globalVar';
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
 const posts = ref([]);
+const collections = ref([]);
 
 onMounted(() => {
   posts.value = globalVar.markdowns;
+  collections.value = globalVar.collections;
 });
 </script>
 
@@ -25,7 +27,8 @@ onMounted(() => {
       <SelfIntroduction />
       <div class="CollectionPanel">
         <h1>Collections</h1>
-        <Collection :name="'旮旯给'" :imageUrl="'/src/Posts/Gal/4c80cd1bed33d12740f1ad3588641973318896950.jpg'" :createDate="'2023-10-10'" :count="10" />
+        <Collection v-for="(collection, name) in collections" :name="name" :imageUrl="collection.image"
+          :createDate="collection.date" :count="collection.count" />
       </div>
     </div>
   </div>
@@ -76,5 +79,6 @@ body {
   border-radius: 20px;
   box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
   height: auto;
+  gap: 1rem;
 }
 </style>

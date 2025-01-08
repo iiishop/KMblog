@@ -34,6 +34,33 @@ function extractMarkdownLinks(data) {
   return links;
 }
 
+// 私有函数：解析 PostDirectory.json，过滤掉最顶层 "Markdowns"，并统计其余子项的数量
+function parsePostDirectory(postDirectoryData) {
+  const result = {};
+
+  for (const key in postDirectoryData) {
+    // 跳过最顶层的 "Markdowns" 字段
+    if (key === 'Markdowns') {
+      continue;
+    }
+
+    // 处理其它字段（例如 "Gal", "旮旯给" 等）
+    const itemData = postDirectoryData[key];
+    const { date, image, Markdowns } = itemData || {};
+
+    // 如果存在 Markdowns 数组，则统计其长度；否则为 0
+    const count = Array.isArray(Markdowns) ? Markdowns.length : 0;
+
+    result[key] = {
+      date: date || '',
+      image: image || '',
+      count: Number(count),
+    };
+  }
+
+  return result;
+}
+
 // 导出的函数
 
 export function openLink(url) {
@@ -93,6 +120,17 @@ export async function loadCategories() {
   if (data) {
     console.log('Categories loaded successfully:', data);
     return data;
+  }
+  return {};
+}
+
+// 新增的异步函数，用于加载并解析 /src/assets/PostDirectory.json，返回处理后的 Collections
+export async function loadCollections() {
+  const data = await loadJsonFile('/src/assets/PostDirectory.json');
+  if (data) {
+    const collections = parsePostDirectory(data);
+    console.log('Collections loaded successfully:', collections);
+    return collections;
   }
   return {};
 }
