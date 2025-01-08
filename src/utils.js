@@ -81,6 +81,7 @@ export function parseMarkdown(content) {
 }
 
 // 异步函数，用于加载和解析 PostDirectory.json 文件
+
 export async function loadMarkdownLinks() {
   const data = await loadJsonFile('/src/assets/PostDirectory.json');
   if (data) {
@@ -93,13 +94,18 @@ export async function loadMarkdownLinks() {
         const { meta } = parseMarkdown(markdownContent);
         const imageName = meta.img;
         const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-        return { id, markdownUrl, imageUrl };
+        return { id, markdownUrl, imageUrl, date: meta.date };
       }
       return null;
     }));
 
-    console.log('Markdown with Images:', markdownWithImages);
-    return markdownWithImages.filter(item => item !== null);
+    // Filter out null values and sort by date
+    const sortedMarkdownWithImages = markdownWithImages
+      .filter(item => item !== null)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    console.log('Markdown with Images Sorted by Date:', sortedMarkdownWithImages);
+    return sortedMarkdownWithImages;
   }
   return [];
 }

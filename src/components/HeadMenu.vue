@@ -1,5 +1,5 @@
 <script setup>
-import { ref,onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import config from '@/config';
 
 // Sample menu items; you can replace them with data from an API or other source
@@ -15,15 +15,32 @@ const BlogName = ref(config.BlogName);
 // State for toggling the menu open/closed (useful for mobile view)
 const isMenuOpen = ref(false);
 
+// State to track if the page is scrolled
+const isScrolled = ref(false);
+
 // Toggles the menu in mobile view
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
 }
+
+// Handles the scroll event
+function handleScroll() {
+  isScrolled.value = window.scrollY > 0;
+}
+
+// Add event listener on mount and remove on unmount
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <template>
   <!-- Header container -->
-  <header class="header-menu">
+  <header :class="['header-menu', isScrolled ? 'scrolled' : '']">
     <div class="logo">
       <span>{{ BlogName }}</span>
     </div>
@@ -38,14 +55,8 @@ function toggleMenu() {
     <!-- Navigation list -->
     <nav class="nav-links" :class="{ 'active': isMenuOpen }">
       <ul>
-        <li
-          v-for="(item, index) in menuItems"
-          :key="index"
-          class="nav-item"
-        >
-          <a :href="item.link" class="nav-link">
-            {{ item.name }}
-          </a>
+        <li v-for="(item, index) in menuItems" :key="index" class="nav-item">
+          <a :href="item.link" class="nav-link">{{ item.name }}</a>
         </li>
       </ul>
     </nav>
@@ -66,19 +77,29 @@ function toggleMenu() {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #5ee7df, #b490ca);
-  position: relative;
-  z-index: 10;
-  overflow: hidden;
-  /* Add a subtle drop shadow */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  transition: all 0.4s ease-in-out;
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+  background: rgba(155, 255, 168, 0.8);
+  backdrop-filter: blur(5px);
 }
 
-/* Logo styles */
+.header-menu.scrolled {
+  border-radius: 2rem;
+  background: rgba(200, 255, 255, 0.8);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(10px) scale(0.95);
+}
+
 .logo {
   font-size: 1.5rem;
   font-weight: bold;
-  color: white;
+  color: #333;
   user-select: none;
 }
 
@@ -93,7 +114,7 @@ function toggleMenu() {
 .line {
   width: 25px;
   height: 3px;
-  background-color: white;
+  background-color: #333;
   transition: 0.4s ease;
 }
 
@@ -115,7 +136,6 @@ function toggleMenu() {
   transition: all 0.4s ease-in-out;
 }
 
-/* Navigation list items */
 .nav-links ul {
   display: flex;
   list-style: none;
@@ -125,35 +145,30 @@ function toggleMenu() {
   position: relative;
 }
 
-/* Links */
 .nav-link {
   padding: 0.5rem 0.75rem;
-  color: white;
+  color: #333;
   text-decoration: none;
   font-weight: 500;
   border-radius: 5px;
   transition: all 0.2s ease;
 }
 
-/* Hover animation: expanding background color + scale effect */
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 0, 0, 0.1);
   transform: scale(1.05);
 }
 
-/* Media query for mobile screen */
 @media (max-width: 768px) {
-  /* Show hamburger menu instead of nav links */
   .hamburger {
     display: flex;
   }
 
-  /* Hide nav links by default on mobile */
   .nav-links {
     position: absolute;
     top: 0;
     right: 0;
-    background: linear-gradient(135deg, #5ee7df, #b490ca);
+    background: rgba(255, 255, 255, 0.9);
     height: 100vh;
     width: 60%;
     flex-direction: column;
@@ -169,7 +184,6 @@ function toggleMenu() {
     margin: 0 1.5rem;
   }
 
-  /* Show the nav links when active */
   .nav-links.active {
     transform: translateX(0);
     transition: transform 0.5s ease;
