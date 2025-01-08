@@ -15,9 +15,7 @@ onMounted(() => {
 
         <h1>Tags</h1>
         <div class="TagList">
-            <!-- <Tag v-for="( tag, tagname ) in tags" :tagname="tagname" :count="tag.length" /> -->
-             <Tag :tagname="'test'" :count="5" />
-             <Tag :tagname="'test2'" :count="50" />
+            <Tag v-for="( tag, tagname ) in tags" :tagname="tagname" :count="tag.length" />
         </div>
     </div>
 

@@ -33,7 +33,6 @@ onMounted(() => {
         <Collection v-for="(collection, name) in collections" :name="name" :imageUrl="collection.image"
           :createDate="collection.date" :count="collection.count" />
       </div>
-      <TagPanel />
     </div>
   </div>
 </template>
