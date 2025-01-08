@@ -25,7 +25,7 @@ onMounted(() => {
       <SelfIntroduction />
       <div class="CollectionPanel">
         <h1>Collections</h1>
-        <Collection :name="'旮旯给'" :imageUrl="'/src/Posts/Images/1.jpg'" :createDate="'2023-10-10'" :count="10" />
+        <Collection :name="'旮旯给'" :imageUrl="'/src/Posts/Gal/4c80cd1bed33d12740f1ad3588641973318896950.jpg'" :createDate="'2023-10-10'" :count="10" />
       </div>
     </div>
   </div>

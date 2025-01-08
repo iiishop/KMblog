@@ -189,6 +189,7 @@ onMounted(() => {
     flex-grow: 1;
     flex-shrink: 1;
     overflow: hidden;
+    user-select: none;
     transition: all 0.5s ease;
 }
 
@@ -308,6 +309,7 @@ onMounted(() => {
 .pre-panel {
     font-family: 'Courier New', Courier, monospace;
     padding: 1rem;
+    min-height: 5rem;
 }
 
 .pre-panel pre {
