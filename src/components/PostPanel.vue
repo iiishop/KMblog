@@ -167,12 +167,12 @@ onMounted(() => {
     height: 100%;
     object-fit: cover;
     border-radius: 1rem;
-    transition: transform 0.5s ease;
+    transition: transform 0.2s ease;
 }
 
 .image-panel img:hover {
     transform: scale(1.1);
-    transition: transform 0.5s ease;
+    transition: transform 0.2s ease;
 }
 
 .content-panel {
@@ -188,7 +188,7 @@ onMounted(() => {
     flex-shrink: 1;
     overflow: hidden;
     user-select: none;
-    transition: all 0.5s ease;
+    transition: all 0.2s ease;
 }
 
 .content-panel:hover {

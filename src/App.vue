@@ -6,6 +6,7 @@ import PostPanel from './components/PostPanel.vue';
 import SelfIntroduction from './components/SelfIntroduction.vue';
 import Collection from './components/Collection.vue';
 import TagPanel from './components/TagPanel.vue';
+import HeadMenu from './components/HeadMenu.vue';
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
 const posts = ref([]);
@@ -19,6 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <HeadMenu />
   <div class="Scene">
 
     <div class="Posts">
