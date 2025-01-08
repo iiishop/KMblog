@@ -24,7 +24,7 @@ const props = defineProps({
     align-items: center;
     gap: 1rem;
     width: 100%;
-    background-color: #f7f7f7;
+    background-color: var(--collection-background-color);
     border-radius: 1rem;
     overflow: hidden;
     transition: all 0.2s ease-in-out;
@@ -32,7 +32,7 @@ const props = defineProps({
 
 .collection:hover {
     transform: scale(1.02);
-    box-shadow: 0px 0px 10px #ccc;
+    box-shadow: 0px 0px 10px var(--collection-box-shadow);
 }
 
 .info {
@@ -58,7 +58,7 @@ img {
 }
 
 p {
-    color: #666;
+    color: var(--text-color);
     margin: 0.5rem 0 0;
 }
 

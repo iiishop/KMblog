@@ -159,7 +159,7 @@ onMounted(() => {
     width: 30%;
     object-fit: cover;
     overflow: hidden;
-    box-shadow: 2px 2px 5px #ccc;
+    box-shadow: 2px 2px 5px var(--image-box-shadow);
 }
 
 .image-panel img {
@@ -178,10 +178,10 @@ onMounted(() => {
 .content-panel {
     padding: 1rem;
     border-radius: 1rem;
-    background-color: aliceblue;
-    box-shadow: 1px 1px 5px #ccc;
+    background-color: var(--content-background-color);
+    box-shadow: 1px 1px 5px var(--content-box-shadow);
     width: 70%;
-    color: black;
+    color: var(--content-text-color);
     display: flex;
     flex-direction: column;
     flex-grow: 1;
@@ -208,7 +208,7 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     position: relative;
-    color: rgba(0, 0, 0, 0.575);
+    color: var(--title-text-color);
     transition: color 0.2s ease;
     text-decoration: none;
     user-select: none;
@@ -228,7 +228,7 @@ onMounted(() => {
 }
 
 .title-panel p:hover {
-    color: rgb(199, 141, 191);
+    color: var(--title-hover-color);
 }
 
 .title-panel p:hover::after {
@@ -247,7 +247,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 0.2rem;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--info-text-color);
     margin: 0.2rem;
 }
 
@@ -256,7 +256,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     text-align: center;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--info-text-color);
     position: relative;
     transition: color 0.2s ease;
 }
@@ -274,7 +274,7 @@ onMounted(() => {
 }
 
 .category-panel a:hover {
-    color: rgb(100, 141, 191);
+    color: var(--category-hover-color);
 }
 
 .category-panel a:hover::after {
@@ -285,14 +285,14 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 0.2rem;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--info-text-color);
     margin: 0.2rem;
 }
 
 .date-panel a {
     text-decoration: none;
     display: flex;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--info-text-color);
     align-items: center;
     text-align: center;
     position: relative;
@@ -300,8 +300,7 @@ onMounted(() => {
 }
 
 .date-panel a:hover {
-    color: rgba(100, 141, 191);
-    animation: wave 0.6s infinite;
+    color: var(--date-hover-color);
 }
 
 .pre-panel {
@@ -317,7 +316,7 @@ onMounted(() => {
     margin: 0;
     padding: 0;
     line-height: 1.5;
-    color: #333;
+    color: var(--pre-text-color);
     display: -webkit-box;
     -webkit-box-orient: vertical;
     line-clamp: 2;
@@ -328,11 +327,15 @@ onMounted(() => {
 .tag-panel {
     height: 2rem;
     display: flex;
-    justify-content: flex-end; /* 使用 flex-end 代替 right */
+    justify-content: flex-end;
+    /* 使用 flex-end 代替 right */
     align-items: center;
     gap: 0.5rem;
-    overflow-x: auto; /* 添加横向滚动条 */
-    width: 100%; /* 确保有固定宽度 */
-    white-space: nowrap; /* 确保内容不换行 */
+    overflow-x: auto;
+    /* 添加横向滚动条 */
+    width: 100%;
+    /* 确保有固定宽度 */
+    white-space: nowrap;
+    /* 确保内容不换行 */
 }
 </style>

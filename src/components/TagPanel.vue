@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import Tag from './PostPanelComps/Tag.vue';
 import globalVar from '@/globalVar';
+import '../color.css';
 
 const tags = ref({});
 
@@ -28,17 +29,20 @@ onMounted(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 1px 5px var(--tag-panel-box-shadow);
+    background-color: var(--tag-panel-background-color);
 }
+
 .TagPanel h1 {
-    color: black;
+    color: var(--tag-panel-text-color);
 }
+
 .TagList {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: var(--tag-list-gap);
     width: 100%;
-    padding: 10px;
+    padding: var(--tag-list-padding);
 }
 </style>

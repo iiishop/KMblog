@@ -2,6 +2,7 @@ const config = {
     ProjectUrl: 'https://localhost:5173',
     BlogName: '诺丝的博客',
     ShortDesc: "见证本小姐的旮旯",
+    theme: "day",
     HeadImg: '/src/assets/head.png',
     Name: 'MatchaNorth',
     Description: 'A social network for finding love and making friends',

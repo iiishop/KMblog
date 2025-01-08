@@ -53,16 +53,16 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
   border-radius: 20px;
   padding: 1rem;
   width: 100%;
-  background-color: #ffe;
-  box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
-  color:black;
+  background-color: var(--user-info-background-color);
+  box-shadow: 1px 1px 5px var(--user-info-box-shadow);
+  color: var(--user-info-text-color);
 }
 
-.user-info img{
+.user-info img {
   width: 40%;
   height: auto;
   border-radius: 50%;
-  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0px 0px 5px var(--user-info-img-box-shadow);
   transition: all 0.5s ease;
 }
 
@@ -82,6 +82,7 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
 .stats span {
   display: block;
 }
+
 .icons {
   display: flex;
   justify-content: center;
@@ -94,8 +95,7 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
   transition: all 0.3s ease;
 }
 
-
 .link:hover {
-  color: #ff6347;
+  color: var(--link-hover-color);
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import config from '@/config';
+import '../color.css';
 
 // Sample menu items; you can replace them with data from an API or other source
 const menuItems = ref([
@@ -85,21 +86,21 @@ onUnmounted(() => {
   transition: all 0.4s ease-in-out;
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
-  background: rgba(155, 255, 168, 0.8);
+  background: var(--header-background-color);
   backdrop-filter: blur(5px);
 }
 
 .header-menu.scrolled {
   border-radius: 2rem;
-  background: rgba(200, 255, 255, 0.8);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background: var(--header-background-color-scrolled);
+  box-shadow: 0 4px 15px var(--header-box-shadow);
   transform: translateY(10px) scale(0.95);
 }
 
 .logo {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #333;
+  color: var(--logo-text-color);
   user-select: none;
 }
 
@@ -114,7 +115,7 @@ onUnmounted(() => {
 .line {
   width: 25px;
   height: 3px;
-  background-color: #333;
+  background-color: var(--hamburger-line-color);
   transition: 0.4s ease;
 }
 
@@ -147,7 +148,7 @@ onUnmounted(() => {
 
 .nav-link {
   padding: 0.5rem 0.75rem;
-  color: #333;
+  color: var(--nav-link-color);
   text-decoration: none;
   font-weight: 500;
   border-radius: 5px;
@@ -155,7 +156,7 @@ onUnmounted(() => {
 }
 
 .nav-link:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--nav-link-hover-background-color);
   transform: scale(1.05);
 }
 
@@ -168,13 +169,13 @@ onUnmounted(() => {
     position: absolute;
     top: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--mobile-nav-background-color);
     height: 100vh;
     width: 60%;
     flex-direction: column;
     transform: translateX(100%);
     padding-top: 5rem;
-    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    box-shadow: -2px 0 8px var(--mobile-nav-box-shadow);
   }
 
   .nav-links ul {
