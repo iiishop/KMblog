@@ -51,6 +51,7 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
   flex-direction: column;
   align-items: center;
   border-radius: 20px;
+  padding: 1rem;
   width: 100%;
   background-color: #ffe;
   box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
@@ -61,7 +62,7 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
   width: 40%;
   height: auto;
   border-radius: 50%;
-  box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
   transition: all 0.5s ease;
 }
 
