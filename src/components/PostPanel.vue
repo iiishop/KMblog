@@ -157,7 +157,6 @@ onMounted(() => {
     border-radius: 1rem;
     height: 100%;
     width: 30%;
-    object-fit: cover;
     overflow: hidden;
     box-shadow: 2px 2px 5px var(--image-box-shadow);
 }
@@ -165,13 +164,12 @@ onMounted(() => {
 .image-panel img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     border-radius: 1rem;
     transition: transform 0.2s ease;
 }
 
 .image-panel img:hover {
-    transform: scale(1.1);
+    transform: scale(1.2);
     transition: transform 0.2s ease;
 }
 

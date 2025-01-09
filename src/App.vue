@@ -74,7 +74,6 @@ body {
   flex-direction: column;
   gap: 2rem;
   align-items: center;
-  justify-content: center;
   width: 25rem;
   color: var(--rightlist-text-color);
 }
