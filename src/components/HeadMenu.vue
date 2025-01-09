@@ -65,13 +65,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Basic reset */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 /* Header container */
 .header-menu {
   display: flex;
@@ -87,7 +80,7 @@ onUnmounted(() => {
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
   background: var(--header-background-color);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(50px);
 }
 
 .header-menu.scrolled {

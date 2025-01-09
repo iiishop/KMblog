@@ -18,8 +18,8 @@
   --collectionpanel-text-color: black;
 
   /* Header */
-  --header-background-color: rgba(155, 255, 168, 0.8);
-  --header-background-color-scrolled: rgba(200, 255, 255, 0.8);
+  --header-background-color: rgba(255, 215, 231, 0.616);
+  --header-background-color-scrolled: rgba(200, 255, 255, 0.7);
   --header-box-shadow: rgba(0, 0, 0, 0.1);
 
   /* Logo */
