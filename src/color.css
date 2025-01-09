@@ -37,11 +37,9 @@
   --mobile-nav-box-shadow: rgba(0, 0, 0, 0.1);
 
   /* TagPanel */
-  --tag-panel-background-color: white;
+  --tag-panel-background-color: #f9f9f9;
   --tag-panel-box-shadow: rgba(0, 0, 0, 0.1);
   --tag-panel-text-color: black;
-  --tag-list-gap: 1rem;
-  --tag-list-padding: 10px;
 
   /* PostPanel */
   --gap-color: #ccc;
@@ -109,8 +107,6 @@
   --tag-panel-background-color: #1d1d1d;
   --tag-panel-box-shadow: rgba(0, 0, 0, 0.7);
   --tag-panel-text-color: #e0e0e0;
-  --tag-list-gap: 1rem;
-  --tag-list-padding: 10px;
 
   /* PostPanel */
   --gap-color: #555;

@@ -27,10 +27,12 @@ onMounted(() => {
     border-radius: 20px;
     display: flex;
     flex-direction: column;
+    text-align: center;
     align-items: center;
     justify-content: center;
     box-shadow: 1px 1px 5px var(--tag-panel-box-shadow);
     background-color: var(--tag-panel-background-color);
+
 }
 
 .TagPanel h1 {
@@ -41,8 +43,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: var(--tag-list-gap);
+    gap: 1rem;
     width: 100%;
-    padding: var(--tag-list-padding);
 }
 </style>

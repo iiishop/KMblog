@@ -4,14 +4,13 @@ import globalVar from './globalVar';
 import config from './config';
 import PostPanel from './components/PostPanel.vue';
 import SelfIntroduction from './components/SelfIntroduction.vue';
-import Collection from './components/Collection.vue';
 import HeadMenu from './components/HeadMenu.vue';
-import './color.css'; // 导入 color.css
 import TagPanel from './components/TagPanel.vue';
+import CollectionPanel from './components/CollectionPanel.vue';
+import './color.css'; // 导入 color.css
 
 // 数据数组，每个对象包含 imageUrl 和 markdownUrl
 const posts = ref([]);
-const collections = ref([]);
 
 // 设置主题
 const setTheme = (theme) => {
@@ -20,7 +19,7 @@ const setTheme = (theme) => {
 
 onMounted(() => {
   posts.value = globalVar.markdowns;
-  collections.value = globalVar.collections;
+
   document.title = config.BlogName + "|" + config.ShortDesc;
 
   // 应用主题
@@ -38,11 +37,7 @@ onMounted(() => {
     </div>
     <div class="RightList">
       <SelfIntroduction />
-      <div class="CollectionPanel">
-        <h1>Collections</h1>
-        <Collection v-for="(collection, name) in collections" :name="name" :imageUrl="collection.image"
-          :createDate="collection.date" :count="collection.count" />
-      </div>
+      <CollectionPanel />
       <TagPanel />
     </div>
   </div>
@@ -84,17 +79,4 @@ body {
   color: var(--rightlist-text-color);
 }
 
-.CollectionPanel {
-  display: flex;
-  flex-direction: column;
-  text-align: center;
-  background: var(--collectionpanel-background-color);
-  padding: 1rem;
-  width: 100%;
-  border-radius: 20px;
-  box-shadow: 1px 1px 5px var(--collectionpanel-shadow-color);
-  height: auto;
-  gap: 1rem;
-  color: var(--collectionpanel-text-color);
-}
 </style>
