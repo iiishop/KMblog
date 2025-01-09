@@ -82,7 +82,7 @@ function handleTagClick() {
 .tag {
     text-align: center;
     flex-wrap: nowrap;
-    height: 2rem;
+    height: 1.6rem;
     border-radius: 0.5rem;
     display: flex;
     align-items: center;

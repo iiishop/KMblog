@@ -23,6 +23,8 @@ onMounted(() => {
 </template>
 <style scoped>
 .TagPanel {
+    padding: 1rem;
+    gap: 1rem;
     width: 100%;
     border-radius: 20px;
     display: flex;
@@ -43,7 +45,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.8rem;
     width: 100%;
 }
 </style>
