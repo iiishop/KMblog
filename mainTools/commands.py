@@ -56,7 +56,11 @@ class ShowPostsJson(Command):
         return [{'id': start_id + i, 'path': self._convert_to_relative_path(path, base_path)} for i, path in enumerate(paths)]
 
     def _convert_to_relative_path(self, path, base_path='/src'):
-        return base_path + path.split(base_path, 1)[1]
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        if path.startswith(base_path):
+            return path[len(base_path):].replace('\\', '/')
+        else:
+            return path.replace('\\', '/')
 
 
 class ListCollections(Command):

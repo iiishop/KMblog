@@ -1,7 +1,10 @@
 import os
 import importlib
 import inspect
-import readline
+try:
+    import readline
+except ImportError:
+    import pyreadline as readline
 from commands import Command
 
 # Define a completer function for readline

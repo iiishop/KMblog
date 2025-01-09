@@ -69,19 +69,20 @@ export function openLink(url) {
 
 // 解析 Markdown 文档的函数，只解析 meta 数据
 export function parseMarkdown(content) {
-  const metadataRegex = /^---\n([\s\S]*?)\n---/;
+  const metadataRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
   const match = content.match(metadataRegex);
 
   if (match) {
     const meta = yaml.parse(match[1]);
+    console.debug('Parsed metadata:', meta); // 添加调试日志
     return { meta };
   } else {
+    console.debug('No metadata found'); // 添加调试日志
     return { meta: {} };
   }
 }
 
 // 异步函数，用于加载和解析 PostDirectory.json 文件
-
 export async function loadMarkdownLinks() {
   const data = await loadJsonFile('/src/assets/PostDirectory.json');
   if (data) {
@@ -89,12 +90,14 @@ export async function loadMarkdownLinks() {
 
     const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
       const { path: markdownUrl, id } = item;
-      const markdownContent = await loadJsonFile(markdownUrl);
+      const normalizedMarkdownUrl = markdownUrl.replace(/\\/g, '/'); // 将反斜杠替换为正斜杠
+      console.debug('Loading Markdown file:', normalizedMarkdownUrl); // 输出 Markdown 文件路径
+      const markdownContent = await loadJsonFile(normalizedMarkdownUrl);
       if (markdownContent) {
         const { meta } = parseMarkdown(markdownContent);
         const imageName = meta.img;
         const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-        return { id, markdownUrl, imageUrl, date: meta.date };
+        return { id, markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date };
       }
       return null;
     }));

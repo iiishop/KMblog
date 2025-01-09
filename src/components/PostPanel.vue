@@ -301,6 +301,7 @@ onMounted(() => {
 
 .date-panel a:hover {
     color: var(--date-hover-color);
+    animation: wave 1s infinite;
 }
 
 .pre-panel {
@@ -337,5 +338,26 @@ onMounted(() => {
     /* 确保有固定宽度 */
     white-space: nowrap;
     /* 确保内容不换行 */
+}
+@keyframes wave {
+    0% {
+        transform: translateY(0);
+    }
+
+    25% {
+        transform: translateY(-2px);
+    }
+
+    50% {
+        transform: translateY(0);
+    }
+
+    75% {
+        transform: translateY(2px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
 }
 </style>
