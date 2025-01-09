@@ -61,11 +61,11 @@ body {
   display: flex;
   flex-direction: row;
   width: 100vw;
+  height: 100%;
   justify-content: center;
   align-items: center;
   gap: 2rem;
   padding-top: 4rem;
-  background: var(--scene-background-color);
 }
 
 .Posts {
