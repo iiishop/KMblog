@@ -62,6 +62,123 @@ class ShowPostsJson(Command):
         else:
             return path.replace('\\', '/')
 
+class ShowTagsJson(Command):
+    description = "Shows the tags and their corresponding markdown files in JSON format."
+
+    def execute(self):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
+        if not os.path.exists(posts_path):
+            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+
+        tags_dict = {}
+
+        # List Markdown files in the root directory
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        if os.path.exists(markdowns_path):
+            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            for file in root_files:
+                file_path = os.path.join(markdowns_path, file)
+                metadata = parse_markdown_metadata(file_path)
+
+                # Update tags_dict with tags from metadata
+                if 'tags' in metadata and metadata['tags']:
+                    for tag in metadata['tags']:
+                        if tag not in tags_dict:
+                            tags_dict[tag] = []
+                        tags_dict[tag].append(self._convert_to_relative_path(file_path, base_path))
+
+        # List collections and their posts
+        directories = [
+            file for file in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
+        ]
+
+        for dir_name in directories:
+            dir_path = os.path.join(posts_path, dir_name)
+            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
+            for md_file in md_files:
+                md_file_path = os.path.join(dir_path, md_file)
+                metadata = parse_markdown_metadata(md_file_path)
+
+                # Update tags_dict with tags from metadata
+                if 'tags' in metadata and metadata['tags']:
+                    for tag in metadata['tags']:
+                        if tag not in tags_dict:
+                            tags_dict[tag] = []
+                        tags_dict[tag].append(self._convert_to_relative_path(md_file_path, base_path))
+
+        return tags_dict
+
+    def _convert_to_relative_path(self, path, base_path='/src'):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        if path.startswith(base_path):
+            return path[len(base_path):].replace('\\', '/')
+        else:
+            return path.replace('\\', '/')
+
+class ShowCategoriesJson(Command):
+    description = "Shows the categories and their corresponding markdown files in JSON format."
+
+    def execute(self):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
+        if not os.path.exists(posts_path):
+            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+
+        categories_dict = {}
+
+        # List Markdown files in the root directory
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        if os.path.exists(markdowns_path):
+            root_files = [os.path.join(markdowns_path, file) for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            for file_path in root_files:
+                self._process_markdown_file(file_path, categories_dict)
+
+        # List collections and their posts
+        directories = [
+            file for file in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
+        ]
+
+        for dir_name in directories:
+            dir_path = os.path.join(posts_path, dir_name)
+            md_files = [os.path.join(dir_path, file) for file in os.listdir(dir_path) if file.endswith('.md')]
+            for md_file_path in md_files:
+                self._process_markdown_file(md_file_path, categories_dict)
+
+        return categories_dict
+
+    def _process_markdown_file(self, file_path, categories_dict):
+        metadata = parse_markdown_metadata(file_path)
+        categories = metadata.get('categories', [])
+
+        if not categories:
+            return
+
+        parent_category = ""
+        for category in categories:
+            if category not in categories_dict:
+                categories_dict[category] = {
+                    'preCategory': parent_category,
+                    'files': []
+                }
+            else:
+                categories_dict[category]['preCategory'] = parent_category
+
+            parent_category = category
+
+        # Add the file to the last category in the list
+        relative_path = self._convert_to_relative_path(file_path)
+        categories_dict[categories[-1]]['files'].append(relative_path)
+
+    def _convert_to_relative_path(self, path, base_path='/src'):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        if path.startswith(base_path):
+            return path[len(base_path):].replace('\\', '/')
+        else:
+            return path.replace('\\', '/')
+
 
 class ListCollections(Command):
     description = "Lists all collections in the posts directory."
@@ -319,116 +436,3 @@ class ListAllPosts(Command):
         return "\n".join(formatted_output)
 
 
-class ShowTagsJson(Command):
-    description = "Shows the tags and their corresponding markdown files in JSON format."
-
-    def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
-        if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
-
-        tags_dict = {}
-
-        # List Markdown files in the root directory
-        markdowns_path = os.path.join(posts_path, 'Markdowns')
-        if os.path.exists(markdowns_path):
-            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
-            for file in root_files:
-                file_path = os.path.join(markdowns_path, file)
-                metadata = parse_markdown_metadata(file_path)
-
-                # Update tags_dict with tags from metadata
-                if 'tags' in metadata and metadata['tags']:
-                    for tag in metadata['tags']:
-                        if tag not in tags_dict:
-                            tags_dict[tag] = []
-                        tags_dict[tag].append(self._convert_to_relative_path(file_path))
-
-        # List collections and their posts
-        directories = [
-            file for file in os.listdir(posts_path)
-            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
-        ]
-
-        for dir_name in directories:
-            dir_path = os.path.join(posts_path, dir_name)
-            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
-            for md_file in md_files:
-                md_file_path = os.path.join(dir_path, md_file)
-                metadata = parse_markdown_metadata(md_file_path)
-
-                # Update tags_dict with tags from metadata
-                if 'tags' in metadata and metadata['tags']:
-                    for tag in metadata['tags']:
-                        if tag not in tags_dict:
-                            tags_dict[tag] = []
-                        tags_dict[tag].append(self._convert_to_relative_path(md_file_path))
-
-        return tags_dict
-
-    def _convert_to_relative_path(self, path, base_path='/src'):
-        relative_path = base_path + path.split(base_path, 1)[1]
-        # Remove '/src' prefix
-        return relative_path
-
-
-class ShowCategoriesJson(Command):
-    description = "Shows the categories and their corresponding markdown files in JSON format."
-
-    def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
-        if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
-
-        categories_dict = {}
-
-        # List Markdown files in the root directory
-        markdowns_path = os.path.join(posts_path, 'Markdowns')
-        if os.path.exists(markdowns_path):
-            root_files = [os.path.join(markdowns_path, file) for file in os.listdir(markdowns_path) if file.endswith('.md')]
-            for file_path in root_files:
-                self._process_markdown_file(file_path, categories_dict)
-
-        # List collections and their posts
-        directories = [
-            file for file in os.listdir(posts_path)
-            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
-        ]
-
-        for dir_name in directories:
-            dir_path = os.path.join(posts_path, dir_name)
-            md_files = [os.path.join(dir_path, file) for file in os.listdir(dir_path) if file.endswith('.md')]
-            for md_file_path in md_files:
-                self._process_markdown_file(md_file_path, categories_dict)
-
-        return categories_dict
-
-    def _process_markdown_file(self, file_path, categories_dict):
-        metadata = parse_markdown_metadata(file_path)
-        categories = metadata.get('categories', [])
-
-        if not categories:
-            return
-
-        parent_category = ""
-        for category in categories:
-            if category not in categories_dict:
-                categories_dict[category] = {
-                    'preCategory': parent_category,
-                    'files': []
-                }
-            else:
-                categories_dict[category]['preCategory'] = parent_category
-
-            parent_category = category
-
-        # Add the file to the last category in the list
-        relative_path = self._convert_to_relative_path(file_path)
-        categories_dict[categories[-1]]['files'].append(relative_path)
-
-    def _convert_to_relative_path(self, path, base_path='/src'):
-        relative_path = base_path + path.split(base_path, 1)[1]
-        # Remove '/src' prefix
-        return relative_path
