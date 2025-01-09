@@ -50,6 +50,7 @@ body {
   font-family: 'Noto Sans SC', sans-serif;
   background: var(--body-background-color);
   color: var(--body-text-color);
+  overflow: auto;
 }
 
 .Scene {
@@ -61,7 +62,6 @@ body {
 }
 
 .Posts {
-  height: 100%;
   display: flex;
   gap: 2rem;
   flex-direction: column;
