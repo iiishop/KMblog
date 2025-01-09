@@ -60,20 +60,16 @@ body {
 .Scene {
   display: flex;
   flex-direction: row;
-  width: 100vw;
-  height: 100%;
   justify-content: center;
-  align-items: center;
   gap: 2rem;
-  padding-top: 4rem;
+  padding-top: 6rem;
 }
 
 .Posts {
+  height: 100%;
   display: flex;
   gap: 2rem;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   width: 50vw;
   color: var(--posts-text-color);
 }
