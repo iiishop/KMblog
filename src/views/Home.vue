@@ -1,31 +1,16 @@
 <script setup>
-import { onMounted, ref } from 'vue';
-import globalVar from '@/globalVar';
-import config from '@/config';
-import Post from '@/components/Post.vue';
 import SelfIntroduction from '@/components/SelfIntroduction.vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import TagPanel from '@/components/TagPanel.vue';
 import CollectionPanel from '@/components/CollectionPanel.vue';
+import PostPanel from '@/components/PostPanel.vue';
 
-// 数据数组，每个对象包含 imageUrl 和 markdownUrl
-const posts = ref([]);
-
-
-onMounted(() => {
-  posts.value = globalVar.markdowns;
-
-});
 </script>
 
 <template>
   <HeadMenu />
   <div class="Scene">
-    <div class="Posts">
-      <!-- 使用 v-for 指令迭代 posts 数组 -->
-      <Post v-for="(post, index) in posts" :key="post.id" :imageUrl="post.imageUrl"
-        :markdownUrl="post.markdownUrl" />
-    </div>
+    <PostPanel />
     <div class="RightList">
       <SelfIntroduction />
       <CollectionPanel />
@@ -52,14 +37,6 @@ body {
   padding-top: 6rem;
 }
 
-.Posts {
-  display: flex;
-  gap: 2rem;
-  flex-direction: column;
-  width: 50vw;
-  color: var(--posts-text-color);
-}
-
 .RightList {
   display: flex;
   flex-direction: column;
@@ -68,5 +45,4 @@ body {
   width: 25rem;
   color: var(--rightlist-text-color);
 }
-
 </style>
