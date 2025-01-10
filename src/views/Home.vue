@@ -4,7 +4,7 @@ import PostPanel from '@/components/PostPanel.vue';
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout :showTipList="false">
     <template #main>
       <PostPanel />
     </template>

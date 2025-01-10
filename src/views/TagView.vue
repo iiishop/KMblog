@@ -4,7 +4,7 @@ import TagPanel from '@/components/TagPanel.vue';
 </script>
 
 <template>
-  <BaseLayout>
+  <BaseLayout :showTipList="false">
     <template #main>
       <TagPanel />
     </template>
