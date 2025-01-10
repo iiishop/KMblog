@@ -71,7 +71,7 @@ async function initializeMarkdown(url) {
         const content = response.data;
 
         // 解析 Markdown 内容，仅解析 meta 数据
-        const { meta } = parseMarkdown(content);
+        const { meta } = await parseMarkdown(content);
         metadata.value = meta;
 
         // 格式化日期

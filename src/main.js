@@ -4,6 +4,7 @@ import { loadMarkdownLinks, loadTags, loadCategories, loadCollections } from "./
 import globalVar from './globalVar';
 import { createApp } from 'vue'
 import App from './App.vue'
+import router from './router';
 import config from './config';
 
 const app = createApp(App);
@@ -48,5 +49,5 @@ backgroundStyle.innerHTML = `
 document.head.appendChild(backgroundStyle);
 
 initGlobalVars().then(() => {
-    app.mount('#app');
+    app.use(router).mount('#app');
 });
