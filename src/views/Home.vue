@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue';
 import globalVar from '@/globalVar';
 import config from '@/config';
-import PostPanel from '@/components/PostPanel.vue';
+import Post from '@/components/Post.vue';
 import SelfIntroduction from '@/components/SelfIntroduction.vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import TagPanel from '@/components/TagPanel.vue';
@@ -23,7 +23,7 @@ onMounted(() => {
   <div class="Scene">
     <div class="Posts">
       <!-- 使用 v-for 指令迭代 posts 数组 -->
-      <PostPanel v-for="(post, index) in posts" :key="post.id" :imageUrl="post.imageUrl"
+      <Post v-for="(post, index) in posts" :key="post.id" :imageUrl="post.imageUrl"
         :markdownUrl="post.markdownUrl" />
     </div>
     <div class="RightList">
