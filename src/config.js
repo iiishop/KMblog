@@ -12,7 +12,7 @@ const config = {
     NumberOfPostsPerPage: 10,
     ChangeInfoAndTipPosition: false,
     InfoListUp: [
-        'SelfIntroduction',
+        'SelfIntroductionPanel',
         'CollectionPanel',
     ],
     InfoListDown: [

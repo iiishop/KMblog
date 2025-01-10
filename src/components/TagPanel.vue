@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 import Tag from './PostPanelComps/Tag.vue';
 import globalVar from '@/globalVar';
-import '../color.css';
 
 const tags = ref({});
 

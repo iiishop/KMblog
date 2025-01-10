@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import globalVar from '@/globalVar';
-import Post from '@/components/Post.vue';
+import Post from '@/components/PostPanelComps/Post.vue';
 const posts = ref([]);
 
 

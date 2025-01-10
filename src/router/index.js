@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 const Home = () => import('../views/Home.vue');
-const TagView = () => import('../views/TagView.vue');
+const TagPage = () => import('../views/TagPage.vue');
 // const BlogPost = () => import('../views/BlogPost.vue');
 
 const routes = [
@@ -12,8 +12,8 @@ const routes = [
     },
     {
         path: '/tags',
-        name: 'TagView',
-        component: TagView
+        name: 'TagPage',
+        component: TagPage
     }
     // {
     //   path: '/post/:id',
