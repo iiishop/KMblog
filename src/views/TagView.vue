@@ -5,7 +5,7 @@ import TagPanel from '@/components/TagPanel.vue';
 
 <template>
   <BaseLayout>
-    <template #middle>
+    <template #main>
       <TagPanel />
     </template>
   </BaseLayout>

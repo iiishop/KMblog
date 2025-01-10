@@ -10,7 +10,21 @@ const config = {
     Name: 'MatchaNorth',
     Description: 'A social network for finding love and making friends',
     NumberOfPostsPerPage: 10,
-    InfoPanelPosition: 'right',
+    ChangeInfoAndTipPosition: false,
+    InfoListUp: [
+        'SelfIntroduction',
+        'CollectionPanel',
+    ],
+    InfoListDown: [
+    ],
+    TipListUp: [
+    ],
+    TipListDown: [
+    ],
+    MainListUp: [
+    ],
+    MainListDown: [
+    ],
 
     // Social Links. Maximum 10
     Links: [

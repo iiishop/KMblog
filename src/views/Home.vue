@@ -5,7 +5,7 @@ import PostPanel from '@/components/PostPanel.vue';
 
 <template>
   <BaseLayout>
-    <template #middle>
+    <template #main>
       <PostPanel />
     </template>
   </BaseLayout>
