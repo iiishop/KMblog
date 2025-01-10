@@ -3,7 +3,6 @@ import SelfIntroduction from '@/components/SelfIntroduction.vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import TagPanel from '@/components/TagPanel.vue';
 import CollectionPanel from '@/components/CollectionPanel.vue';
-import PostPanel from '@/components/PostPanel.vue';
 
 </script>
 
@@ -12,7 +11,7 @@ import PostPanel from '@/components/PostPanel.vue';
   <div class="Scene">
     <div class="LeftList"></div>
     <div class="MidList">
-      <PostPanel />
+      <TagPanel />
     </div>
     <div class="RightList">
       <SelfIntroduction />

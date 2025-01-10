@@ -20,7 +20,7 @@ onMounted(() => {
     display: flex;
     gap: 2rem;
     flex-direction: column;
-    width: 50vw;
     color: var(--posts-text-color);
+    width: 100%;
 }
 </style>

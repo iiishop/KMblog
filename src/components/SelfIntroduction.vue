@@ -4,22 +4,28 @@ import { ref } from 'vue';
 import { Icon } from '@iconify/vue';
 import { openLink } from '@/utils';
 import globalVar from '@/globalVar';
+import { useRouter } from 'vue-router';
 
 const avatarUrl = ref(config.HeadImg);
 const name = ref(config.Name);
 const description = ref(config.Description);
 const links = ref(config.Links.map(link => ({
-    name: link.name.toLowerCase(),
-    url: link.url,
-})).slice(0,10));
+  name: link.name.toLowerCase(),
+  url: link.url,
+})).slice(0, 10));
 
 const articleCount = ref(globalVar.markdowns.length);
 const tagCount = ref(Object.keys(globalVar.tags).length);
 const categoryCount = ref(Object.keys(globalVar.categories).length);
+
+const router = useRouter();
+function goRouter(path) {
+  router.push(path);
+}
 </script>
 <template>
   <div class="user-info">
-    <img :src="avatarUrl"/>
+    <img :src="avatarUrl" />
     <h2>{{ name }}</h2>
     <p>{{ description }}</p>
     <div class="stats">
@@ -27,7 +33,7 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
         <span>文章数量</span>
         <span>{{ articleCount }}</span>
       </div>
-      <div>
+      <div class="clickable" @click="goRouter('/tags')">
         <span>标签数量</span>
         <span>{{ tagCount }}</span>
       </div>
@@ -37,9 +43,9 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
       </div>
     </div>
     <div class="icons">
-        <div v-for="(link, index) in links" :key="index" class="link">
-            <Icon :icon="`mdi:${link.name}`" @click="openLink(link.url)" style="cursor: pointer;"/>
-        </div>
+      <div v-for="(link, index) in links" :key="index" class="link">
+        <Icon :icon="`mdi:${link.name}`" @click="openLink(link.url)" style="cursor: pointer;" />
+      </div>
     </div>
   </div>
 </template>
@@ -81,6 +87,15 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
 
 .stats span {
   display: block;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable:hover {
+  color: var(--link-hover-color);
 }
 
 .icons {
