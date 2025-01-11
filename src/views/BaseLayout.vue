@@ -177,7 +177,7 @@ body {
     gap: 2rem;
     align-items: center;
     max-width: calc(100% - 45rem - 8rem);
-    min-width: 30rem;
+    min-width: 40rem;
     transition: all 0.3s ease-in-out;
 }
 
