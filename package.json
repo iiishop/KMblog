@@ -11,6 +11,8 @@
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
     "axios": "^1.7.9",
+    "front-matter": "^4.0.2",
+    "markdown-it": "^14.1.0",
     "marked": "^15.0.4",
     "vue": "^3.5.13",
     "vue-router": "^4.0.13",
