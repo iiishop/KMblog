@@ -182,7 +182,7 @@ body {
 }
 
 .MainList.expanded {
-    max-width: calc(100% - 4rem);
+    min-width: calc(100% - 4rem);
 }
 
 .toggle-btn {
