@@ -9,13 +9,11 @@
                     <slot name="tip"></slot>
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
                         :key="index" />
-
                 </div>
             </div>
             <div v-if="showInfoList && isInfoLeftPosition" :class="['InfoList', { hidden: isInfoListHidden }]">
                 <button class="toggle-btn right-btn" @click="toggleInfoList">←</button>
                 <div class="context">
-
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
                     <slot name="info"></slot>
@@ -23,7 +21,7 @@
                         :key="index" />
                 </div>
             </div>
-            <div :class="['MainList', { expanded: isTipListHidden || isInfoListHidden }]">
+            <div :class="['MainList', { expanded: isTipListHidden || isInfoListHidden }]" :style="mainListStyle">
                 <component v-for="(componentName, index) in mainListUpComponents" :is="componentName" :key="index" />
                 <slot name="main"></slot>
                 <component v-for="(componentName, index) in mainListDownComponents" :is="componentName" :key="index" />
@@ -31,7 +29,6 @@
             <div v-if="showInfoList && !isInfoLeftPosition" :class="['InfoList', { hidden: isInfoListHidden }]">
                 <button class="toggle-btn left-btn" @click="toggleInfoList">→</button>
                 <div class="context">
-
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
                     <slot name="info"></slot>
@@ -42,7 +39,6 @@
             <div v-if="showTipList && isInfoLeftPosition" :class="['TipList', { hidden: isTipListHidden }]">
                 <button class="toggle-btn left-btn" @click="toggleTipList">←</button>
                 <div class="context">
-
                     <component v-for="(componentName, index) in tipListUpComponents" :is="componentName" :key="index" />
                     <slot name="tip"></slot>
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
@@ -54,7 +50,7 @@
 </template>
 
 <script setup>
-import { defineProps, ref, onMounted } from 'vue';
+import { defineProps, ref, computed, onMounted } from 'vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import config from '@/config';
 
@@ -100,6 +96,16 @@ const toggleInfoList = () => {
     isInfoListHidden.value = !isInfoListHidden.value;
 };
 
+const mainListStyle = computed(() => {
+    if (isTipListHidden.value && isInfoListHidden.value) {
+        return { maxWidth: 'calc(100% - 4rem)' };
+    } else if (isTipListHidden.value || isInfoListHidden.value) {
+        return { maxWidth: 'calc(100% - 35rem)' };
+    } else {
+        return {};
+    }
+});
+
 onMounted(async () => {
     await loadComponents(config.TipListUp, tipListUpComponents);
     await loadComponents(config.TipListDown, tipListDownComponents);
@@ -130,7 +136,7 @@ body {
 
 .InfoList,
 .TipList {
-    width: 25rem;
+    min-width: 25rem;
     color: var(--rightlist-text-color);
     position: relative;
     transition: all 0.3s ease-in-out;
@@ -140,14 +146,14 @@ body {
 
 .InfoList.hidden {
     transform: translateX(100%);
-    width: 0;
+    min-width: 0;
     margin-right: 0;
     margin-left: 0;
 }
 
 .TipList.hidden {
     transform: translateX(-100%);
-    width: 0;
+    min-width: 0;
     margin-right: 0;
     margin-left: 0;
 }
@@ -176,14 +182,14 @@ body {
     flex-direction: column;
     gap: 2rem;
     align-items: center;
-    max-width: calc(100% - 45rem - 8rem);
-    min-width: 40rem;
+    max-width: calc(100% - 50rem - 8rem);
+    min-width: 30rem;
     transition: all 0.3s ease-in-out;
 }
 
-.MainList.expanded {
+/* .MainList.expanded {
     min-width: calc(100% - 4rem);
-}
+} */
 
 .toggle-btn {
     position: absolute;
@@ -196,11 +202,14 @@ body {
     cursor: pointer;
     z-index: 1000;
 }
+
 .toggle-btn:hover {
     background-color: #ccc;
 }
 
 .right-btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
     right: -0.6rem;
@@ -210,6 +219,8 @@ body {
 .left-btn {
     border-top-left-radius: 10px;
     border-bottom-left-radius: 10px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
     left: -0.6rem;
     transition: all 0.5s ease-in-out;
 }
@@ -218,16 +229,16 @@ body {
 .TipList.hidden .right-btn {
     border-top-left-radius: 10px;
     border-bottom-left-radius: 10px;
-    border-top-right-radius: 0px;
-    border-bottom-right-radius: 0px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
     transform: rotate(180deg) translateY(100%);
     right: 0.6rem;
 }
 
 .InfoList.hidden .left-btn,
 .TipList.hidden .left-btn {
-    border-top-left-radius: 0px;
-    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
     transform: rotate(180deg) translateY(100%);
