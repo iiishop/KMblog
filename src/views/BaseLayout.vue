@@ -21,7 +21,7 @@
                         :key="index" />
                 </div>
             </div>
-            <div :class="['MainList', { expanded: isTipListHidden || isInfoListHidden }]" :style="mainListStyle">
+            <div class="MainList" :style="mainListStyle">
                 <component v-for="(componentName, index) in mainListUpComponents" :is="componentName" :key="index" />
                 <slot name="main"></slot>
                 <component v-for="(componentName, index) in mainListDownComponents" :is="componentName" :key="index" />
@@ -152,12 +152,14 @@ body {
     justify-content: center;
     padding-top: 6rem;
     width: 100%;
+    height: 100%;
     transition: all 0.3s ease-in-out;
 }
 
 .InfoList,
 .TipList {
-    min-width: 25rem;
+    height: 100%;
+    width: 25rem;
     color: var(--rightlist-text-color);
     position: relative;
     transition: all 0.3s ease-in-out;
@@ -167,14 +169,14 @@ body {
 
 .InfoList.hidden {
     transform: translateX(100%);
-    min-width: 0;
+    width: 0;
     margin-right: 0;
     margin-left: 0;
 }
 
 .TipList.hidden {
     transform: translateX(-100%);
-    min-width: 0;
+    width: 0;
     margin-right: 0;
     margin-left: 0;
 }
@@ -205,15 +207,11 @@ body {
     flex-direction: column;
     gap: 2rem;
     align-items: center;
-    flex-grow: 1;
     max-width: calc(100% - 50rem - 8rem);
     min-width: 30rem;
+    height: 100%;
     transition: all 0.3s ease-in-out;
 }
-
- .MainList.expanded {
-    transition: all 0.3s ease-in-out;
-} 
 
 .toggle-btn {
     position: absolute;
