@@ -97,12 +97,32 @@ const toggleInfoList = () => {
 };
 
 const mainListStyle = computed(() => {
-    if (isTipListHidden.value && isInfoListHidden.value) {
+    if (!props.showTipList && !props.showInfoList) {
+        // Both TipList and InfoList are not shown
         return { maxWidth: 'calc(100% - 4rem)' };
-    } else if (isTipListHidden.value || isInfoListHidden.value) {
-        return { maxWidth: 'calc(100% - 35rem)' };
+    } else if (!props.showTipList && props.showInfoList) {
+        // Only InfoList is shown
+        if (isInfoListHidden.value) {
+            return { maxWidth: 'calc(100% - 4rem)' };
+        } else {
+            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for InfoList + 2rem margin
+        }
+    } else if (props.showTipList && !props.showInfoList) {
+        // Only TipList is shown
+        if (isTipListHidden.value) {
+            return { maxWidth: 'calc(100% - 4rem)' };
+        } else {
+            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for TipList + 2rem margin
+        }
     } else {
-        return {};
+        // Both TipList and InfoList are shown
+        if (isTipListHidden.value && isInfoListHidden.value) {
+            return { maxWidth: 'calc(100% - 4rem)' };
+        } else if (isTipListHidden.value || isInfoListHidden.value) {
+            return { maxWidth: 'calc(100% - 27rem)' }; // 25rem for one list + 2rem margin
+        } else {
+            return { maxWidth: 'calc(100% - 54rem)' }; // 25rem for each list + 4rem margin
+        }
     }
 });
 
@@ -131,6 +151,7 @@ body {
     flex-direction: row;
     justify-content: center;
     padding-top: 6rem;
+    width: 100%;
     transition: all 0.3s ease-in-out;
 }
 
@@ -160,6 +181,8 @@ body {
 
 .context {
     display: flex;
+    width: 100%;
+    overflow: auto;
     flex-direction: column;
     align-items: center;
     gap: 2rem;
@@ -182,14 +205,15 @@ body {
     flex-direction: column;
     gap: 2rem;
     align-items: center;
+    flex-grow: 1;
     max-width: calc(100% - 50rem - 8rem);
     min-width: 30rem;
     transition: all 0.3s ease-in-out;
 }
 
-/* .MainList.expanded {
-    min-width: calc(100% - 4rem);
-} */
+ .MainList.expanded {
+    transition: all 0.3s ease-in-out;
+} 
 
 .toggle-btn {
     position: absolute;
