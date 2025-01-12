@@ -119,9 +119,9 @@ const mainListStyle = computed(() => {
         if (isTipListHidden.value && isInfoListHidden.value) {
             return { maxWidth: 'calc(100% - 4rem)' };
         } else if (isTipListHidden.value || isInfoListHidden.value) {
-            return { maxWidth: 'calc(100% - 27rem)' }; // 25rem for one list + 2rem margin
+            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for one list + 2rem margin
         } else {
-            return { maxWidth: 'calc(100% - 54rem)' }; // 25rem for each list + 4rem margin
+            return { maxWidth: 'calc(100% - 58rem)' }; // 25rem for each list + 4rem margin
         }
     }
 });
