@@ -1,25 +1,38 @@
-<!-- MarkdownViewer.vue -->
 <template>
   <div class="MarkdownPanel">
+    <div class="post-header">
+      <div class="image-container">
+        <img v-if="metadata.img" :src="metadata.img" alt="Post Image" />
+        <div class="overlay">
+          <h1>{{ metadata.title }}</h1>
+          <div class="category-panel">
+            <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory" />
+            <a :href="categoryLink">{{ lastCategory }}</a>
+          </div>
+          <div class="date-panel">
+            <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date" />
+            <a :href="archiveLink">{{ metadata.date }}</a>
+          </div>
 
-    <div v-if="metadata.img" class="post-header">
-      <img :src="metadata.img" alt="Post Image" />
+        </div>
+      </div>
     </div>
     <div class="post-content">
-
-      <h1>{{ metadata.title }}</h1>
-      <p>{{ metadata.date }}</p>
       <div v-html="htmlContent"></div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
-import MarkdownIt from 'markdown-it';
+import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
+import '@/components/MarkdownPanelComps/MarkdownStyle.css';
 import { defineProps } from 'vue';
+import IconCategory from '@/components/icons/IconCategory.vue';
+import IconDate from '@/components/icons/IconDate.vue';
+import config from '@/config';
 
 // 定义 props
 const props = defineProps({
@@ -32,9 +45,6 @@ const props = defineProps({
 const metadata = ref({});
 const htmlContent = ref('');
 
-// 创建 markdown-it 实例
-const md = new MarkdownIt();
-
 // 解析 Markdown 文件并提取 metadata 和内容
 const parseMarkdown = async (url) => {
   try {
@@ -44,7 +54,25 @@ const parseMarkdown = async (url) => {
     // 使用 front-matter 解析 metadata
     const { attributes, body } = fm(markdown);
     metadata.value = attributes;
-    metadata.value.img = `/src/Posts/Images/${metadata.value.img}`;
+    if (metadata.value.img) {
+      metadata.value.img = `/src/Posts/Images/${metadata.value.img}`;
+    }
+    const date = new Date(metadata.value.date);
+    const hours = date.getHours();
+
+    // 格式化日期为 '年-月-日'
+    metadata.value.date = date.toLocaleDateString().replace(/\//g, '年').replace('年', '月') + '日';
+
+    // 添加时间段
+    if (hours < 6) {
+      metadata.value.date += ' 凌晨';
+    } else if (hours < 12) {
+      metadata.value.date += ' 上午';
+    } else if (hours < 18) {
+      metadata.value.date += ' 下午';
+    } else {
+      metadata.value.date += ' 晚上';
+    }
 
     // 解析 Markdown 内容
     htmlContent.value = md.render(body);
@@ -61,29 +89,133 @@ watch(() => props.markdownUrl, (newUrl) => {
 onMounted(() => {
   parseMarkdown(props.markdownUrl);
 });
+const lastCategory = computed(() => {
+  if (metadata.value.categories && metadata.value.categories.length > 0) {
+    return metadata.value.categories[metadata.value.categories.length - 1];
+  }
+  return '';
+});
+const categoryLink = computed(() => {
+  if (metadata.value.categories && metadata.value.categories.length > 0) {
+    const fullPath = metadata.value.categories.join('/');
+    return `${config.ProjectUrl}/categories/${fullPath}/`;
+  }
+  return '#';
+});
+
+const archiveLink = computed(() => `${config.ProjectUrl}/Archive`);
 </script>
 
-<style>
+<style scoped>
 .MarkdownPanel {
   display: flex;
-  gap: 2rem;
   flex-direction: column;
   color: rgb(10, 10, 10);
   width: 100%;
-  padding: 1rem;
   background-color: #f8f8f8;
   border-radius: 1rem;
   box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
 }
+
 .post-header {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  /* 水平居中 */
   align-items: center;
-  gap: 1rem;
+  /* 垂直居中 */
+  position: relative;
+  width: 100%;
+  max-height: 30rem;
 }
-.post-header img {
+
+.image-container {
+  position: relative;
+  width: 100%;
+  max-height: 30rem;
+}
+
+.image-container img {
+  display: block;
+  margin: 0 auto;
+  /* 图片水平居中 */
   max-width: 100%;
   height: auto;
   max-height: 30rem;
+}
+
+.overlay {
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-align: center;
+}
+
+.overlay h1,
+.overlay p {
+  margin: 0;
+}
+
+.post-content {
+  padding: 1rem;
+}
+
+.category-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0.2rem;
+}
+
+.category-panel a {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  color: white;
+  transition: color 0.2s ease;
+}
+
+.category-panel a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.category-panel a:hover::after {
+  transform: scaleX(1);
+}
+
+.date-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0.2rem;
+}
+
+.date-panel a {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: color 0.2s ease;
+  color: white;
 }
 </style>
