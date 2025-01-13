@@ -1,12 +1,16 @@
 <!-- MarkdownViewer.vue -->
 <template>
-  <div>
+  <div class="MarkdownPanel">
+
     <div v-if="metadata.img" class="post-header">
       <img :src="metadata.img" alt="Post Image" />
     </div>
-    <h1>{{ metadata.title }}</h1>
-    <p>{{ metadata.date }}</p>
-    <div v-html="htmlContent"></div>
+    <div class="post-content">
+
+      <h1>{{ metadata.title }}</h1>
+      <p>{{ metadata.date }}</p>
+      <div v-html="htmlContent"></div>
+    </div>
   </div>
 </template>
 
@@ -60,12 +64,26 @@ onMounted(() => {
 </script>
 
 <style>
+.MarkdownPanel {
+  display: flex;
+  gap: 2rem;
+  flex-direction: column;
+  color: rgb(10, 10, 10);
+  width: 100%;
+  padding: 1rem;
+  background-color: #f8f8f8;
+  border-radius: 1rem;
+  box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+}
 .post-header {
-  text-align: center;
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 .post-header img {
   max-width: 100%;
   height: auto;
+  max-height: 30rem;
 }
 </style>
