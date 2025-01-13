@@ -99,29 +99,29 @@ const toggleInfoList = () => {
 const mainListStyle = computed(() => {
     if (!props.showTipList && !props.showInfoList) {
         // Both TipList and InfoList are not shown
-        return { maxWidth: 'calc(100% - 4rem)' };
+        return { minWidth: 'calc(100% - 4rem)' };
     } else if (!props.showTipList && props.showInfoList) {
         // Only InfoList is shown
         if (isInfoListHidden.value) {
-            return { maxWidth: 'calc(100% - 4rem)' };
+            return { minWidth: 'calc(100% - 4rem)' };
         } else {
-            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for InfoList + 2rem margin
+            return { minWidth: 'calc(100% - 33rem)' }; // 25rem for InfoList + 2rem margin
         }
     } else if (props.showTipList && !props.showInfoList) {
         // Only TipList is shown
         if (isTipListHidden.value) {
-            return { maxWidth: 'calc(100% - 4rem)' };
+            return { minWidth: 'calc(100% - 4rem)' };
         } else {
-            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for TipList + 2rem margin
+            return { minWidth: 'calc(100% - 33rem)' }; // 25rem for TipList + 2rem margin
         }
     } else {
         // Both TipList and InfoList are shown
         if (isTipListHidden.value && isInfoListHidden.value) {
-            return { maxWidth: 'calc(100% - 4rem)' };
+            return { minWidth: 'calc(100% - 4rem)' };
         } else if (isTipListHidden.value || isInfoListHidden.value) {
-            return { maxWidth: 'calc(100% - 33rem)' }; // 25rem for one list + 2rem margin
+            return { minWidth: 'calc(100% - 33rem)' }; // 25rem for one list + 2rem margin
         } else {
-            return { maxWidth: 'calc(100% - 58rem)' }; // 25rem for each list + 4rem margin
+            return { minWidth: 'calc(100% - 58rem)' }; // 25rem for each list + 4rem margin
         }
     }
 });
