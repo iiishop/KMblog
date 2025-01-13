@@ -3,7 +3,6 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 const Home = () => import('../views/Home.vue');
 const TagPage = () => import('../views/TagPage.vue');
 const PostPage = () => import('../views/PostPage.vue');
-// const BlogPost = () => import('../views/BlogPost.vue');
 
 const routes = [
     {
@@ -17,16 +16,20 @@ const routes = [
         component: TagPage
     },
     {
-        path: '/mdtest',
-        name: 'mdtest',
-        component: PostPage
-    },
-    // {
-    //   path: '/post/:id',
-    //   name: 'BlogPost',
-    //   component: BlogPost,
-    //   props: true
-    // }
+        path: '/posts/:collection?/:mdName',
+        name: 'PostPage',
+        component: PostPage,
+        props: route => {
+            const { collection, mdName } = route.params;
+            let markdownUrl = '';
+            if (collection) {
+                markdownUrl = `/src/Posts/${collection}/${mdName}.md`;
+            } else {
+                markdownUrl = `/src/Posts/Markdowns/${mdName}.md`;
+            }
+            return { markdownUrl: markdownUrl };
+        }
+    }
 ];
 
 const router = createRouter({

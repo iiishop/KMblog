@@ -5,7 +5,7 @@
         </div>
         <div class="content-panel">
             <div v-if="metadata">
-                <div class="title-panel">
+                <div class="title-panel" @click="navigateToPost">
                     <p>{{ metadata.title }}</p>
                 </div>
                 <div class="info-panel">
@@ -18,7 +18,7 @@
                         <a :href="archiveLink">{{ metadata.date }}</a>
                     </div>
                 </div>
-                <div class="pre-panel">
+                <div class="pre-panel" @click="navigateToPost">
                     <pre>{{ metadata.pre }}</pre>
                 </div>
                 <div class="tag-panel">
@@ -31,6 +31,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import Tag from './Tag.vue';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
@@ -140,6 +141,21 @@ onMounted(() => {
         initializeMarkdown(props.markdownUrl);
     }
 });
+
+// 使用 useRouter 钩子获取路由实例
+const router = useRouter();
+
+// 定义导航到 PostPage 的函数
+function navigateToPost() {
+    const urlParts = props.markdownUrl.split('/');
+    const mdName = urlParts.pop().replace('.md', '');
+    const collection = urlParts.length > 3 ? urlParts[3] : null;
+
+    router.push({
+        name: 'PostPage',
+        params: { collection, mdName }
+    });
+}
 </script>
 
 <style scoped>
@@ -197,6 +213,7 @@ onMounted(() => {
     display: flex;
     height: 3rem;
     align-items: center;
+    cursor: pointer; /* 添加手形指针 */
 }
 
 .title-panel p {
@@ -306,6 +323,12 @@ onMounted(() => {
     font-family: 'Courier New', Courier, monospace;
     padding: 1rem;
     min-height: 5rem;
+    cursor: pointer; /* 添加手形指针 */
+    transition: all 0.2s ease; /* 添加背景色过渡效果 */
+}
+
+.pre-panel:hover {
+    background-color: var(--pre-hover-color);
 }
 
 .pre-panel pre {
