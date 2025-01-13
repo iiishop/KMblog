@@ -10,6 +10,47 @@ class Command:
     def execute(self):
         raise NotImplementedError("You should implement this method.")
 
+class InitBlog(Command):
+    description = "Initializes the blog structure with necessary directories and a sample post."
+
+    def execute(self):
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        posts_path = os.path.join(base_path, 'src/Posts')
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        images_path = os.path.join(posts_path, 'Images')
+
+        # Create directories if they don't exist
+        os.makedirs(markdowns_path, exist_ok=True)
+        os.makedirs(images_path, exist_ok=True)
+
+        # Initialize a new post named 'Helloworld'
+        name = "Helloworld"
+        collection = None
+        directory = markdowns_path
+        file_path = os.path.join(directory, f"{name}.md")
+        date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        metadata = f"""---
+title: {name}
+date: {date_str}
+tags: 
+- hello world
+categories: 
+pre: This is a sample post to demonstrate the blog structure.
+img: 
+---
+
+# Hello KMBlog
+"""
+
+        # Write the metadata and content to the file
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(metadata)
+
+        output_command = OutputJson()
+        output_result = output_command.execute()
+
+        return f"Initialized blog structure at {posts_path}\nCreated sample post at {file_path}\n{output_result}"
 
 class ShowPostsJson(Command):
     description = "Shows the posts directory structure in JSON format."
