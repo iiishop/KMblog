@@ -1,6 +1,6 @@
 const config = {
     ProjectUrl: 'https://localhost:5173',
-    BlogName: '诺丝的博客',
+    BlogName: 'iiishop的博客',
     ShortDesc: "见证本小姐的旮旯",
     BackgroundImg: '/src/assets/background.png',
     BackgroundImgOpacity: 0.5,

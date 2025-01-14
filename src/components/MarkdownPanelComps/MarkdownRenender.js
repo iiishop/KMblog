@@ -1,7 +1,21 @@
 import MarkdownIt from 'markdown-it';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/sunburst.css'; // 你可以选择其他样式
 
 // 创建 markdown-it 实例
-const md = new MarkdownIt();
+const md = new MarkdownIt({
+    highlight: function (str, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return '<pre class="hljs"><code>' +
+                    hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                    '</code></pre>';
+            } catch (__) { }
+        }
+
+        return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+    }
+});
 
 // 添加自定义规则 - 将*&包裹的文字渲染成红色span
 md.use((md) => {
@@ -52,4 +66,22 @@ md.use((md) => {
 
 // 你可以在这里添加更多的自定义规则和插件
 
+// 自定义插件处理图片路径
+md.use((md) => {
+    const defaultRender = md.renderer.rules.image || function(tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+    };
+
+    md.renderer.rules.image = function(tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const srcIndex = token.attrIndex('src');
+        if (srcIndex >= 0) {
+            const src = token.attrs[srcIndex][1];
+            if (!src.startsWith('http')) {
+                token.attrs[srcIndex][1] = `/src/Posts/Images/${src}`;
+            }
+        }
+        return defaultRender(tokens, idx, options, env, self);
+    };
+});
 export default md;

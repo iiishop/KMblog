@@ -1,0 +1,117 @@
+.markdown img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem auto;
+}
+
+.markdown h1 {
+    font-size: 2.5rem;
+    color: #333;
+    margin: 1rem 0;
+}
+
+.markdown h2 {
+    font-size: 2rem;
+    color: #444;
+    margin: 1rem 0;
+}
+
+.markdown h3 {
+    font-size: 1.75rem;
+    color: #555;
+    margin: 1rem 0;
+}
+
+.markdown h4 {
+    font-size: 1.5rem;
+    color: #666;
+    margin: 1rem 0;
+}
+
+.markdown h5 {
+    font-size: 1.25rem;
+    color: #777;
+    margin: 1rem 0;
+}
+
+.markdown h6 {
+    font-size: 1rem;
+    color: #888;
+    margin: 1rem 0;
+}
+
+/* 粗体样式 */
+.markdown strong {
+    font-weight: bold;
+    color: #000;
+}
+
+/* 斜体样式 */
+.markdown em {
+    font-style: italic;
+    color: #000;
+}
+
+/* 删除线样式 */
+.markdown del {
+    text-decoration: line-through;
+    color: #000;
+}
+
+/* 引用样式 */
+.markdown blockquote {
+    border-left: 4px solid #ccc;
+    padding-left: 1rem;
+    color: #666;
+    margin: 1rem 0;
+}
+
+/* 无序列表样式 */
+.markdown ul {
+    list-style-type: disc;
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+.markdown ul li {
+    margin: 0.5rem 0;
+}
+
+/* 有序列表样式 */
+.markdown ol {
+    list-style-type: decimal;
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+.markdown ol li {
+    margin: 0.5rem 0;
+}
+
+/* 代码块样式 */
+.markdown pre {
+    background-color: #515151;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}
+
+.markdown code {
+    background-color: #515151;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.3rem;
+}
+/* 行号样式 */
+.hljs-ln-numbers {
+  text-align: right;
+  border-right: 1px solid #ccc;
+  color: #999;
+  user-select: none;
+  padding-right: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.hljs-ln-code {
+  padding-left: 0.5rem;
+}

@@ -12,6 +12,8 @@
     "@heroicons/vue": "^2.2.0",
     "axios": "^1.7.9",
     "front-matter": "^4.0.2",
+    "highlight.js": "^11.11.1",
+    "highlightjs-line-numbers.js": "^2.9.0",
     "markdown-it": "^14.1.0",
     "marked": "^15.0.4",
     "vue": "^3.5.13",

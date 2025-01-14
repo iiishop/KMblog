@@ -13,11 +13,10 @@
             <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date" />
             <a :href="archiveLink">{{ metadata.date }}</a>
           </div>
-
         </div>
       </div>
     </div>
-    <div class="post-content">
+    <div class="post-content markdown">
       <div v-html="htmlContent"></div>
     </div>
   </div>
