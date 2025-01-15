@@ -10,11 +10,11 @@
                 </div>
                 <div class="info-panel">
                     <div class="category-panel">
-                        <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory"/>
+                        <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory" />
                         <a :href="categoryLink">{{ lastCategory }}</a>
                     </div>
                     <div class="date-panel">
-                        <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date"/>
+                        <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date" />
                         <a :href="archiveLink">{{ metadata.date }}</a>
                     </div>
                 </div>
@@ -37,7 +37,7 @@ import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
-import { parseMarkdown } from "@/utils";
+import { parseMarkdownMetadata } from "@/utils";
 
 // 定义 props
 const props = defineProps({
@@ -72,7 +72,7 @@ async function initializeMarkdown(url) {
         const content = response.data;
 
         // 解析 Markdown 内容，仅解析 meta 数据
-        const { meta } = await parseMarkdown(content);
+        const { meta } = await parseMarkdownMetadata(content);
         metadata.value = meta;
 
         // 格式化日期
@@ -213,7 +213,8 @@ function navigateToPost() {
     display: flex;
     height: 3rem;
     align-items: center;
-    cursor: pointer; /* 添加手形指针 */
+    cursor: pointer;
+    /* 添加手形指针 */
 }
 
 .title-panel p {
@@ -323,8 +324,10 @@ function navigateToPost() {
     font-family: 'Courier New', Courier, monospace;
     padding: 1rem;
     min-height: 5rem;
-    cursor: pointer; /* 添加手形指针 */
-    transition: all 0.2s ease; /* 添加背景色过渡效果 */
+    cursor: pointer;
+    /* 添加手形指针 */
+    transition: all 0.2s ease;
+    /* 添加背景色过渡效果 */
 }
 
 .pre-panel:hover {
@@ -360,6 +363,7 @@ function navigateToPost() {
     white-space: nowrap;
     /* 确保内容不换行 */
 }
+
 @keyframes wave {
     0% {
         transform: translateY(0);

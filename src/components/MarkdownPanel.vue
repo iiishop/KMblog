@@ -34,6 +34,7 @@ import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
 import SteamGameBlock from './MarkdownPanelComps/SteamGameBlock.vue';
 import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { parseMarkdownMetadata } from '@/utils';
 
 // 定义 props
 const props = defineProps({
@@ -53,8 +54,9 @@ const parseMarkdown = async (url) => {
     const markdown = response.data;
 
     // 使用 front-matter 解析 metadata
-    const { attributes, body } = fm(markdown);
-    metadata.value = attributes;
+    const { body } = fm(markdown);
+    const { meta } = await parseMarkdownMetadata(markdown);
+    metadata.value = meta;
     if (metadata.value.img) {
       metadata.value.img = `/src/Posts/Images/${metadata.value.img}`;
     }
@@ -62,7 +64,7 @@ const parseMarkdown = async (url) => {
     const hours = date.getHours();
 
     // 格式化日期为 '年-月-日'
-    metadata.value.date = date.toLocaleDateString().replace(/\//g, '年').replace('年', '月') + '日';
+    metadata.value.date = date.toLocaleDateString().replace(/\//g, '月').replace('月', '年') + '日';
 
     // 添加时间段
     if (hours < 6) {

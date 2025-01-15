@@ -68,7 +68,7 @@ export function openLink(url) {
 }
 
 // 异步解析 Markdown 文档的函数，只解析 meta 数据
-export async function parseMarkdown(content) {
+export async function parseMarkdownMetadata(content) {
   const metadataRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
   const match = content.match(metadataRegex);
 
@@ -94,7 +94,7 @@ export async function loadMarkdownLinks() {
       console.debug('Loading Markdown file:', normalizedMarkdownUrl); // 输出 Markdown 文件路径
       const markdownContent = await loadJsonFile(normalizedMarkdownUrl);
       if (markdownContent) {
-        const { meta } = await parseMarkdown(markdownContent); // 使用异步解析函数
+        const { meta } = await parseMarkdownMetadata(markdownContent); // 使用异步解析函数
         const imageName = meta.img;
         const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
         return { id, markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date };
