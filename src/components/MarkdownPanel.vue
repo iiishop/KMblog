@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
@@ -32,6 +32,8 @@ import { defineProps } from 'vue';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
+import SteamGameBlock from './MarkdownPanelComps/SteamGameBlock.vue';
+import { renderDynamicComponents } from './MarkdownPanelComps/DynamicComponentRenderer.js';
 
 // 定义 props
 const props = defineProps({
@@ -75,6 +77,14 @@ const parseMarkdown = async (url) => {
 
     // 解析 Markdown 内容
     htmlContent.value = md.render(body);
+
+    // 在 nextTick 中手动编译和挂载组件
+    await nextTick();
+    const container = document.querySelector('.post-content.markdown');
+    renderDynamicComponents(container, {
+      'steamgameblock': SteamGameBlock
+      // 在这里添加其他组件映射
+    });
   } catch (error) {
     console.error('Error fetching or parsing markdown file:', error);
   }
