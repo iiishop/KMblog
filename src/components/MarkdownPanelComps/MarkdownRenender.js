@@ -1,6 +1,8 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/sunburst.css'; // 你可以选择其他样式
+import markdownItKatex from 'markdown-it-katex';
+import 'katex/dist/katex.min.css'; // 引入katex的CSS
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -16,6 +18,9 @@ const md = new MarkdownIt({
         return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
     }
 });
+
+// 添加对LaTeX的支持
+md.use(markdownItKatex);
 
 // 添加自定义规则 - 将*&包裹的文字渲染成红色span
 md.use((md) => {
@@ -64,8 +69,6 @@ md.use((md) => {
     };
 });
 
-// 你可以在这里添加更多的自定义规则和插件
-
 // 自定义插件处理图片路径
 md.use((md) => {
     const defaultRender = md.renderer.rules.image || function(tokens, idx, options, env, self) {
@@ -84,4 +87,5 @@ md.use((md) => {
         return defaultRender(tokens, idx, options, env, self);
     };
 });
+
 export default md;
