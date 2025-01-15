@@ -77,6 +77,8 @@ const parseMarkdown = async (url) => {
 
     // 解析 Markdown 内容
     htmlContent.value = md.render(body);
+    console.log(htmlContent.value);
+    console.log(body);
 
     // 在 nextTick 中手动编译和挂载组件
     await nextTick();

@@ -58,6 +58,13 @@ const fetchGameDetails = async () => {
         if (priceElement) {
             price.value = priceElement.outerHTML.trim();
         }
+        else {
+            const priceElement = doc.querySelector('.game_purchase_price');
+            if (priceElement) {
+                price.value = priceElement.outerHTML.trim();
+            }
+        }
+
     } catch (error) {
         console.error('Error fetching game details:', error);
     }
@@ -70,31 +77,53 @@ onMounted(() => {
 
 <template>
     <div class="steam-game-block">
-        <img :src="imageUrl" alt="Game Image" class="game-image" />
-        <div class="game-info">
+        <div class="simple-info">
+
             <h2 class="game-title">{{ title }}</h2>
-            <p class="game-description">{{ description }}</p>
             <div class="game-rating">
                 <p>近期评价：{{ latest_rating }}</p>
                 <p>全部评价：{{ all_rating }}</p>
             </div>
-            <div class="game-price" v-html="price"></div>
-            <a :href="props.gameUrl" target="_blank" class="game-button">查看详情</a>
+        </div>
+        <div class="game-info">
+            <img :src="imageUrl" alt="Game Image" class="game-image" />
+            <p class="game-description">{{ description }}</p>
+            <div class="detail-info">
+                <div class="game-price" v-html="price"></div>
+                <a :href="props.gameurl" target="_blank" class="game-button">查看详情</a>
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
+@keyframes gradientBackground {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
 .steam-game-block {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    background-color: #1b2838;
+    background: linear-gradient(145deg, #1b2838, #f49a66, #33a6bb);
+    justify-content: space-between;
+    background-size: 600% 600%;
+    animation: gradientBackground 10s ease infinite;
     border-radius: 10px;
-    overflow: hidden;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     transition: all 0.2s;
     width: 100%;
+    height: 15rem;
+    margin-bottom: 1rem;
 }
 
 .steam-game-block:hover {
@@ -102,43 +131,61 @@ onMounted(() => {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
-.game-image {
+.simple-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
-    height: auto;
+    padding: 0 1rem;
+    background-color: #ccd1d66b;
+    backdrop-filter: blur(10px);
+    border-radius: 10px 10px 0 0;
+    color: whitesmoke;
+}
+
+.game-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.game-image {
+    margin: 0 0 0 -3rem;
+    width: 324px;
+    height: 151px;
+    border-radius: 10px;
 }
 
 .game-info {
-    padding: 1rem;
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    padding: 0rem 1rem 1rem 1rem;
     color: #c7d5e0;
 }
 
 .game-title {
     font-size: 1.5rem;
-    margin: 0.5rem 0;
 }
 
 .game-description {
-    font-size: 1rem;
-    margin: 0.5rem 0;
+    margin-left: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
 }
 
-.game-rating {
-    margin: 0.5rem 0;
-}
+.game-rating {}
 
 .game-price {
     font-size: 1.2rem;
     font-weight: bold;
-    margin: 0.5rem 0;
 }
 
 .game-button {
     display: inline-block;
     padding: 0.5rem 1rem;
-    background-color: #66c0f4;
+    background-color: #66a4f4;
     color: #fff;
     text-decoration: none;
+    text-align: center;
     border-radius: 5px;
     transition: background-color 0.2s;
 }
@@ -146,4 +193,35 @@ onMounted(() => {
 .game-button:hover {
     background-color: #4a9fd1;
 }
+
+.discount_block {}
+
+.game_purchase_discount {}
+
+:deep(.discount_original_price) {
+    text-decoration: line-through;
+    color: #6f777c;
+}
+
+:deep(.discount_pct) {
+    color: #1ac028;
+}
+
+:deep(.discount_prices) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+:deep(.discount_final_price) {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.discount_block:hover {
+    background-color: #4a9fd1;
+}
+
+.game_purchase_price {}
 </style>
