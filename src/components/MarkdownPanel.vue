@@ -24,7 +24,6 @@
 
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
-import { createApp, h } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
@@ -34,6 +33,7 @@ import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
 import SteamGameBlock from './MarkdownPanelComps/SteamGameBlock.vue';
+import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 
 // 定义 props
 const props = defineProps({
@@ -81,34 +81,10 @@ const parseMarkdown = async (url) => {
     // 在 nextTick 中手动编译和挂载组件
     await nextTick();
     const container = document.querySelector('.post-content.markdown');
-    const manualComponents = { 'steamgameblock': SteamGameBlock, };
-    if (container) {
-      // 遍历所有组件
-      for (const componentName in manualComponents) {
-        const components = container.querySelectorAll(componentName);
-        components.forEach((el) => {
-          // 将所有以 ':' 开头的属性转换为字典
-          const attributes = Array.from(el.attributes)
-            .filter((attr) => attr.name.startsWith(':'))
-            .reduce((acc, attr) => {
-              const propName = attr.name.slice(1); // 去掉属性名前面的 ':'
-              acc[propName] = attr.value.replace(/['"]/g, ''); // 去掉属性值中的引号
-              return acc;
-            }, {});
-          console.log(attributes);
-      
-          // 动态传递所有属性
-          const app = createApp({
-            render() {
-              return h(manualComponents[componentName], attributes);
-            },
-          });
-          app.mount(el);
-        });
-      
-
-      }
-    }
+    renderDynamicComponents(container, {
+      'steamgameblock': SteamGameBlock
+      // 在这里添加其他组件映射
+    });
   } catch (error) {
     console.error('Error fetching or parsing markdown file:', error);
   }
