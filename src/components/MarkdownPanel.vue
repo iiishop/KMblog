@@ -124,6 +124,9 @@ const archiveLink = computed(() => `${config.ProjectUrl}/Archive`);
   /* 垂直居中 */
   position: relative;
   width: 100%;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  overflow: hidden;
   max-height: 30rem;
 }
 
@@ -143,8 +146,6 @@ const archiveLink = computed(() => `${config.ProjectUrl}/Archive`);
 }
 
 .overlay {
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
   position: absolute;
   top: 0;
   left: 0;
