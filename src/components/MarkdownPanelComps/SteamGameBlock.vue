@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
-    gameUrl: String,
+    gameurl: String,
 });
 
 const imageUrl = ref('');
@@ -15,8 +15,11 @@ const price = ref('');
 
 const fetchGameDetails = async () => {
     try {
+        console.log('Fetching game details...');
         const proxyUrl = 'https://api.allorigins.win/get?url=';
-        const response = await axios.get(proxyUrl + encodeURIComponent(props.gameUrl));
+        const response = await axios.get(proxyUrl + encodeURIComponent(props.gameurl));
+        console.log('Game details fetched successfully.');
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(response.data.contents, 'text/html');
 

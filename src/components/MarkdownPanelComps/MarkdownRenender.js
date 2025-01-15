@@ -49,13 +49,9 @@ md.use((md) => {
 
     md.renderer.rules.fence = function (tokens, idx, options, env, self) {
         const token = tokens[idx];
-        console.log('Token info:', token.info); // 添加调试日志
         if (token.info.trim() === 'steam-game') {
             const url = token.content.trim();
-            console.log('Steam game URL:', url); // 添加调试日志
-            const returnValue = `<SteamGameBlock :gameUrl="'${url}'" />`;
-            console.log('Return value:', returnValue); // 添加调试日志
-            return returnValue;
+            return `<SteamGameBlock :gameUrl="'${url}'" />`;
         }
         return defaultFence(tokens, idx, options, env, self);
     };
