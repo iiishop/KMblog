@@ -78,7 +78,6 @@ onMounted(() => {
 <template>
     <div class="steam-game-block">
         <div class="simple-info">
-
             <h2 class="game-title">{{ title }}</h2>
             <div class="game-rating">
                 <p>近期评价：{{ latest_rating }}</p>
@@ -86,7 +85,7 @@ onMounted(() => {
             </div>
         </div>
         <div class="game-info">
-            <img :src="imageUrl" alt="Game Image" class="game-image" />
+            <img :src="imageUrl || '/src/assets/loading.gif'" alt="Game Image" class="game-image" />
             <p class="game-description">{{ description }}</p>
             <div class="detail-info">
                 <div class="game-price" v-html="price"></div>
