@@ -167,10 +167,21 @@ onMounted(() => {
 
 .game-description {
     margin-left: 0.5rem;
+    margin-right: 0.5rem;
     margin-top: 0.5rem;
     font-size: 0.8rem;
 }
 
+.game-info
+.game-description {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 7;
+    line-clamp: 7;
+    -webkit-box-orient: vertical;
+}
 .game-rating {}
 
 .game-price {
