@@ -6,9 +6,7 @@ import '../color.css';
 // Sample menu items; you can replace them with data from an API or other source
 const menuItems = ref([
   { name: 'Home', link: '#' },
-  { name: 'Projects', link: '#' },
-  { name: 'Blog', link: '#' },
-  { name: 'Contact', link: '#' }
+  { name: 'About', link: '#' },
 ]);
 
 const BlogName = ref(config.BlogName);
@@ -103,6 +101,10 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 5px;
   cursor: pointer;
+  transition: 0.4s ease;
+}
+.hamburger:hover{
+  transform: rotate(90deg);
 }
 
 .line {
@@ -160,7 +162,7 @@ onUnmounted(() => {
 
   .nav-links {
     position: absolute;
-    top: 0;
+    top: 6rem;
     right: 0;
     background: var(--mobile-nav-background-color);
     height: 100vh;

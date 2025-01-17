@@ -251,7 +251,6 @@ body {
 
 .context {
     display: flex;
-    width: 100%;
     flex-direction: column;
     align-items: center;
     gap: 2rem;
@@ -296,6 +295,7 @@ body {
 }
 
 .float-list {
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 1rem;
