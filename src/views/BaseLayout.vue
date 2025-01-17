@@ -15,6 +15,7 @@
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
+                        <slot name="float-tip"></slot>
                     </div>
                 </div>
             </div>
@@ -32,6 +33,7 @@
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
+                        <slot name="float-info"></slot>
                     </div>
                 </div>
             </div>
@@ -54,6 +56,7 @@
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
+                        <slot name="float-info"></slot>
                     </div>
                 </div>
             </div>
@@ -70,6 +73,7 @@
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
+                        <slot name="float-tip"></slot>
                     </div>
                 </div>
             </div>
