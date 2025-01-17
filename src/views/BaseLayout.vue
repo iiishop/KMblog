@@ -2,23 +2,37 @@
     <div>
         <HeadMenu />
         <div class="Scene">
-            <div v-if="showTipList && !isInfoLeftPosition" :class="['TipList', { hidden: isTipListHidden }]">
-                <button class="toggle-btn right-btn" @click="toggleTipList">→</button>
+            <button v-if="showTipList && !isInfoLeftPosition" :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
+            <div v-if="showTipList && !isInfoLeftPosition" :class="['TipList', 'LeftList', { hidden: isTipListHidden }]"
+                ref="tipListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in tipListUpComponents" :is="componentName" :key="index" />
                     <slot name="tip"></slot>
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
+                <div class="FloatList" :style="{ top: floatListStyle.topTip }">
+                    <div class="float-list">
+                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                            :key="index" />
+                    </div>
+                </div>
             </div>
-            <div v-if="showInfoList && isInfoLeftPosition" :class="['InfoList', { hidden: isInfoListHidden }]">
-                <button class="toggle-btn right-btn" @click="toggleInfoList">←</button>
+            <button v-if="showInfoList && isInfoLeftPosition" :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
+            <div v-if="showInfoList && isInfoLeftPosition" :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]"
+                ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
                     <slot name="info"></slot>
                     <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
                         :key="index" />
+                </div>
+                <div class="FloatList" :style="{ top: floatListStyle.topInfo }">
+                    <div class="float-list">
+                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                            :key="index" />
+                    </div>
                 </div>
             </div>
             <div class="MainList" :style="mainListStyle">
@@ -26,8 +40,9 @@
                 <slot name="main"></slot>
                 <component v-for="(componentName, index) in mainListDownComponents" :is="componentName" :key="index" />
             </div>
-            <div v-if="showInfoList && !isInfoLeftPosition" :class="['InfoList', { hidden: isInfoListHidden }]">
-                <button class="toggle-btn left-btn" @click="toggleInfoList">→</button>
+            <button v-if="showInfoList && !isInfoLeftPosition" :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
+            <div v-if="showInfoList && !isInfoLeftPosition" :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]"
+                ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
@@ -35,14 +50,27 @@
                     <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
+                <div class="FloatList" :style="{ top: floatListStyle.topInfo }">
+                    <div class="float-list">
+                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                            :key="index" />
+                    </div>
+                </div>
             </div>
-            <div v-if="showTipList && isInfoLeftPosition" :class="['TipList', { hidden: isTipListHidden }]">
-                <button class="toggle-btn left-btn" @click="toggleTipList">←</button>
+            <button v-if="showTipList && isInfoLeftPosition" :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
+            <div v-if="showTipList && isInfoLeftPosition" :class="['TipList', 'RightList', { hidden: isTipListHidden }]"
+                ref="tipListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in tipListUpComponents" :is="componentName" :key="index" />
                     <slot name="tip"></slot>
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
                         :key="index" />
+                </div>
+                <div class="FloatList" :style="{ top: floatListStyle.topTip }">
+                    <div class="float-list">
+                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                            :key="index" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,7 +78,7 @@
 </template>
 
 <script setup>
-import { defineProps, ref, computed, onMounted } from 'vue';
+import { defineProps, ref, computed, onMounted, onUnmounted } from 'vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import config from '@/config';
 
@@ -73,9 +101,14 @@ const mainListUpComponents = ref([]);
 const mainListDownComponents = ref([]);
 const infoListUpComponents = ref([]);
 const infoListDownComponents = ref([]);
+const infoListFloatComponents = ref([]);
+const tipListFloatComponents = ref([]);
 
 const isTipListHidden = ref(false);
 const isInfoListHidden = ref(false);
+
+const infoListRef = ref(null);
+const tipListRef = ref(null);
 
 const loadComponents = async (list, components) => {
     for (const componentName of list) {
@@ -126,6 +159,32 @@ const mainListStyle = computed(() => {
     }
 });
 
+const floatListStyle = ref({
+    topInfo: 'calc(100% + 2rem)',
+    topTip: 'calc(100% + 2rem)',
+});
+
+const updateFloatListPosition = () => {
+    const scrollTop = document.documentElement.scrollTop;
+    const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+
+    let newTopInfo = 'calc(100% + 2rem)';
+    let newTopTip = 'calc(100% + 2rem';
+    // 获取 InfoList 和 TipList 的实际高度
+    if (infoListRef.value) {
+        const infoListHeight = infoListRef.value.offsetHeight;
+        newTopInfo = Math.max(4, 6 + (infoListHeight - scrollTop) / rootFontSize) + 'rem';
+    }
+    if (tipListRef.value) {
+        const tipListHeight = tipListRef.value.offsetHeight;
+        newTopTip = Math.max(4, 6 + (tipListHeight - scrollTop) / rootFontSize) + 'rem';
+    }
+
+    floatListStyle.value.topInfo = newTopInfo;
+    floatListStyle.value.topTip = newTopTip;
+};
+
+
 onMounted(async () => {
     await loadComponents(config.TipListUp, tipListUpComponents);
     await loadComponents(config.TipListDown, tipListDownComponents);
@@ -133,6 +192,15 @@ onMounted(async () => {
     await loadComponents(config.MainListDown, mainListDownComponents);
     await loadComponents(config.InfoListUp, infoListUpComponents);
     await loadComponents(config.InfoListDown, infoListDownComponents);
+    await loadComponents(config.InfoListFloat, infoListFloatComponents);
+    await loadComponents(config.TipListFloat, tipListFloatComponents);
+    updateFloatListPosition();
+
+    window.addEventListener('scroll', updateFloatListPosition);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', updateFloatListPosition);
 });
 </script>
 
@@ -167,14 +235,14 @@ body {
     margin-right: 2rem;
 }
 
-.InfoList.hidden {
+.RightList.hidden {
     transform: translateX(100%);
     width: 0;
     margin-right: 0;
     margin-left: 0;
 }
 
-.TipList.hidden {
+.LeftList.hidden {
     transform: translateX(-100%);
     width: 0;
     margin-right: 0;
@@ -184,7 +252,6 @@ body {
 .context {
     display: flex;
     width: 100%;
-    overflow: auto;
     flex-direction: column;
     align-items: center;
     gap: 2rem;
@@ -213,8 +280,29 @@ body {
     transition: all 0.3s ease-in-out;
 }
 
+.FloatList {
+    position: fixed;
+    margin-top: 2rem;
+    top: calc(100% + 2rem);
+    width: 25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.InfoList.hidden .FloatList,
+.TipList.hidden .FloatList {
+    width: 0;
+    overflow: hidden;
+}
+
+.float-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
 .toggle-btn {
-    position: absolute;
+    position: fixed;
     top: 50%;
     transform: translateY(-50%);
     background-color: #ddd;
@@ -234,8 +322,8 @@ body {
     border-bottom-left-radius: 0;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
-    right: -0.6rem;
-    transition: all 0.5s ease-in-out;
+    left: 29rem;
+    transition: all 0.5s ease-in-out, top 0s;
 }
 
 .left-btn {
@@ -243,27 +331,27 @@ body {
     border-bottom-left-radius: 10px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
-    left: -0.6rem;
-    transition: all 0.5s ease-in-out;
+    right: 29rem;
+    transition: all 0.5s ease-in-out, top 0s;
 }
 
-.InfoList.hidden .right-btn,
-.TipList.hidden .right-btn {
+
+.hidden.right-btn {
     border-top-left-radius: 10px;
     border-bottom-left-radius: 10px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     transform: rotate(180deg) translateY(100%);
-    right: 0.6rem;
+    left: 0rem;
 }
 
-.InfoList.hidden .left-btn,
-.TipList.hidden .left-btn {
+
+.hidden.left-btn {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
     transform: rotate(180deg) translateY(100%);
-    left: 0.6rem;
+    right: 0rem;
 }
 </style>

@@ -25,6 +25,12 @@ const config = {
     ],
     MainListDown: [
     ],
+    InfoListFloat: [
+        'SelfIntroductionPanel',
+    ],
+    TipListFloat: [
+
+    ],
 
     // Social Links. Maximum 10
     Links: [
