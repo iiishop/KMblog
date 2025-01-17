@@ -89,7 +89,7 @@ export async function loadMarkdownLinks() {
     const markdownLinks = extractMarkdownLinks(data);
 
     const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
-      const { path: markdownUrl, id } = item;
+      const { path: markdownUrl } = item;
       const normalizedMarkdownUrl = markdownUrl.replace(/\\/g, '/'); // 将反斜杠替换为正斜杠
       console.debug('Loading Markdown file:', normalizedMarkdownUrl); // 输出 Markdown 文件路径
       const markdownContent = await loadJsonFile(normalizedMarkdownUrl);
@@ -97,7 +97,7 @@ export async function loadMarkdownLinks() {
         const { meta } = await parseMarkdownMetadata(markdownContent); // 使用异步解析函数
         const imageName = meta.img;
         const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-        return { id, markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date };
+        return { markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date };
       }
       return null;
     }));
@@ -107,10 +107,16 @@ export async function loadMarkdownLinks() {
       .filter(item => item !== null)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    console.log('Markdown with Images Sorted by Date:', sortedMarkdownWithImages);
-    return sortedMarkdownWithImages;
+    // Create a dictionary
+    const markdownDict = sortedMarkdownWithImages.reduce((acc, { markdownUrl, imageUrl, date }) => {
+      acc[markdownUrl] = { imageUrl, date };
+      return acc;
+    }, {});
+
+    console.log('Markdown Dictionary:', markdownDict);
+    return markdownDict;
   }
-  return [];
+  return {};
 }
 
 // 异步函数，用于加载和解析 Tags.json 文件

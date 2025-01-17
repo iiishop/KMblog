@@ -14,7 +14,7 @@ const links = ref(config.Links.map(link => ({
   url: link.url,
 })).slice(0, 10));
 
-const articleCount = ref(globalVar.markdowns.length);
+const articleCount = ref(Object.keys(globalVar.markdowns).length);
 const tagCount = ref(Object.keys(globalVar.tags).length);
 const categoryCount = ref(Object.keys(globalVar.categories).length);
 

@@ -2,19 +2,20 @@
 import { onMounted, ref } from 'vue';
 import globalVar from '@/globalVar';
 import Post from '@/components/PostPanelComps/Post.vue';
-const posts = ref([]);
 
+const posts = ref({});
 
 onMounted(() => {
     posts.value = globalVar.markdowns;
-
 });
 </script>
+
 <template>
     <div class="PostPanel">
-        <Post v-for="(post, index) in posts" :key="post.id" :imageUrl="post.imageUrl" :markdownUrl="post.markdownUrl" />
+        <Post v-for="(key, index) in Object.keys(posts)" :key="index" :imageUrl="posts[key].imageUrl" :markdownUrl="key" />
     </div>
 </template>
+
 <style scoped>
 .PostPanel {
     display: flex;
