@@ -97,7 +97,7 @@ export async function loadMarkdownLinks() {
         const { meta } = await parseMarkdownMetadata(markdownContent); // 使用异步解析函数
         const imageName = meta.img;
         const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
-        return { markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date };
+        return { markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date, title: meta.title, pre: meta.pre, tags: meta.tags, categories: meta.categories };
       }
       return null;
     }));
@@ -108,8 +108,8 @@ export async function loadMarkdownLinks() {
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Create a dictionary
-    const markdownDict = sortedMarkdownWithImages.reduce((acc, { markdownUrl, imageUrl, date }) => {
-      acc[markdownUrl] = { imageUrl, date };
+    const markdownDict = sortedMarkdownWithImages.reduce((acc, { markdownUrl, imageUrl, date, title, pre, tags, categories }) => {
+      acc[markdownUrl] = { imageUrl, date, title, pre, tags, categories }; // 包含所有 metadata 信息
       return acc;
     }, {});
 
