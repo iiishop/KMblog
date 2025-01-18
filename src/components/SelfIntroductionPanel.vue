@@ -17,11 +17,6 @@ const links = ref(config.Links.map(link => ({
 const articleCount = ref(Object.keys(globalVar.markdowns).length);
 const tagCount = ref(Object.keys(globalVar.tags).length);
 const categoryCount = ref(Object.keys(globalVar.categories).length);
-
-const router = useRouter();
-function goRouter(path) {
-  router.push(path);
-}
 </script>
 <template>
   <div class="user-info">
@@ -29,14 +24,18 @@ function goRouter(path) {
     <h2>{{ name }}</h2>
     <p>{{ description }}</p>
     <div class="stats">
-      <div>
-        <span>文章数量</span>
-        <span>{{ articleCount }}</span>
-      </div>
-      <div class="clickable" @click="goRouter('/tags')">
-        <span>标签数量</span>
-        <span>{{ tagCount }}</span>
-      </div>
+      <router-link to="/archive" class="stat-link">
+        <div>
+          <span>文章数量</span>
+          <span>{{ articleCount }}</span>
+        </div>
+      </router-link>
+      <router-link to="/tags" class="stat-link">
+        <div class="clickable">
+          <span>标签数量</span>
+          <span>{{ tagCount }}</span>
+        </div>
+      </router-link>
       <div>
         <span>目录数量</span>
         <span>{{ categoryCount }}</span>
@@ -89,12 +88,13 @@ function goRouter(path) {
   display: block;
 }
 
-.clickable {
-  cursor: pointer;
-  transition: all 0.3s ease;
+.stat-link {
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.3s ease;
 }
 
-.clickable:hover {
+.stat-link:hover {
   color: var(--link-hover-color);
 }
 

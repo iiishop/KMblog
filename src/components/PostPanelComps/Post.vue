@@ -11,11 +11,11 @@
                 <div class="info-panel">
                     <div class="category-panel">
                         <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory" />
-                        <a :href="categoryLink">{{ lastCategory }}</a>
+                        <router-link :to="categoryLink">{{ lastCategory }}</router-link>
                     </div>
                     <div class="date-panel">
                         <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date" />
-                        <a :href="archiveLink">{{ metadata.date }}</a>
+                        <router-link :to="archiveLink">{{ metadata.date }}</router-link>
                     </div>
                 </div>
                 <div class="pre-panel" @click="navigateToPost">
@@ -124,12 +124,12 @@ const lastCategory = computed(() => {
 const categoryLink = computed(() => {
     if (metadata.value.categories && metadata.value.categories.length > 0) {
         const fullPath = metadata.value.categories.join('/');
-        return `${config.ProjectUrl}/categories/${fullPath}/`;
+        return { name: 'CategoryPage', params: { fullPath } };
     }
     return '#';
 });
 
-const archiveLink = computed(() => `${config.ProjectUrl}/Archive`);
+const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
 // 在组件挂载时初始化链接
 onMounted(() => {

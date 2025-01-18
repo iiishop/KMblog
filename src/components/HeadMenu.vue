@@ -5,8 +5,9 @@ import '../color.css';
 
 // Sample menu items; you can replace them with data from an API or other source
 const menuItems = ref([
-  { name: 'Home', link: '#' },
+  { name: 'Home', link: '/' },
   { name: 'About', link: '#' },
+  { name: 'Archive', link: '/archive' }
 ]);
 
 const BlogName = ref(config.BlogName);
@@ -55,7 +56,7 @@ onUnmounted(() => {
     <nav class="nav-links" :class="{ 'active': isMenuOpen }">
       <ul>
         <li v-for="(item, index) in menuItems" :key="index" class="nav-item">
-          <a :href="item.link" class="nav-link">{{ item.name }}</a>
+          <router-link :to="item.link" class="nav-link">{{ item.name }}</router-link>
         </li>
       </ul>
     </nav>
