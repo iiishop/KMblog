@@ -26,7 +26,6 @@ const config = {
     MainListDown: [
     ],
     InfoListFloat: [
-        'SelfIntroductionPanel',
     ],
     TipListFloat: [
 

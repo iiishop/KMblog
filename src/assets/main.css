@@ -9,6 +9,9 @@ body {
     overflow: hidden;
     position: relative;
 }
+html, body {
+  overflow-x: hidden;
+}
 
 
 /* #app {
