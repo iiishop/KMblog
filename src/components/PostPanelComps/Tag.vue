@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue';
+import { useRouter } from 'vue-router';
 import config from '@/config'; // 导入全局配置
 
 // 定义 props
@@ -66,9 +67,12 @@ watchEffect(() => {
     backgroundColor.value = randomColor();
 });
 
+// 获取路由实例
+const router = useRouter();
+
 // 处理标签点击事件
 function handleTagClick() {
-    window.location.href = `${config.ProjectUrl}/Tag/${props.tagname}`;
+    router.push({ path: `/archive/tags/${props.tagname}` });
 }
 </script>
 
