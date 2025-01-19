@@ -7,7 +7,9 @@ import '../color.css';
 const menuItems = ref([
   { name: 'Home', link: '/' },
   { name: 'About', link: '#' },
-  { name: 'Archive', link: '/archive' }
+  { name: 'Archive', link: '/archive' },
+  { name: 'Categories', link: '/category' },
+  { name: 'Tags', link: '/tags' }
 ]);
 
 const BlogName = ref(config.BlogName);

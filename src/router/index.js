@@ -5,6 +5,7 @@ const Home = () => import('../views/Home.vue');
 const TagPage = () => import('../views/TagPage.vue');
 const PostPage = () => import('../views/PostPage.vue');
 const ArchivePage = () => import('../views/ArchivePage.vue');
+const CategoryPage = () => import('../views/CategoryPage.vue');
 
 const routes = [
     {
@@ -49,6 +50,31 @@ const routes = [
             const { tagName } = route.params;
             const markdownUrls = globalVar.tags[tagName] || [];
             return { markdownUrls };
+        }
+    },
+    {
+        path: '/archive/categories/:categoryPath(.*)*',
+        name: 'ArchivePageByCategory',
+        component: ArchivePage,
+        props: route => {
+            const { categoryPath } = route.params;
+            const categoryName = Array.isArray(categoryPath) ? categoryPath.join('/') : categoryPath;
+            const markdownUrls = globalVar.categories[categoryName] || [];
+            return { markdownUrls };
+        }
+    },
+    {
+        path: '/about',
+        name: 'AboutPage',
+    },
+    {
+        path: '/category/:pathMatch(.*)*',
+        name: 'CategoryPage',
+        component: CategoryPage,
+        props: route => {
+            const { pathMatch } = route.params;
+            const categoryPath = Array.isArray(pathMatch) ? pathMatch : pathMatch ? pathMatch.split('/') : [];
+            return { categoryPath };
         }
     }
 ];

@@ -1,10 +1,11 @@
 <script setup>
 import config from '@/config';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
 import { openLink } from '@/utils';
 import globalVar from '@/globalVar';
 import { useRouter } from 'vue-router';
+import { gsap } from 'gsap';
 
 const avatarUrl = ref(config.HeadImg);
 const name = ref(config.Name);
@@ -17,6 +18,10 @@ const links = ref(config.Links.map(link => ({
 const articleCount = ref(Object.keys(globalVar.markdowns).length);
 const tagCount = ref(Object.keys(globalVar.tags).length);
 const categoryCount = ref(Object.keys(globalVar.categories).length);
+
+onMounted(() => {
+  gsap.from('.user-info', { opacity: 0, duration: 1 });
+});
 </script>
 <template>
   <div class="user-info">
@@ -56,11 +61,17 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
   flex-direction: column;
   align-items: center;
   border-radius: 20px;
-  padding: 1rem;
+  padding: 1.5rem;
   width: 100%;
   background-color: var(--user-info-background-color);
   box-shadow: 1px 1px 5px var(--user-info-box-shadow);
   color: var(--user-info-text-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.user-info:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 .user-info img {
@@ -112,5 +123,6 @@ const categoryCount = ref(Object.keys(globalVar.categories).length);
 
 .link:hover {
   color: var(--link-hover-color);
+  transform: scale(1.2);
 }
 </style>

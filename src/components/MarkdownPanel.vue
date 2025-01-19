@@ -147,6 +147,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .image-container {
   position: relative;
   width: 100%;
+  min-height: 10rem;
   max-height: 30rem;
 }
 
