@@ -1,5 +1,5 @@
 <script setup>
-import { defineComponent, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 const props = defineProps({
@@ -24,13 +24,25 @@ const navigateToArchive = (event) => {
     router.push(`/archive/categories/${archivePath}`);
 };
 
+const totalFileCount = computed(() => {
+    const countFiles = (node) => {
+        let count = node.files ? node.files.length : 0;
+        if (node.childCategories) {
+            for (const child of Object.values(node.childCategories)) {
+                count += countFiles(child);
+            }
+        }
+        return count;
+    };
+    return countFiles(props.node);
+});
 </script>
 
 <template>
     <li>
         <div class="category-node" @click="navigateToCategory">
             <span>{{ name }}</span>
-            <span class="file-count" @click="navigateToArchive">({{ node.files ? node.files.length : 0 }} 篇文章)</span>
+            <span class="file-count" @click="navigateToArchive">&ensp;({{ totalFileCount }} 篇文章)</span>
         </div>
         <ul v-if="node.childCategories && Object.keys(node.childCategories).length" class="nested">
             <CategoryNode v-for="(subNode, subName) in node.childCategories" :key="subName" :name="subName" :node="subNode" :parentPath="`${props.parentPath}/${props.name}`" />
@@ -45,7 +57,6 @@ li {
 
 .category-node {
     display: flex;
-    justify-content: space-between;
     padding: 0.5rem;
     border-radius: 0.5rem;
     transition: transform 0.3s ease, background-color 0.3s ease;
@@ -66,6 +77,5 @@ li {
 ul.nested {
     margin-left: 1rem;
     padding-left: 1rem;
-    border-left: 1px solid #ccc;
 }
 </style>

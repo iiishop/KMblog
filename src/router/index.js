@@ -7,6 +7,43 @@ const PostPage = () => import('../views/PostPage.vue');
 const ArchivePage = () => import('../views/ArchivePage.vue');
 const CategoryPage = () => import('../views/CategoryPage.vue');
 
+const getMarkdownUrls = (categoryPath) => {
+    console.log('categoryPath', categoryPath);
+    const categories = globalVar.categories;
+    const pathArray = Array.isArray(categoryPath) ? categoryPath : categoryPath.split('/');
+    let currentCategory = categories;
+    let markdownUrls = [];
+    //取出pathArray的最后一个元素
+    const lastPart = pathArray.pop();
+
+    // 找到指定路径的目录
+    for (const part of pathArray) {
+        if (currentCategory[part]) {
+            currentCategory = currentCategory[part].childCategories;
+        }
+    }
+    currentCategory = currentCategory[lastPart];
+    
+    markdownUrls = markdownUrls.concat(currentCategory.files);
+    // 写一个递归获取子目录中的markdown文件的方法
+    const getMarkdownUrlsFromChildCategories = (childCategories) => {
+        let md = []
+        for (const [node, childCategory] of Object.entries(childCategories)) {
+            md = md.concat(childCategory.files);
+            if (childCategory.childCategories) {
+                md = md.concat(getMarkdownUrlsFromChildCategories(childCategory.childCategories));
+            }
+        }
+        return md;
+    }
+    // 如果有子目录，则递归获取子目录中的markdown文件
+    if (currentCategory.childCategories) {
+        markdownUrls = markdownUrls.concat(getMarkdownUrlsFromChildCategories(currentCategory.childCategories));
+    }
+
+    return markdownUrls;
+};
+
 const routes = [
     {
         path: '/',
@@ -58,8 +95,7 @@ const routes = [
         component: ArchivePage,
         props: route => {
             const { categoryPath } = route.params;
-            const categoryName = Array.isArray(categoryPath) ? categoryPath.join('/') : categoryPath;
-            const markdownUrls = globalVar.categories[categoryName] || [];
+            const markdownUrls = getMarkdownUrls(categoryPath);
             return { markdownUrls };
         }
     },
