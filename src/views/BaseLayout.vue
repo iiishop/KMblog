@@ -82,7 +82,8 @@
 </template>
 
 <script setup>
-import { defineProps, ref, computed, onMounted, onUnmounted } from 'vue';
+import { defineProps, ref, shallowRef, computed, onMounted, onUnmounted } from 'vue';
+import { markRaw } from 'vue';
 import HeadMenu from '@/components/HeadMenu.vue';
 import config from '@/config';
 
@@ -99,20 +100,20 @@ const props = defineProps({
 
 const isInfoLeftPosition = config.ChangeInfoAndTipPosition;
 
-const tipListUpComponents = ref([]);
-const tipListDownComponents = ref([]);
-const mainListUpComponents = ref([]);
-const mainListDownComponents = ref([]);
-const infoListUpComponents = ref([]);
-const infoListDownComponents = ref([]);
-const infoListFloatComponents = ref([]);
-const tipListFloatComponents = ref([]);
+const tipListUpComponents = shallowRef([]);
+const tipListDownComponents = shallowRef([]);
+const mainListUpComponents = shallowRef([]);
+const mainListDownComponents = shallowRef([]);
+const infoListUpComponents = shallowRef([]);
+const infoListDownComponents = shallowRef([]);
+const infoListFloatComponents = shallowRef([]);
+const tipListFloatComponents = shallowRef([]);
 
-const isTipListHidden = ref(false);
-const isInfoListHidden = ref(false);
+const isTipListHidden = shallowRef(false);
+const isInfoListHidden = shallowRef(false);
 
-const infoListRef = ref(null);
-const tipListRef = ref(null);
+const infoListRef = shallowRef(null);
+const tipListRef = shallowRef(null);
 
 const loadComponents = async (list, components) => {
     for (const componentName of list) {
@@ -163,7 +164,7 @@ const mainListStyle = computed(() => {
     }
 });
 
-const floatListStyle = ref({
+const floatListStyle = shallowRef({
     topInfo: 'calc(100% + 2rem)',
     topTip: 'calc(100% + 2rem)',
 });
@@ -199,6 +200,10 @@ onMounted(async () => {
     await loadComponents(config.InfoListFloat, infoListFloatComponents);
     await loadComponents(config.TipListFloat, tipListFloatComponents);
     updateFloatListPosition();
+    toggleInfoList();
+    toggleInfoList();
+    toggleTipList();
+    toggleTipList();
 
     window.addEventListener('scroll', updateFloatListPosition);
 });
