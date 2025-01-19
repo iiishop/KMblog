@@ -198,19 +198,21 @@ class ShowCategoriesJson(Command):
             return
 
         parent_category = categories_dict
+        before_category = None
         for category in categories:
             if category not in parent_category:
                 parent_category[category] = {
                     'files': [],
                     'childCategories': {}
                 }
+            before_category = parent_category[category]
             parent_category = parent_category[category]['childCategories']
 
         # Add the file to the last category in the list
         relative_path = self._convert_to_relative_path(file_path)
-        if 'files' not in parent_category:
-            parent_category['files'] = []
-        parent_category['files'].append(relative_path)
+        if 'files' not in before_category:
+            before_category['files'] = []
+        before_category['files'].append(relative_path)
 
     def _convert_to_relative_path(self, path, base_path='/src'):
         base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
