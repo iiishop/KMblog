@@ -18,41 +18,48 @@ const categories = globalVar.categories;
 
 const buildTree = (categories) => {
     const tree = {};
-    const nodes = {};
+    console.log(categories);
+    const buildNode = (node) => {
+        const treeNode = {};
+        for (const [childNode, value] of Object.entries(node)) {
+            treeNode[childNode] = {
+                name: childNode,
+                files: value.files || [],
+                childCategories: value.childCategories ? buildNode(value.childCategories) : {},
+            }
+        }
+        return treeNode;
 
-    // 初始化所有节点
-    for (const [key, value] of Object.entries(categories)) {
-        nodes[key] = { name: key, files: value.files, subcategories: {} };
     }
-
-    // 构建树结构
-    for (const [key, value] of Object.entries(categories)) {
-        const node = nodes[key];
-        if (value.preCategory) {
-            const parent = nodes[value.preCategory];
-            parent.subcategories[key] = node;
-        } else {
-            tree[key] = node;
+    //遍历所有节点
+    for (const [node, value] of Object.entries(categories)) {
+        console.log(node, value);
+        tree[node] = {
+            name: node,
+            files: value.files || [],
+            childCategories: value.childCategories ? buildNode(value.childCategories) : {},
         }
     }
-
     return tree;
 };
 
 const categoryTree = computed(() => buildTree(categories));
+console.log(categoryTree.value);
 
 const filteredTree = computed(() => {
     if (props.categoryPath.length === 0) {
         return categoryTree.value;
     }
     let current = categoryTree.value;
+    console.log(current);
     for (const part of props.categoryPath) {
         if (current[part]) {
-            current = current[part].subcategories;
+            current = current[part].childCategories;
         } else {
             return {};
         }
     }
+    console.log(current);
     return current;
 });
 
@@ -72,12 +79,14 @@ onMounted(() => {
     gsap.from('.CategoryPanel', { opacity: 0, y: 50, duration: 1 });
 });
 </script>
+
 <template>
     <div class="CategoryPanel">
         <h2 class="category-title">{{ props.categoryPath[props.categoryPath.length - 1] || '所有目录' }}</h2>
         <button @click="goBack" :disabled="props.categoryPath.length === 0" class="back-button">返回上级目录</button>
         <transition-group name="list" tag="ul">
-            <CategoryNode v-for="(node, name) in filteredTree" :key="name" :name="name" :node="node" :parentPath="getParentPath()" />
+            <CategoryNode v-for="(node, name) in filteredTree" :key="name" :name="name" :node="node"
+                :parentPath="getParentPath()" />
         </transition-group>
     </div>
 </template>
