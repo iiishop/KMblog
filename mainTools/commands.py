@@ -47,7 +47,7 @@ img:
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(metadata)
 
-        output_command = OutputJson()
+        output_command = Generate()
         output_result = output_command.execute()
 
         return f"Initialized blog structure at {posts_path}\nCreated sample post at {file_path}\n{output_result}"
@@ -65,7 +65,7 @@ class ShowPostsJson(Command):
         current_id = 1  # 初始化 ID 计数器
 
         markdowns_path = os.path.join(posts_path, 'Markdowns')
-        if os.path.exists(markdowns_path):
+        if (os.path.exists(markdowns_path)):
             result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_path), current_id)
             current_id += len(result['Markdowns'])
 
@@ -257,7 +257,7 @@ class ListCollections(Command):
         return "\n".join(formatted_output)
 
 
-class OutputJson(Command):
+class Generate(Command):
     description = "Outputs the posts directory structure, tags, and categories to JSON files."
 
     def execute(self):
@@ -336,7 +336,7 @@ img:
             file.write(metadata)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputJson()
+        output_command = Generate()
         output_result = output_command.execute()
 
         return f"Post '{name}' created at {file_path}\n{output_result}"
@@ -379,7 +379,7 @@ class DeletePost(Command):
         os.remove(file_path)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputJson()
+        output_command = Generate()
         output_result = output_command.execute()
 
         return f"Post '{name}' deleted.\n{output_result}"
@@ -422,7 +422,7 @@ class DeleteCollection(Command):
         os.rmdir(directory)
 
         # Output the posts directory structure to a JSON file
-        output_command = OutputJson()
+        output_command = Generate()
         output_result = output_command.execute()
 
         return f"Collection '{collection}' and all its posts have been deleted.\n{output_result}"

@@ -9,7 +9,7 @@ const config = {
     HeadImg: '/src/assets/head.png',
     Name: 'MatchaNorth',
     Description: 'A social network for finding love and making friends',
-    NumberOfPostsPerPage: 10,
+    PostsPerPage: 10,
     ChangeInfoAndTipPosition: false,
     InfoListUp: [
         'SelfIntroductionPanel',

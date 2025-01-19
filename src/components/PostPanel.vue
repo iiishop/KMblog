@@ -3,22 +3,22 @@ import { onMounted, ref, computed } from 'vue';
 import globalVar from '@/globalVar';
 import Post from '@/components/PostPanelComps/Post.vue';
 import gsap from 'gsap';
+import config from '@/config';
 
 const posts = ref({});
 const currentPage = ref(1);
-const postsPerPage = 3; // 每页显示3个帖子
 
 onMounted(() => {
     posts.value = globalVar.markdowns;
 });
 
 const totalPages = computed(() => {
-    return Math.ceil(Object.keys(posts.value).length / postsPerPage);
+    return Math.ceil(Object.keys(posts.value).length / config.PostsPerPage);
 });
 
 const paginatedPosts = computed(() => {
-    const start = (currentPage.value - 1) * postsPerPage;
-    const end = start + postsPerPage;
+    const start = (currentPage.value - 1) * config.PostsPerPage;
+    const end = start + config.PostsPerPage;
     const keys = Object.keys(posts.value).slice(start, end);
     console.log(`Current Page: ${currentPage.value}, Start: ${start}, End: ${end}, Keys: ${keys}`);
     return keys.map(key => ({ key, ...posts.value[key] }));
