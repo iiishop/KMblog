@@ -24,20 +24,16 @@ const navigateToArchive = (event) => {
     router.push(`/archive/categories/${archivePath}`);
 };
 
-onMounted(() => {
-    console.log(props.parentPath);
-    console.log(props.name);
-});
 </script>
 
 <template>
     <li>
         <div class="category-node" @click="navigateToCategory">
             <span>{{ name }}</span>
-            <span class="file-count" @click="navigateToArchive">({{ node.files.length }} 篇文章)</span>
+            <span class="file-count" @click="navigateToArchive">({{ node.files ? node.files.length : 0 }} 篇文章)</span>
         </div>
-        <ul v-if="Object.keys(node.subcategories).length" class="nested">
-            <CategoryNode v-for="(subNode, subName) in node.subcategories" :key="subName" :name="subName" :node="subNode" :parentPath="`${props.parentPath}/${props.name}`" />
+        <ul v-if="node.childCategories && Object.keys(node.childCategories).length" class="nested">
+            <CategoryNode v-for="(subNode, subName) in node.childCategories" :key="subName" :name="subName" :node="subNode" :parentPath="`${props.parentPath}/${props.name}`" />
         </ul>
     </li>
 </template>
