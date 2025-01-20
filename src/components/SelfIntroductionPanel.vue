@@ -41,10 +41,12 @@ onMounted(() => {
           <span>{{ tagCount }}</span>
         </div>
       </router-link>
-      <div>
-        <span>目录数量</span>
-        <span>{{ categoryCount }}</span>
-      </div>
+      <router-link to="/category" class="stat-link">
+        <div>
+          <span>目录数量</span>
+          <span>{{ categoryCount }}</span>
+        </div>
+      </router-link>
     </div>
     <div class="icons">
       <div v-for="(link, index) in links" :key="index" class="link">
