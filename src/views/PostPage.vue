@@ -1,6 +1,9 @@
 <script setup>
-import BaseLayout from '@/views/BaseLayout.vue';
-import MarkdownPanel from '@/components/MarkdownPanel.vue';
+import { defineProps, defineAsyncComponent } from 'vue';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const BaseLayout = defineAsyncComponent(() => import('@/views/BaseLayout.vue'));
+const MarkdownPanel = defineAsyncComponent(() => import('@/components/MarkdownPanel.vue'));
 
 const props = defineProps({
   markdownUrl: {

@@ -1,7 +1,7 @@
 <template>
     <div class="post-panel">
-        <div class="image-panel" v-if="imageSrc" :style="{ width: imagePanelWidth }">
-            <img :src="imageSrc" alt="Image" @load="adjustImagePanelWidth" />
+        <div class="image-panel" v-if="imageSrc && imageSrc !== loadingGif" :style="{ width: imagePanelWidth }">
+            <img :src="imageSrc" alt="Image" @load="adjustImagePanelWidth" @error="handleImageError" />
         </div>
         <div class="content-panel">
             <div v-if="metadata">
@@ -30,14 +30,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
-import Tag from './Tag.vue';
-import IconCategory from '@/components/icons/IconCategory.vue';
-import IconDate from '@/components/icons/IconDate.vue';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
 import { parseMarkdownMetadata } from "@/utils";
+import loadingGif from '@/assets/loading.gif';
+
+// 使用动态导入进行代码分割
+const Tag = defineAsyncComponent(() => import('./Tag.vue'));
+const IconCategory = defineAsyncComponent(() => import('@/components/icons/IconCategory.vue'));
+const IconDate = defineAsyncComponent(() => import('@/components/icons/IconDate.vue'));
 
 // 定义 props
 const props = defineProps({
@@ -46,7 +49,7 @@ const props = defineProps({
 });
 
 // 定义 ref 来存储图片链接和 meta 数据
-const imageSrc = ref(props.imageUrl || '');
+const imageSrc = ref(props.imageUrl || loadingGif);
 const metadata = ref({});
 
 // 定义 imagePanelWidth
@@ -103,14 +106,32 @@ function formatDateString(dateString) {
 // 初始化图片链接的函数
 function initializeImage(url) {
     console.log('Initializing image with URL:', url);
-    if (url.startsWith('http') || url.startsWith('/')) {
-        // 处理网络图片链接 或 本地绝对路径
-        imageSrc.value = url;
+    if (url) {
+        if (url.startsWith('http') || url.startsWith('/')) {
+            // 处理网络图片链接 或 本地绝对路径
+            imageSrc.value = loadingGif;
+            const img = new Image();
+            img.src = url;
+            img.onload = () => {
+                imageSrc.value = url;
+            };
+            img.onerror = () => {
+                console.error('Failed to load image:', url);
+                imageSrc.value = '';
+            };
+        } else {
+            // 处理本地相对路径图片文件
+            imageSrc.value = new URL(url, import.meta.url).href;
+        }
     } else {
-        // 处理本地相对路径图片文件
-        imageSrc.value = new URL(url, import.meta.url).href;
+        imageSrc.value = '';
     }
     console.log('Image source set to:', imageSrc.value);
+}
+
+// 图片加载错误时处理函数
+function handleImageError() {
+    imageSrc.value = loadingGif;
 }
 
 // 计算最后一个目录和链接

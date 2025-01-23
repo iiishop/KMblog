@@ -1,6 +1,9 @@
 <script setup>
-import BaseLayout from '@/views/BaseLayout.vue';
-import CategoryPanel from '@/components/CategoryPanel.vue';
+import { defineProps, defineAsyncComponent } from 'vue';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const BaseLayout = defineAsyncComponent(() => import('@/views/BaseLayout.vue'));
+const CategoryPanel = defineAsyncComponent(() => import('@/components/CategoryPanel.vue'));
 
 const props = defineProps({
     categoryPath: {

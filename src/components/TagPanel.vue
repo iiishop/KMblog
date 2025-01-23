@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import Tag from './PostPanelComps/Tag.vue';
+import { ref, onMounted, defineAsyncComponent } from 'vue';
 import globalVar from '@/globalVar';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const Tag = defineAsyncComponent(() => import('./PostPanelComps/Tag.vue'));
 
 const tags = ref({});
 
@@ -12,13 +14,11 @@ onMounted(() => {
 </script>
 <template>
     <div class="TagPanel">
-
         <h1>Tags</h1>
         <div class="TagList">
             <Tag v-for="( tag, tagname ) in tags" :tagname="tagname" :count="tag.length" />
         </div>
     </div>
-
 </template>
 <style scoped>
 .TagPanel {

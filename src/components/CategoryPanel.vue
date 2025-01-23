@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, defineAsyncComponent } from 'vue';
 import { gsap } from 'gsap';
 import globalVar from '@/globalVar';
-import CategoryNode from './CategoryPanelComps/CategoryNode.vue';
 import { useRouter } from 'vue-router';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const CategoryNode = defineAsyncComponent(() => import('./CategoryPanelComps/CategoryNode.vue'));
 
 const props = defineProps({
     categoryPath: {

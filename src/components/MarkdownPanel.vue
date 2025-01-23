@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, nextTick } from 'vue';
+import { ref, onMounted, watch, computed, nextTick, defineAsyncComponent } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
@@ -32,9 +32,11 @@ import { defineProps } from 'vue';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
-import SteamGameBlock from './MarkdownPanelComps/SteamGameBlock.vue';
 import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import { parseMarkdownMetadata } from '@/utils';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
 
 // 定义 props
 const props = defineProps({

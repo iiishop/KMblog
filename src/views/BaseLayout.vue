@@ -82,10 +82,12 @@
 </template>
 
 <script setup>
-import { defineProps, ref, shallowRef, computed, onMounted, onUnmounted } from 'vue';
+import { defineProps, ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { markRaw } from 'vue';
-import HeadMenu from '@/components/HeadMenu.vue';
 import config from '@/config';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const HeadMenu = defineAsyncComponent(() => import('@/components/HeadMenu.vue'));
 
 const props = defineProps({
     showTipList: {

@@ -1,9 +1,11 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
 import globalVar from '@/globalVar';
-import Post from '@/components/PostPanelComps/Post.vue';
 import gsap from 'gsap';
 import config from '@/config';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const Post = defineAsyncComponent(() => import('@/components/PostPanelComps/Post.vue'));
 
 const posts = ref({});
 const currentPage = ref(1);
@@ -49,6 +51,7 @@ const goToPreviousPage = () => {
         currentPage.value -= 1;
     }
 };
+
 function onLeave(el, done) {
     gsap.to(el, {
         height: 0.1,

@@ -1,13 +1,14 @@
 <script setup>
-import Collection from './CollectionPanelComps/Collection.vue'
-import { onMounted, ref } from 'vue'
-import globalVar from '../globalVar.js'
+import { onMounted, ref, defineAsyncComponent } from 'vue';
+import globalVar from '../globalVar.js';
+
+// 使用 Vite 的代码分割功能进行动态导入
+const Collection = defineAsyncComponent(() => import('./CollectionPanelComps/Collection.vue'));
 
 const collections = ref({});
 onMounted(() => {
     collections.value = globalVar.collections;
-}
-)
+});
 </script>
 <template>
     <div class="CollectionPanel">
