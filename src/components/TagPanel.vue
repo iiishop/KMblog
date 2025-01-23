@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, defineAsyncComponent } from 'vue';
+import { gsap } from 'gsap';
 import globalVar from '@/globalVar';
 
 // 使用 Vite 的代码分割功能进行动态导入
@@ -9,7 +10,7 @@ const tags = ref({});
 
 onMounted(() => {
     tags.value = globalVar.tags
-    console.log(tags.value)
+    gsap.from('.TagPanel', { opacity: 0, y: 50, duration: 1 });
 })
 </script>
 <template>

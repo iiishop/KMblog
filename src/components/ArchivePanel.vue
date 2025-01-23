@@ -2,6 +2,7 @@
 import globalVar from '@/globalVar';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { gsap } from 'gsap';
 
 const props = defineProps({
     markdownUrls: {
@@ -26,6 +27,7 @@ onMounted(() => {
                 return acc;
             }, {});
     }
+    gsap.from('.ArchivePanel', { opacity: 0, y: 50, duration: 1 });
 });
 
 // 定义导航到 PostPage 的函数

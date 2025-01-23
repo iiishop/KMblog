@@ -117,17 +117,21 @@ function onLeave(el, done) {
     cursor: not-allowed;
     opacity: 0.5;
 }
-.fade-move,
+
+.fade-move {
+    transition: transform 0.5s ease;
+}
+
 .fade-enter-active,
 .fade-leave-active {
-    opacity: 1;
-    transition: all 0.5s ease;
+    transition: opacity 0.5s ease, transform 0.5s ease, scale 0.5s ease;
 }
 
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
-    transform: translateX(-150rem) scale(0);
+    transform: translateY(-100px);
+    scale: 0.9;
 }
 
 .fade-leave-active {
