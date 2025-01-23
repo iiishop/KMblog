@@ -4,7 +4,7 @@ import inspect
 try:
     import readline
 except ImportError:
-    import pyreadline as readline
+    from pyreadline3 import readline
 from commands import Command
 
 # Define a completer function for readline
