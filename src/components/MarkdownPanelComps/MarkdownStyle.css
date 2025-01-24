@@ -77,7 +77,7 @@
 
 /* 引用样式 */
 .markdown blockquote {
-    border-left: 4px solid #ccc;
+    border-left: 4px solid #007bff;
     padding-left: 1rem;
     color: #666;
     margin: 1.5rem 0;
@@ -114,12 +114,25 @@
 /* 代码块样式 */
 .markdown pre {
     background-color: #282c34;
-    padding: 1rem;
+    padding: 1.5rem;
     border-radius: 0.5rem;
     overflow-x: auto;
     font-family: "Fira Code", "Courier New", Courier, monospace;
     color: #abb2bf;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+/* 未来添加copy功能 */
+.markdown pre::before {
+    content: 'Copy';
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #007bff;
+    color: white;
+    padding: 0.1rem 0.5rem;
+    border-radius: 0 0 0 0.5rem;
+    font-size: 0.75rem;
 }
 
 .markdown code {
@@ -130,6 +143,7 @@
     color: #abb2bf;
 }
 
+/* 链接样式 */
 .markdown a {
     color: #007bff;
     text-decoration: none;
@@ -139,11 +153,11 @@
     transition: all 0.1s ease-in-out;
 }
 
-
 .markdown a:hover {
     padding: 0.5px;
     box-shadow: 0 0 10px 2px rgba(0, 123, 255, 0.3);
 }
+
 /* 表格样式 */
 .markdown table {
     width: 100%;
@@ -216,11 +230,24 @@
 .markdown .contains-task-list {
     padding-left: 1.5rem;
     margin: 1.5rem 0;
-    border-left: 4px solid #ccc;
+    border-left: 4px solid #007bff;
     background-color: #f8f8f8;
     border-radius: 8px;
     padding: 1rem;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.markdown .contains-task-list::before {
+    content: 'ToDo';
+    position: absolute;
+    top: -10px;
+    left: -20px;
+    background-color: #007bff;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0 0 0.5rem 0;
+    font-size: 0.75rem;
 }
 
 .markdown .contains-task-list .task-list-item {
