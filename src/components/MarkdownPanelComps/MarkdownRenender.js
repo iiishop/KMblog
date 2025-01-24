@@ -5,6 +5,7 @@ import markdownItKatex from 'markdown-it-katex';
 import 'katex/dist/katex.min.css'; // 引入katex的CSS
 import markdownItTaskLists from 'markdown-it-task-lists';
 import markdownItMultimdTable from 'markdown-it-multimd-table';
+import markdownItCodeCopy from 'markdown-it-code-copy';
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -29,6 +30,11 @@ md.use(markdownItTaskLists, { enabled: true });
 
 // 添加对表格的支持
 md.use(markdownItMultimdTable);
+
+md.use(markdownItCodeCopy, {
+    buttonText: 'copy',
+    successText: 'copied',
+});
 
 // 自定义插件处理图片路径
 md.use((md) => {

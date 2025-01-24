@@ -16,6 +16,7 @@
     "highlight.js": "^11.11.1",
     "highlightjs-line-numbers.js": "^2.9.0",
     "markdown-it": "^14.1.0",
+    "markdown-it-code-copy": "^0.2.1",
     "markdown-it-katex": "^2.0.3",
     "markdown-it-mermaid": "^0.2.5",
     "markdown-it-multimd-table": "^4.2.3",

@@ -123,15 +123,13 @@
     position: relative;
 }
 /* 未来添加copy功能 */
-.markdown pre::before {
+.markdown .markdown-it-code-copy {
     content: 'Copy';
-    position: absolute;
     top: 0;
     right: 0;
     background-color: #007bff;
     color: white;
-    padding: 0.1rem 0.5rem;
-    border-radius: 0 0 0 0.5rem;
+    padding: 0.5rem 1rem;
     font-size: 0.75rem;
 }
 
