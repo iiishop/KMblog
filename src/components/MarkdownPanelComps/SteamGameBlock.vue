@@ -201,6 +201,7 @@ onMounted(() => {
 }
 
 .game-button:hover {
+    padding: 0.5rem 1rem;
     background-color: #4a9fd1;
 }
 

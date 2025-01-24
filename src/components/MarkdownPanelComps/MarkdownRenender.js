@@ -71,4 +71,19 @@ md.use((md) => {
     };
 });
 
+// 自定义插件处理 bangumi 标记
+md.use((md) => {
+    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+    };
+
+    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        if (token.info.trim() === 'bangumi') {
+            const url = token.content.trim();
+            return `<BangumiBlock :bangumiUrl="'${url}'" ></BangumiBlock>`;
+        }
+        return defaultFence(tokens, idx, options, env, self);
+    };
+});
 export default md;
