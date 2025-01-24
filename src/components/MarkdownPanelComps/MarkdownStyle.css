@@ -2,61 +2,77 @@
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 1rem auto;
+    margin: 1.5rem auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s ease;
 }
 
 .markdown h1 {
     font-size: 2.5rem;
-    color: #333;
-    margin: 1rem 0;
+    color: #222;
+    font-weight: 700;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 0.5rem;
 }
 
 .markdown h2 {
     font-size: 2rem;
-    color: #444;
+    color: #333;
     margin: 1rem 0;
 }
 
 .markdown h3 {
     font-size: 1.75rem;
-    color: #555;
-    margin: 1rem 0;
+    color: #444;
+    margin: 1.5rem 0;
+    font-weight: 500;
 }
+
 
 .markdown h4 {
     font-size: 1.5rem;
-    color: #666;
-    margin: 1rem 0;
+    color: #555;
+    margin: 1.5rem 0;
+    font-weight: 400;
 }
 
 .markdown h5 {
     font-size: 1.25rem;
-    color: #777;
-    margin: 1rem 0;
+    color: #666;
+    margin: 1.5rem 0;
+    font-weight: 300;
 }
 
 .markdown h6 {
     font-size: 1rem;
     color: #888;
-    margin: 1rem 0;
+    margin: 1.5rem 0;
+    font-weight: 300;
 }
 
 /* 粗体样式 */
 .markdown strong {
     font-weight: bold;
     color: #000;
+    background: linear-gradient(135deg, #ff7e5f, #feb47b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
 /* 斜体样式 */
 .markdown em {
     font-style: italic;
     color: #000;
+    font-weight: 500;
 }
 
 /* 删除线样式 */
 .markdown del {
     text-decoration: line-through;
-    color: #000;
+    color: #d32f2f;
+    font-weight: 500;
 }
 
 /* 引用样式 */
@@ -64,54 +80,102 @@
     border-left: 4px solid #ccc;
     padding-left: 1rem;
     color: #666;
-    margin: 1rem 0;
+    margin: 1.5rem 0;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    padding: 1rem;
 }
 
 /* 无序列表样式 */
 .markdown ul {
     list-style-type: disc;
-    margin: 1rem 0;
+    margin: 1.5rem 0;
     padding-left: 2rem;
 }
 
 .markdown ul li {
     margin: 0.5rem 0;
+    font-weight: 400;
 }
 
 /* 有序列表样式 */
 .markdown ol {
     list-style-type: decimal;
-    margin: 1rem 0;
+    margin: 1.5rem 0;
     padding-left: 2rem;
 }
 
 .markdown ol li {
     margin: 0.5rem 0;
+    font-weight: 400;
 }
 
 /* 代码块样式 */
 .markdown pre {
-    background-color: #515151;
+    background-color: #282c34;
     padding: 1rem;
     border-radius: 0.5rem;
     overflow-x: auto;
+    font-family: "Fira Code", "Courier New", Courier, monospace;
+    color: #abb2bf;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .markdown code {
-    background-color: #515151;
+    background-color: #282c34;
     padding: 0.2rem 0.4rem;
     border-radius: 0.3rem;
-}
-/* 行号样式 */
-.hljs-ln-numbers {
-  text-align: right;
-  border-right: 1px solid #ccc;
-  color: #999;
-  user-select: none;
-  padding-right: 0.5rem;
-  margin-right: 0.5rem;
+    font-family: "Fira Code", "Courier New", Courier, monospace;
+    color: #abb2bf;
 }
 
-.hljs-ln-code {
-  padding-left: 0.5rem;
+.markdown a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.5);
+    border-radius: 5px;
+    transition: all 0.1s ease-in-out;
+}
+
+
+.markdown a:hover {
+    padding: 0.5px;
+    box-shadow: 0 0 10px 2px rgba(0, 123, 255, 0.3);
+}
+/* 表格样式 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+table th, table td {
+    border: 1px solid #ddd;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+table th {
+    background-color: #f4f4f4;
+}
+
+/* 待办事项列表样式 */
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item input[type="checkbox"] {
+    margin-right: 0.5rem;
+    pointer-events: none;
+}
+
+.contains-task-list {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+    border-left: 4px solid #ccc;
+}
+
+.contains-task-list .task-list-item {
+    margin-bottom: 0.5rem;
 }

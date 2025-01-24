@@ -3,6 +3,8 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/sunburst.css'; // 你可以选择其他样式
 import markdownItKatex from 'markdown-it-katex';
 import 'katex/dist/katex.min.css'; // 引入katex的CSS
+import markdownItTaskLists from 'markdown-it-task-lists';
+import markdownItMultimdTable from 'markdown-it-multimd-table';
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -21,6 +23,12 @@ const md = new MarkdownIt({
 
 // 添加对LaTeX的支持
 md.use(markdownItKatex);
+
+// 添加对任务列表的支持
+md.use(markdownItTaskLists, { enabled: true });
+
+// 添加对表格的支持
+md.use(markdownItMultimdTable);
 
 // 自定义插件处理图片路径
 md.use((md) => {

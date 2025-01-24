@@ -18,6 +18,8 @@
     "markdown-it": "^14.1.0",
     "markdown-it-katex": "^2.0.3",
     "markdown-it-mermaid": "^0.2.5",
+    "markdown-it-multimd-table": "^4.2.3",
+    "markdown-it-task-lists": "^2.1.1",
     "marked": "^15.0.4",
     "vue": "^3.5.13",
     "vue-router": "^4.0.13",
