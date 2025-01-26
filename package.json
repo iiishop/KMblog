@@ -11,6 +11,7 @@
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
     "axios": "^1.7.9",
+    "colorthief": "^2.6.0",
     "front-matter": "^4.0.2",
     "gsap": "^3.12.7",
     "highlight.js": "^11.11.1",

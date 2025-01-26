@@ -1,6 +1,33 @@
+<template>
+    <div class="bangumi-block">
+        <div class="bangumi-info">
+            <h2 class="bangumi-title">{{ title }} -- {{ fullRating }}</h2>
+            <div class="bangumi-rating">
+                <div class="rating-line">
+                    <div v-for="(rating, index) in allRating" :key="index" class="rating-segment"
+                        :style="{ flexBasis: rating.percent + '%', backgroundColor: getColor(index), borderRight: `2px solid ${secondaryColor}` }">
+                        <span class="tooltip">{{ rating.numberOfPersons }} 人</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bangumi-detail">
+            <img :src="imageUrl || '/src/assets/loading.gif'" alt="Bangumi Cover" class="bangumi-cover" />
+            <div class="bangumi-tags">
+                <span v-for="tag in tags" :key="tag">{{ tag }}</span>
+            </div>
+            <div class="detail-info">
+                <div class="bangumi-detail-info" v-html="info"></div>
+                <a :href="props.bangumiurl" target="_blank" class="bangumi-link">查看详情</a>
+            </div>
+        </div>
+    </div>
+</template>
+
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import ColorThief from 'colorthief';
 
 const props = defineProps({
     bangumiurl: String,
@@ -12,6 +39,15 @@ const tags = ref([]);
 const fullRating = ref('');
 const allRating = ref([]);
 const info = ref('');
+const primaryColor = ref('');
+const secondaryColor = ref('');
+
+const tooltip = ref({
+    visible: false,
+    numberOfPersons: 0,
+    x: 0,
+    y: 0
+});
 
 const fetchSubjectDetails = async () => {
     try {
@@ -31,6 +67,19 @@ const fetchSubjectDetails = async () => {
             const originalUrl = imgElement.src;
             // 使用代理服务获取图片
             imageUrl.value = `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`;
+
+            // 创建一个新的Image对象以获取颜色
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.src = imageUrl.value;
+            img.onload = () => {
+                const colorThief = new ColorThief();
+                const colors = colorThief.getPalette(img, 2);
+                if (colors.length >= 2) {
+                    primaryColor.value = `rgb(${colors[0].join(',')})`;
+                    secondaryColor.value = `rgb(${colors[1].join(',')})`;
+                }
+            };
         }
 
         // 获取标题
@@ -83,49 +132,70 @@ const fetchSubjectDetails = async () => {
     }
 };
 
+const getColor = (index) => {
+    if (!primaryColor.value) {
+        return 'rgba(0, 0, 0, 0.1)'; // 默认颜色
+    }
+    const opacity = 1 - (index * 0.05);
+    const [r, g, b] = primaryColor.value.match(/\d+/g).map(Number);
+    const factor = 1 + index * 0.2; // 增加区分度
+    const adjustedColor = `rgba(${Math.min(r * factor, 255)}, ${Math.min(g * factor, 255)}, ${Math.min(b * factor, 255)}, ${opacity})`;
+    return adjustedColor;
+};
+
+const showTooltip = (numberOfPersons, event) => {
+    tooltip.value.visible = true;
+    tooltip.value.numberOfPersons = numberOfPersons;
+    tooltip.value.x = event.screenX + 10;
+    tooltip.value.y = event.screenY + 10;
+    console.log(tooltip.value.x, tooltip.value.y);
+    console.log(event.pageX, event.pageY);
+
+};
+
+const hideTooltip = () => {
+    tooltip.value.visible = false;
+};
+
 onMounted(() => {
     fetchSubjectDetails();
 });
 </script>
 
-<template>
-    <div class="bangumi-block">
-        <div class="bangumi-info">
-            <h2 class="bangumi-title">{{ title }} -- {{ fullRating }}</h2>
-            <div class="bangumi-rating">
-                <ul class="rating-bars">
-                    <li v-for="(rating, index) in allRating" :key="index" class="rating-bar">
-                        <div class="bar-container">
-                            <div class="bar" :style="{ height: rating.percent + '%' }">
-                                <span class="bar-tooltip">{{ rating.numberOfPersons }}人</span>
-                            </div>
-                        </div>
-                        <span class="bar-label">{{ rating.percent }}%</span>
-                        <span class="bar-star">{{ 10 - index}}⭐</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        <div class="bangumi-detail">
-            <img :src="imageUrl || '/src/assets/loading.gif'" alt="Bangumi Cover" class="bangumi-cover" />
-            <div class="bangumi-tags">
-                <span v-for="tag in tags" :key="tag">{{ tag }}</span>
-            </div>
-            <div class="detail-info">
-                <div class="bangumi-detail-info" v-html="info"></div>
-                <a :href="props.bangumiurl" target="_blank" class="bangumi-link">查看详情</a>
-            </div>
-        </div>
-    </div>
-</template>
-
 <style scoped>
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
 .bangumi-block {
+    background-size: 200% 200%;
     background-color: var(--tag-panel-background-color);
     border-radius: 12px;
     padding: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
+    animation: gradient 1s ease infinite;
+    backdrop-filter: blur(10px);
+}
+
+.bangumi-info,
+.bangumi-detail,
+.bangumi-cover,
+.bangumi-tags span,
+.bangumi-detail-info,
+.bangumi-link,
+.rating-bars {
+    backdrop-filter: blur(50px);
 }
 
 .bangumi-block:hover {
@@ -216,88 +286,36 @@ onMounted(() => {
     color: var(--tag-panel-background-color);
 }
 
-.rating-bars {
-    list-style: none;
-    padding: 0 0.4rem;
-    margin: 1rem 0;
-    width: 100%;
-    height: 100px;
+.rating-line {
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    background-color: rgba(0, 0, 0, 0.1);
-    box-shadow: 1px 1px 10px 1px rgba(0, 0, 0, 0.1);
-    border-radius: 1rem;
+    height: 9px;
+    margin: 20px 0;
 }
 
-.rating-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.bar-container {
-    flex-grow: 1;
-    background-color: rgba(136, 136, 136, 0.5);
-    width: 16px;
-    border-radius: 6px 6px 0 0px;
+.rating-segment {
+    height: 100%;
+    transition: flex-basis 0.3s ease;
     position: relative;
 }
 
-.bar {
-    width: 100%;
-    bottom: 0px;
-    border-radius: 50% 50% 0 0px;
-    background-color: var(--tag-panel-text-color);
-    transition: width 0.3s ease;
-    position: absolute;
+.rating-segment:hover .tooltip {
+    opacity: 1;
+    transform: translateY(-10px);
 }
 
-.bar-tooltip {
+.tooltip {
     position: absolute;
-    top: -30px;
-    right: 0;
-    width: auto;
-    background-color: var(--tag-panel-text-color);
-    color: var(--tag-panel-background-color);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: auto;
-    opacity: 0;
-    transform: translateY(5px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    background-color: #333;
+    color: #fff;
+    padding: 5px;
+    border-radius: 5px;
     pointer-events: none;
     white-space: nowrap;
-}
-
-.bar-container:hover .bar-tooltip {
-    opacity: 1;
+    opacity: 0;
     transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
 }
-
-.bar-label {
-    min-width: 40px;
-    text-align: right;
-    font-size: 0.8rem;
-    color: var(--tag-panel-text-color);
-}
-
-.bar-star {
-    font-size: 0.8rem;
-    color: var(--tag-panel-text-color);
-    margin: 0;
-
-}
-
-/* @media (max-width: 768px) {
-    .bangumi-detail {
-        flex-direction: column;
-    }
-
-    .bangumi-cover {
-        width: 100%;
-        max-width: 300px;
-        margin: 0 auto;
-    }
-} */
 </style>
