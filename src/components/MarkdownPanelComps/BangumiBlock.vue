@@ -11,7 +11,7 @@ const title = ref('');
 const tags = ref([]);
 const fullRating = ref('');
 const allRating = ref([]);
-// const info = ref('');
+const info = ref('');
 
 const fetchSubjectDetails = async () => {
     try {
@@ -73,16 +73,10 @@ const fetchSubjectDetails = async () => {
         allRating.value = ratings;
 
         // 获取详细信息
-        // const infoElement = doc.querySelector('.game_purchase_discount');
-        // if (infoElement) {
-        //     info.value = infoElement.outerHTML.trim();
-        // }
-        // else {
-        //     const infoElement = doc.querySelector('.game_purchase_price');
-        //     if (infoElement) {
-        //         info.value = infoElement.outerHTML.trim();
-        //     }
-        // }
+        const infoElement = doc.querySelector('#infobox');
+        if (infoElement) {
+            info.value = infoElement.outerHTML.trim();
+        }
 
     } catch (error) {
         console.error('Error fetching game details:', error);
@@ -97,17 +91,17 @@ onMounted(() => {
 <template>
     <div class="bangumi-block">
         <div class="bangumi-info">
-            <h2 class="bangumi-title">{{ title }}</h2>
+            <h2 class="bangumi-title">{{ title }} -- {{ fullRating }}</h2>
             <div class="bangumi-rating">
-                <p>{{ fullRating }}</p>
                 <ul class="rating-bars">
                     <li v-for="(rating, index) in allRating" :key="index" class="rating-bar">
                         <div class="bar-container">
-                            <div class="bar" :style="{ width: rating.percent + '%' }">
+                            <div class="bar" :style="{ height: rating.percent + '%' }">
                                 <span class="bar-tooltip">{{ rating.numberOfPersons }}人</span>
                             </div>
                         </div>
                         <span class="bar-label">{{ rating.percent }}%</span>
+                        <span class="bar-star">{{ 10 - index}}⭐</span>
                     </li>
                 </ul>
             </div>
@@ -118,7 +112,7 @@ onMounted(() => {
                 <span v-for="tag in tags" :key="tag">{{ tag }}</span>
             </div>
             <div class="detail-info">
-                <div class="bangumi-info" v-html="info"></div>
+                <div class="bangumi-detail-info" v-html="info"></div>
                 <a :href="props.bangumiurl" target="_blank" class="bangumi-link">查看详情</a>
             </div>
         </div>
@@ -129,9 +123,8 @@ onMounted(() => {
 .bangumi-block {
     background-color: var(--tag-panel-background-color);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    margin: 1rem 0;
     transition: transform 0.3s ease;
 }
 
@@ -139,14 +132,10 @@ onMounted(() => {
     transform: translateY(-2px);
 }
 
-.bangumi-info {
-    margin-bottom: 1rem;
-}
-
 .bangumi-title {
     font-size: 1.5rem;
     color: var(--tag-panel-text-color);
-    margin-bottom: 0.5rem;
+    margin: 0;
 }
 
 .bangumi-rating {
@@ -200,6 +189,16 @@ onMounted(() => {
     gap: 1rem;
 }
 
+.bangumi-detail-info {
+    color: var(--tag-panel-text-color);
+    font-size: 0.9rem;
+    max-height: 10rem;
+    overflow-y: scroll;
+    border-radius: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: rgba(190, 190, 190, 0.1);
+}
+
 .bangumi-link {
     display: inline-block;
     padding: 0.5rem 1rem;
@@ -219,43 +218,51 @@ onMounted(() => {
 
 .rating-bars {
     list-style: none;
-    padding: 0;
+    padding: 0 0.4rem;
     margin: 1rem 0;
     width: 100%;
+    height: 100px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 1px 10px 1px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
 }
 
 .rating-bar {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    margin-bottom: 0.5rem;
-    gap: 0.5rem;
 }
 
 .bar-container {
     flex-grow: 1;
-    background-color: rgba(255, 255, 255, 0.1);
-    height: 12px;
-    border-radius: 6px;
-    overflow: hidden;
+    background-color: rgba(136, 136, 136, 0.5);
+    width: 16px;
+    border-radius: 6px 6px 0 0px;
     position: relative;
 }
 
 .bar {
-    height: 100%;
+    width: 100%;
+    bottom: 0px;
+    border-radius: 50% 50% 0 0px;
     background-color: var(--tag-panel-text-color);
     transition: width 0.3s ease;
-    position: relative;
+    position: absolute;
 }
 
 .bar-tooltip {
     position: absolute;
-    top: -24px;
+    top: -30px;
     right: 0;
+    width: auto;
     background-color: var(--tag-panel-text-color);
     color: var(--tag-panel-background-color);
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: auto;
     opacity: 0;
     transform: translateY(5px);
     transition: opacity 0.3s ease, transform 0.3s ease;
@@ -263,19 +270,26 @@ onMounted(() => {
     white-space: nowrap;
 }
 
-.bar:hover .bar-tooltip {
+.bar-container:hover .bar-tooltip {
     opacity: 1;
     transform: translateY(0);
 }
 
 .bar-label {
-    min-width: 45px;
+    min-width: 40px;
     text-align: right;
     font-size: 0.8rem;
     color: var(--tag-panel-text-color);
 }
 
-@media (max-width: 768px) {
+.bar-star {
+    font-size: 0.8rem;
+    color: var(--tag-panel-text-color);
+    margin: 0;
+
+}
+
+/* @media (max-width: 768px) {
     .bangumi-detail {
         flex-direction: column;
     }
@@ -285,5 +299,5 @@ onMounted(() => {
         max-width: 300px;
         margin: 0 auto;
     }
-}
+} */
 </style>
