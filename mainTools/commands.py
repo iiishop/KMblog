@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 from utility import parse_markdown_metadata, read_markdowns, find_first_image
+from path_utils import get_base_path, get_posts_path, get_assets_path
 
 
 class Command:
@@ -10,12 +11,13 @@ class Command:
     def execute(self):
         raise NotImplementedError("You should implement this method.")
 
+
 class InitBlog(Command):
     description = "Initializes the blog structure with necessary directories and a sample post."
 
     def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
+        base_path = get_base_path()
+        posts_path = get_posts_path()
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         images_path = os.path.join(posts_path, 'Images')
 
@@ -52,21 +54,25 @@ img:
 
         return f"Initialized blog structure at {posts_path}\nCreated sample post at {file_path}\n{output_result}"
 
+
 class ShowPostsJson(Command):
     description = "Shows the posts directory structure in JSON format."
 
     def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        base_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '../'))
         posts_path = os.path.join(base_path, 'src/Posts')
         if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+            raise FileNotFoundError(
+                f"No such file or directory: '{posts_path}'")
 
         result = {}
         current_id = 1  # 初始化 ID 计数器
 
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if (os.path.exists(markdowns_path)):
-            result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_path), current_id)
+            result['Markdowns'] = self._convert_to_relative_paths(
+                read_markdowns(markdowns_path), current_id)
             current_id += len(result['Markdowns'])
 
         directories = [
@@ -80,9 +86,11 @@ class ShowPostsJson(Command):
                 sub_result = {}
                 markdowns_sub_path = dir_path
                 stats = os.stat(dir_path)
-                sub_result['date'] = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
+                sub_result['date'] = datetime.fromtimestamp(
+                    stats.st_ctime).strftime('%Y-%m-%d')
                 if os.path.exists(markdowns_sub_path):
-                    sub_result['Markdowns'] = self._convert_to_relative_paths(read_markdowns(markdowns_sub_path), current_id)
+                    sub_result['Markdowns'] = self._convert_to_relative_paths(
+                        read_markdowns(markdowns_sub_path), current_id)
                     current_id += len(sub_result['Markdowns'])
 
                 image = find_first_image(dir_path)
@@ -97,27 +105,30 @@ class ShowPostsJson(Command):
         return [{'id': start_id + i, 'path': self._convert_to_relative_path(path, base_path)} for i, path in enumerate(paths)]
 
     def _convert_to_relative_path(self, path, base_path='/src'):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        base_path = get_base_path()
         if path.startswith(base_path):
             return path[len(base_path):].replace('\\', '/')
         else:
             return path.replace('\\', '/')
 
+
 class ShowTagsJson(Command):
     description = "Shows the tags and their corresponding markdown files in JSON format."
 
     def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
+        base_path = get_base_path()
+        posts_path = get_posts_path()
         if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+            raise FileNotFoundError(
+                f"No such file or directory: '{posts_path}'")
 
         tags_dict = {}
 
         # List Markdown files in the root directory
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            root_files = [file for file in os.listdir(
+                markdowns_path) if file.endswith('.md')]
             for file in root_files:
                 file_path = os.path.join(markdowns_path, file)
                 metadata = parse_markdown_metadata(file_path)
@@ -127,7 +138,8 @@ class ShowTagsJson(Command):
                     for tag in metadata['tags']:
                         if tag not in tags_dict:
                             tags_dict[tag] = []
-                        tags_dict[tag].append(self._convert_to_relative_path(file_path, base_path))
+                        tags_dict[tag].append(
+                            self._convert_to_relative_path(file_path, base_path))
 
         # List collections and their posts
         directories = [
@@ -137,7 +149,8 @@ class ShowTagsJson(Command):
 
         for dir_name in directories:
             dir_path = os.path.join(posts_path, dir_name)
-            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
+            md_files = [file for file in os.listdir(
+                dir_path) if file.endswith('.md')]
             for md_file in md_files:
                 md_file_path = os.path.join(dir_path, md_file)
                 metadata = parse_markdown_metadata(md_file_path)
@@ -147,32 +160,36 @@ class ShowTagsJson(Command):
                     for tag in metadata['tags']:
                         if tag not in tags_dict:
                             tags_dict[tag] = []
-                        tags_dict[tag].append(self._convert_to_relative_path(md_file_path, base_path))
+                        tags_dict[tag].append(
+                            self._convert_to_relative_path(md_file_path, base_path))
 
         return tags_dict
 
     def _convert_to_relative_path(self, path, base_path='/src'):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        base_path = get_base_path()
         if path.startswith(base_path):
             return path[len(base_path):].replace('\\', '/')
         else:
             return path.replace('\\', '/')
 
+
 class ShowCategoriesJson(Command):
     description = "Shows the categories and their corresponding markdown files in JSON format."
 
     def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
+        base_path = get_base_path()
+        posts_path = get_posts_path()
         if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+            raise FileNotFoundError(
+                f"No such file or directory: '{posts_path}'")
 
         categories_dict = {}
 
         # List Markdown files in the root directory
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            root_files = [os.path.join(markdowns_path, file) for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            root_files = [os.path.join(markdowns_path, file) for file in os.listdir(
+                markdowns_path) if file.endswith('.md')]
             for file_path in root_files:
                 self._process_markdown_file(file_path, categories_dict)
 
@@ -184,7 +201,8 @@ class ShowCategoriesJson(Command):
 
         for dir_name in directories:
             dir_path = os.path.join(posts_path, dir_name)
-            md_files = [os.path.join(dir_path, file) for file in os.listdir(dir_path) if file.endswith('.md')]
+            md_files = [os.path.join(dir_path, file) for file in os.listdir(
+                dir_path) if file.endswith('.md')]
             for md_file_path in md_files:
                 self._process_markdown_file(md_file_path, categories_dict)
 
@@ -215,7 +233,7 @@ class ShowCategoriesJson(Command):
         before_category['files'].append(relative_path)
 
     def _convert_to_relative_path(self, path, base_path='/src'):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        base_path = get_base_path()
         if path.startswith(base_path):
             return path[len(base_path):].replace('\\', '/')
         else:
@@ -226,9 +244,10 @@ class ListCollections(Command):
     description = "Lists all collections in the posts directory."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
+        posts_path = get_posts_path()
         if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+            raise FileNotFoundError(
+                f"No such file or directory: '{posts_path}'")
 
         collections = []
         directories = [
@@ -240,8 +259,10 @@ class ListCollections(Command):
             dir_path = os.path.join(posts_path, dir_name)
             if dir_name not in ['Markdowns', 'Images']:
                 stats = os.stat(dir_path)
-                creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
-                article_count = len([file for file in os.listdir(dir_path) if file.endswith('.md')])
+                creation_date = datetime.fromtimestamp(
+                    stats.st_ctime).strftime('%Y-%m-%d')
+                article_count = len(
+                    [file for file in os.listdir(dir_path) if file.endswith('.md')])
                 collections.append({
                     'name': dir_name,
                     'creation_date': creation_date,
@@ -261,10 +282,11 @@ class Generate(Command):
     description = "Outputs the posts directory structure, tags, and categories to JSON files."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
-        posts_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
-        tags_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/Tags.json'))
-        categories_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/Categories.json'))
+        posts_path = get_posts_path()
+        assets_path = get_assets_path()
+        posts_output_path = os.path.join(assets_path, 'PostDirectory.json')
+        tags_output_path = os.path.join(assets_path, 'Tags.json')
+        categories_output_path = os.path.join(assets_path, 'Categories.json')
 
         show_posts_command = ShowPostsJson()
         posts_directory = show_posts_command.execute()
@@ -290,7 +312,8 @@ class Generate(Command):
 
         # Output categories dictionary to JSON file
         with open(categories_output_path, 'w', encoding='utf-8') as json_file:
-            json.dump(categories_dictionary, json_file, indent=2, ensure_ascii=False)
+            json.dump(categories_dictionary, json_file,
+                      indent=2, ensure_ascii=False)
 
         return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}"
 
@@ -299,16 +322,18 @@ class AddPost(Command):
     description = "Adds a new post with the given name and optional collection."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
-        output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
+        posts_path = get_posts_path()
+        output_path = os.path.join(get_assets_path(), 'PostDirectory.json')
         name = input("Enter the name of the new post: ").strip()
-        collection = input("Enter the collection name (optional): ").strip() or None
+        collection = input(
+            "Enter the collection name (optional): ").strip() or None
 
         if not name:
             return "Error: No post name provided."
 
         # Determine the directory based on whether a collection is provided
-        directory = os.path.join(posts_path, 'Markdowns') if not collection else os.path.join(posts_path, collection)
+        directory = os.path.join(
+            posts_path, 'Markdowns') if not collection else os.path.join(posts_path, collection)
         os.makedirs(directory, exist_ok=True)
 
         # Generate the file path and metadata
@@ -327,7 +352,8 @@ img:
 
         # Check if the file already exists
         if os.path.exists(file_path):
-            overwrite = input(f"File '{file_path}' already exists. Overwrite? (Y/N): ").strip().lower()
+            overwrite = input(
+                f"File '{file_path}' already exists. Overwrite? (Y/N): ").strip().lower()
             if overwrite not in ['y', 'yes']:
                 return f"Post '{name}' creation aborted."
 
@@ -346,16 +372,18 @@ class DeletePost(Command):
     description = "Deletes a post with the given name from the optional collection."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
-        output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
+        posts_path = get_posts_path()
+        output_path = os.path.join(get_assets_path(), 'PostDirectory.json')
         name = input("Enter the name of the post to delete: ").strip()
-        collection = input("Enter the collection name (optional): ").strip() or None
+        collection = input(
+            "Enter the collection name (optional): ").strip() or None
 
         if not name:
             return "Error: No post name provided."
 
         # Determine the directory based on whether a collection is provided
-        directory = os.path.join(posts_path, 'Markdowns') if not collection else os.path.join(posts_path, collection)
+        directory = os.path.join(
+            posts_path, 'Markdowns') if not collection else os.path.join(posts_path, collection)
         file_path = os.path.join(directory, f"{name}.md")
 
         # Check if the file exists
@@ -364,14 +392,17 @@ class DeletePost(Command):
 
         # Get file metadata
         stats = os.stat(file_path)
-        creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')
+        creation_date = datetime.fromtimestamp(
+            stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')
         with open(file_path, 'r') as file:
             content = file.read()
             content_length = len(content)
 
         # Ask for confirmation
-        print(f"Post '{name}' was created on {creation_date} and has {content_length} characters.")
-        confirm = input(f"Are you sure you want to delete this post? (Y/N): ").strip().lower()
+        print(
+            f"Post '{name}' was created on {creation_date} and has {content_length} characters.")
+        confirm = input(
+            f"Are you sure you want to delete this post? (Y/N): ").strip().lower()
         if confirm not in ['y', 'yes']:
             return f"Deletion of post '{name}' aborted."
 
@@ -389,9 +420,10 @@ class DeleteCollection(Command):
     description = "Deletes a collection and all its posts."
 
     def execute(self):
-        posts_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/Posts'))
-        output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/assets/PostDirectory.json'))
-        collection = input("Enter the name of the collection to delete: ").strip()
+        posts_path = get_posts_path()
+        output_path = os.path.join(get_assets_path(), 'PostDirectory.json')
+        collection = input(
+            "Enter the name of the collection to delete: ").strip()
 
         if not collection:
             return "Error: No collection name provided."
@@ -403,7 +435,8 @@ class DeleteCollection(Command):
             return f"Error: Collection '{collection}' does not exist."
 
         # List the posts in the collection
-        posts = [file for file in os.listdir(directory) if file.endswith('.md')]
+        posts = [file for file in os.listdir(
+            directory) if file.endswith('.md')]
         if not posts:
             return f"Error: Collection '{collection}' is empty or contains no posts."
 
@@ -412,7 +445,8 @@ class DeleteCollection(Command):
             print(f" - {post}")
 
         # Ask for confirmation
-        confirm = input(f"Are you sure you want to delete this collection and all its posts? (Y/N): ").strip().lower()
+        confirm = input(
+            f"Are you sure you want to delete this collection and all its posts? (Y/N): ").strip().lower()
         if confirm not in ['y', 'yes']:
             return f"Deletion of collection '{collection}' aborted."
 
@@ -432,26 +466,30 @@ class ListAllPosts(Command):
     description = "Lists all posts and collections in the posts directory."
 
     def execute(self):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
+        base_path = get_base_path()
+        posts_path = get_posts_path()
         if not os.path.exists(posts_path):
-            raise FileNotFoundError(f"No such file or directory: '{posts_path}'")
+            raise FileNotFoundError(
+                f"No such file or directory: '{posts_path}'")
 
         formatted_output = []
 
         # List Markdown files in the root directory
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         if os.path.exists(markdowns_path):
-            root_files = [file for file in os.listdir(markdowns_path) if file.endswith('.md')]
+            root_files = [file for file in os.listdir(
+                markdowns_path) if file.endswith('.md')]
             for file in root_files:
                 file_path = os.path.join(markdowns_path, file)
                 stats = os.stat(file_path)
-                creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
+                creation_date = datetime.fromtimestamp(
+                    stats.st_ctime).strftime('%Y-%m-%d')
                 metadata = parse_markdown_metadata(file_path)
                 title = metadata.get('title', 'Untitled')
                 with open(file_path, 'r') as f:
                     content_length = len(f.read())
-                formatted_output.append(f"Post: {file} | Title: {title} | Created on: {creation_date} | Characters: {content_length}")
+                formatted_output.append(
+                    f"Post: {file} | Title: {title} | Created on: {creation_date} | Characters: {content_length}")
 
         # List collections and their posts
         directories = [
@@ -462,19 +500,22 @@ class ListAllPosts(Command):
         for dir_name in directories:
             dir_path = os.path.join(posts_path, dir_name)
             stats = os.stat(dir_path)
-            creation_date = datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d')
-            md_files = [file for file in os.listdir(dir_path) if file.endswith('.md')]
-            formatted_output.append(f"Collection: {dir_name} | Created on: {creation_date} | Posts: {len(md_files)}")
+            creation_date = datetime.fromtimestamp(
+                stats.st_ctime).strftime('%Y-%m-%d')
+            md_files = [file for file in os.listdir(
+                dir_path) if file.endswith('.md')]
+            formatted_output.append(
+                f"Collection: {dir_name} | Created on: {creation_date} | Posts: {len(md_files)}")
             for md_file in md_files:
                 md_file_path = os.path.join(dir_path, md_file)
                 md_stats = os.stat(md_file_path)
-                md_creation_date = datetime.fromtimestamp(md_stats.st_ctime).strftime('%Y-%m-%d')
+                md_creation_date = datetime.fromtimestamp(
+                    md_stats.st_ctime).strftime('%Y-%m-%d')
                 metadata = parse_markdown_metadata(md_file_path)
                 title = metadata.get('title', 'Untitled')
                 with open(md_file_path, 'r') as f:
                     content_length = len(f.read())
-                formatted_output.append(f"    Post: {md_file} | Title: {title} | Created on: {md_creation_date} | Characters: {content_length}")
+                formatted_output.append(
+                    f"    Post: {md_file} | Title: {title} | Created on: {md_creation_date} | Characters: {content_length}")
 
         return "\n".join(formatted_output)
-
-
