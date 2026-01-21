@@ -66,4 +66,9 @@
   --user-info-text-color: black;
   --user-info-img-box-shadow: rgba(0, 0, 0, 0.5);
   --link-hover-color: #ff6347;
+
+  /* ClockPanel */
+  --clock-panel-background-color: #f9f9f9;
+  --clock-panel-shadow-color: rgba(0, 0, 0, 0.1);
+  --clock-panel-text-color: #333;
 }

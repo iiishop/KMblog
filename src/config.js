@@ -9,13 +9,14 @@ const config = {
     HeadImg: '/assets/head.png',//头像图片的URL
     Name: 'iiishop',//作者名称
     Description: 'A social network for finding love and making friends',//作者描述
-    PostsPerPage: 2,//每页显示的文章数量
+    PostsPerPage: 5,//每页显示的文章数量
     ChangeInfoAndTipPosition: false,//是否调换Info和Tip的位置
     InfoListUp: [
         'SelfIntroductionPanel',
         'CollectionPanel',
     ],//Info列表，在页面默认添加的InfoList的上面出现
     InfoListDown: [
+        'ClockPanel',
     ],//Info列表，在页面默认添加的InfoList的下面出现
     TipListUp: [
     ],//Tip列表，在页面默认添加的TipList的上面出现
