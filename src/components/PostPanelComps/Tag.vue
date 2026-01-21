@@ -40,8 +40,16 @@ function getContrastColor(hex) {
     const b = parseInt(hex.slice(5, 7), 16);
     // 计算亮度 (YIQ)
     const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    // 如果亮度大于 128，返回黑色，否则返回白色
-    return yiq >= 128 ? '#000000' : '#FFFFFF';
+    if (yiq >= 128) return '#000000';
+    return '#FFFFFF';
+}
+
+// 辅助函数：将 Hex 转换为 RGB 字符串 (用于 CSS 变量)
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `${r}, ${g}, ${b}`;
 }
 
 // 初始化背景颜色和文字颜色
@@ -51,16 +59,18 @@ const textColor = computed(() => getContrastColor(backgroundColor.value));
 // 计算尺寸比例
 const sizeFactor = computed(() => 1 + (props.count - 1) * 0.05);
 
-// 计算样式
-const tagStyle = computed(() => ({
-    backgroundColor: backgroundColor.value,
-    color: textColor.value,
-    padding: `${0.7 * sizeFactor.value}rem ${0.4 * sizeFactor.value}rem`,
-    fontSize: `${0.8 * sizeFactor.value}rem`,
-    fontFamily: 'Arial, sans-serif',
-    fontWeight: 'bold',
-    cursor: 'pointer' // 添加手型光标
-}));
+// 计算样式 - 将动态颜色传给 CSS 变量
+const tagStyle = computed(() => {
+    const rgb = hexToRgb(backgroundColor.value);
+    return {
+        '--tag-bg-color': backgroundColor.value,
+        '--tag-text-color': textColor.value,
+        '--tag-shadow-color': `rgba(${rgb}, 0.4)`,
+        '--tag-glow-color': `rgba(${rgb}, 0.6)`,
+        padding: `${0.4 * sizeFactor.value}rem ${0.8 * sizeFactor.value}rem`, // 稍微调整 padding 让视觉更舒服
+        fontSize: `${0.85 * sizeFactor.value}rem`,
+    };
+});
 
 // 在组件挂载时生成随机背景颜色
 watchEffect(() => {
@@ -78,19 +88,101 @@ function handleTagClick() {
 
 <template>
     <div :style="tagStyle" class="tag" @click="handleTagClick">
-        {{ displayTagname }}
+        <span class="hash">#</span>
+        <span class="text">{{ displayTagname }}</span>
     </div>
 </template>
 
 <style scoped>
 .tag {
-    text-align: center;
-    flex-wrap: nowrap;
-    height: 1.6rem;
-    border-radius: 0.5rem;
-    display: flex;
+    position: relative;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    height: auto;
+    /* Allow padding to define height */
+    min-height: 1.8em;
+    border-radius: 8px;
+    /* Modern rounded corners */
+
+    background: var(--tag-bg-color);
+    color: var(--tag-text-color);
+
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1;
     white-space: nowrap;
+
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+
+    /* Base Shadow */
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    /* Inner subtle border */
+
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Glassy/Glossy Gradient Overlay */
+.tag::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.3) 0%,
+            rgba(255, 255, 255, 0) 50%,
+            rgba(0, 0, 0, 0.05) 100%);
+    z-index: 1;
+}
+
+/* Hash Icon Styling */
+.hash {
+    opacity: 0.6;
+    margin-right: 4px;
+    font-size: 0.9em;
+    font-weight: 400;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.text {
+    position: relative;
+    z-index: 2;
+    transition: letter-spacing 0.3s ease;
+}
+
+/* Hover Effects */
+.tag:hover {
+    transform: translateY(-2px) scale(1.05);
+    /* Gentle lift & grow */
+    box-shadow:
+        0 10px 15px -3px var(--tag-shadow-color),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    filter: brightness(1.1);
+    /* Slightly brighter on hover */
+}
+
+/* Hover Interaction: Icon Rotate & Text Expand */
+.tag:hover .hash {
+    opacity: 1;
+    transform: rotate(20deg) scale(1.2);
+}
+
+.tag:hover .text {
+    letter-spacing: 0.5px;
+}
+
+/* Active/Click Effect */
+.tag:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
 </style>

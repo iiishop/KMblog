@@ -247,8 +247,7 @@ function navigateToPost() {
 }
 
 .content-panel:hover {
-    transform: translateY(-5px);
-    background: rgba(255, 255, 255, 0.85);
+    /* transform: translateY(-5px); Removed to avoid interfering with clicks */
     box-shadow:
         0 20px 25px -5px rgba(0, 0, 0, 0.1),
         0 10px 10px -5px rgba(0, 0, 0, 0.04);

@@ -200,17 +200,15 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(0,0,0,0.04);
+  background: rgb(228, 226, 226);
   color: var(--user-info-text-color);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
 }
 
 .link:hover {
   color: #fff;
-  background-color: var(--link-hover-color, #333);
+  background: var(--link-hover-color, #333);
   transform: translateY(-4px) scale(1.1);
   box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
