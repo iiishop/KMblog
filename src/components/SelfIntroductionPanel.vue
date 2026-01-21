@@ -149,6 +149,7 @@ onMounted(() => {
   flex: 1;
   transition: all 0.3s ease;
   position: relative;
+  cursor: pointer;
 }
 
 .stat-link:hover {
@@ -201,7 +202,10 @@ onMounted(() => {
   border-radius: 50%;
   background: rgba(0,0,0,0.04);
   color: var(--user-info-text-color);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
 }
 
 .link:hover {
@@ -211,73 +215,7 @@ onMounted(() => {
   box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
-/* === 新增装饰性元素 === */
 
-/* 1. 动态流光 (优雅的素色光影) */
-.user-info::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  /* 改用白色透明渐变，营造流动的光感但没有杂色 */
-  background: conic-gradient(
-    from 0deg at 50% 50%,
-    transparent 0deg,
-    rgba(255, 255, 255, 0.05) 45deg,
-    rgba(255, 255, 255, 0.4) 90deg, 
-    rgba(255, 255, 255, 0.05) 135deg,
-    transparent 180deg,
-    transparent 360deg
-  );
-  filter: blur(35px);
-  /* 慢速旋转，像灯塔或光影流转 */
-  animation: rotateLight 12s linear infinite;
-  z-index: 0;
-  pointer-events: none;
-}
-
-@keyframes rotateLight {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 2. 亮光扫描 (保留动感，调整为柔白) */
-.user-info::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  /* 纯净的白光扫过 */
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0) 40%,
-    rgba(255, 255, 255, 0.5) 50%, 
-    rgba(255, 255, 255, 0) 60%,
-    transparent 100%
-  );
-  transform: skewX(-25deg);
-  /* 5秒一次，动感适中 */
-  animation: laserSweep 5s infinite cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 0;
-  pointer-events: none;
-}
-
-@keyframes laserSweep {
-  0% { left: -100%; opacity: 0; }
-  20% { opacity: 1; }
-  100% { left: 200%; opacity: 0; }
-}
-
-/* 2. 确保内容位于装饰层之上 */
-.user-info > * {
-  position: relative;
-  z-index: 1;
-}
 
 /* 3. 标题底部动态装饰线 */
 .user-info h2 {
