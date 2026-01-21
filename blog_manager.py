@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-
+from mainTools.commands import Command
 import flet as ft
 import sys
 import os
@@ -14,7 +14,7 @@ import json
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-from mainTools.commands import Command
+
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -75,6 +75,35 @@ class BlogManagerGUI:
                 'operation_success': '操作成功！', 'articles': '篇文章',
                 'build_project': '构建项目',
                 'blog_initialized': '博客已初始化',
+                'settings': '配置管理',
+                'blog_name': '博客名称',
+                'short_desc': '简短描述',
+                'author_name': '作者名称',
+                'author_desc': '作者描述',
+                'project_url': '项目URL',
+                'background_img': '背景图片',
+                'bg_opacity': '背景不透明度',
+                'bg_blur': '背景模糊度',
+                'head_img': '头像图片',
+                'posts_per_page': '每页文章数',
+                'theme': '主题',
+                'change_info_tip_pos': '交换信息提示位置',
+                'save_config': '保存配置',
+                'lists_config': '列表配置',
+                'social_links': '社交链接',
+                'info_list_up': 'Info列表上',
+                'info_list_down': 'Info列表下',
+                'tip_list_up': 'Tip列表上',
+                'tip_list_down': 'Tip列表下',
+                'main_list_up': 'Main列表上',
+                'main_list_down': 'Main列表下',
+                'info_list_float': 'Info浮动列表',
+                'tip_list_float': 'Tip浮动列表',
+                'add_item': '添加项',
+                'remove_item': '移除项',
+                'link_name': '链接名称',
+                'link_url': '链接URL',
+                'add_link': '添加链接',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -91,6 +120,35 @@ class BlogManagerGUI:
                 'operation_success': 'Success!', 'articles': 'articles',
                 'build_project': 'Build Project',
                 'blog_initialized': 'Blog Initialized',
+                'settings': 'Settings',
+                'blog_name': 'Blog Name',
+                'short_desc': 'Short Description',
+                'author_name': 'Author Name',
+                'author_desc': 'Author Description',
+                'project_url': 'Project URL',
+                'background_img': 'Background Image',
+                'bg_opacity': 'BG Opacity',
+                'bg_blur': 'BG Blur',
+                'head_img': 'Avatar Image',
+                'posts_per_page': 'Posts Per Page',
+                'theme': 'Theme',
+                'change_info_tip_pos': 'Swap Info/Tip Position',
+                'save_config': 'Save Config',
+                'lists_config': 'Lists Config',
+                'social_links': 'Social Links',
+                'info_list_up': 'Info List Up',
+                'info_list_down': 'Info List Down',
+                'tip_list_up': 'Tip List Up',
+                'tip_list_down': 'Tip List Down',
+                'main_list_up': 'Main List Up',
+                'main_list_down': 'Main List Down',
+                'info_list_float': 'Info List Float',
+                'tip_list_float': 'Tip List Float',
+                'add_item': 'Add Item',
+                'remove_item': 'Remove',
+                'link_name': 'Name',
+                'link_url': 'URL',
+                'add_link': 'Add Link',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -138,6 +196,7 @@ class BlogManagerGUI:
             ('dashboard', ft.Icons.DASHBOARD, self.t('dashboard')),
             ('posts', ft.Icons.ARTICLE, self.t('posts')),
             ('collections', ft.Icons.FOLDER, self.t('collections')),
+            ('settings', ft.Icons.SETTINGS, self.t('settings')),
         ]
 
         buttons = []
@@ -193,6 +252,8 @@ class BlogManagerGUI:
             return self.build_posts_view()
         elif self.current_view == 'collections':
             return self.build_collections_view()
+        elif self.current_view == 'settings':
+            return self.build_settings_view()
         return ft.Text("Unknown view")
 
     def build_dashboard(self):
@@ -983,6 +1044,230 @@ class BlogManagerGUI:
 
         except Exception as e:
             self.snack(f"预览失败: {e}", True)
+
+    def build_settings_view(self):
+        """配置管理视图"""
+        config_fields = {}
+        list_fields = {}
+        links_data = []
+
+        # 加载当前配置
+        try:
+            from commands import GetConfig
+            get_config_cmd = GetConfig()
+            config_result = get_config_cmd.execute()
+            current_config = json.loads(config_result)
+        except Exception as e:
+            self.snack(f"加载配置失败: {e}", True)
+            current_config = {}
+
+        # 创建配置表单
+        form_rows = []
+
+        # 基本配置
+        form_rows.append(ft.Text(self.t('settings'),
+                         size=24, weight=ft.FontWeight.BOLD))
+
+        config_items = [
+            ('BlogName', self.t('blog_name'), 'text'),
+            ('ShortDesc', self.t('short_desc'), 'text'),
+            ('Name', self.t('author_name'), 'text'),
+            ('Description', self.t('author_desc'), 'text'),
+            ('ProjectUrl', self.t('project_url'), 'text'),
+            ('BackgroundImg', self.t('background_img'), 'text'),
+            ('BackgroundImgOpacity', self.t('bg_opacity'), 'number'),
+            ('BackgroundImgBlur', self.t('bg_blur'), 'number'),
+            ('HeadImg', self.t('head_img'), 'text'),
+            ('PostsPerPage', self.t('posts_per_page'), 'number'),
+            ('theme', self.t('theme'), 'text'),
+            ('ChangeInfoAndTipPosition', self.t('change_info_tip_pos'), 'bool'),
+        ]
+
+        for key, label, field_type in config_items:
+            value = current_config.get(key, '')
+
+            if field_type == 'text':
+                field = ft.TextField(
+                    label=label,
+                    value=str(value),
+                    width=500,
+                )
+            elif field_type == 'number':
+                field = ft.TextField(
+                    label=label,
+                    value=str(value),
+                    width=200,
+                    keyboard_type=ft.KeyboardType.NUMBER,
+                )
+            elif field_type == 'bool':
+                field = ft.Checkbox(
+                    label=label,
+                    value=bool(value),
+                )
+
+            config_fields[key] = field
+            form_rows.append(ft.Container(content=field, padding=5))
+
+        # 列表配置
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text(self.t('lists_config'),
+                         size=20, weight=ft.FontWeight.BOLD))
+
+        list_items = [
+            ('InfoListUp', self.t('info_list_up')),
+            ('InfoListDown', self.t('info_list_down')),
+            ('TipListUp', self.t('tip_list_up')),
+            ('TipListDown', self.t('tip_list_down')),
+            ('MainListUp', self.t('main_list_up')),
+            ('MainListDown', self.t('main_list_down')),
+            ('InfoListFloat', self.t('info_list_float')),
+            ('TipListFloat', self.t('tip_list_float')),
+        ]
+
+        for key, label in list_items:
+            items = current_config.get(key, [])
+            field = ft.TextField(
+                label=label,
+                value=', '.join(items) if items else '',
+                width=500,
+                hint_text="用逗号分隔多个项，例如: SelfIntroductionPanel, CollectionPanel",
+                multiline=False,
+            )
+            list_fields[key] = field
+            form_rows.append(ft.Container(content=field, padding=5))
+
+        # 社交链接配置
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text(self.t('social_links'),
+                         size=20, weight=ft.FontWeight.BOLD))
+
+        links = current_config.get('Links', [])
+        links_container = ft.Column(spacing=10)
+
+        def build_link_row(link_data, index):
+            """构建单个链接编辑行"""
+            name_field = ft.TextField(
+                label=self.t('link_name'),
+                value=link_data.get('name', ''),
+                width=200,
+            )
+            url_field = ft.TextField(
+                label=self.t('link_url'),
+                value=link_data.get('url', ''),
+                width=350,
+            )
+
+            def remove_link(e):
+                links_data[index] = None
+                update_links_ui()
+
+            remove_btn = ft.IconButton(
+                icon=ft.Icons.DELETE,
+                icon_color=ft.Colors.RED_400,
+                on_click=remove_link,
+            )
+
+            links_data.append({'name': name_field, 'url': url_field})
+
+            return ft.Row([
+                name_field,
+                url_field,
+                remove_btn,
+            ], spacing=10)
+
+        def update_links_ui():
+            """更新链接界面"""
+            links_container.controls.clear()
+            for i, link in enumerate(links):
+                if i < len(links_data) and links_data[i] is not None:
+                    links_container.controls.append(build_link_row(link, i))
+            self.page.update()
+
+        # 初始化链接
+        for i, link in enumerate(links):
+            links_container.controls.append(build_link_row(link, i))
+
+        def add_link(e):
+            """添加新链接"""
+            links.append({'name': '', 'url': ''})
+            links_container.controls.append(build_link_row(
+                {'name': '', 'url': ''}, len(links) - 1))
+            self.page.update()
+
+        add_link_btn = ft.ElevatedButton(
+            self.t('add_link'),
+            icon=ft.Icons.ADD,
+            on_click=add_link,
+        )
+
+        form_rows.append(ft.Container(content=links_container, padding=10))
+        form_rows.append(ft.Container(content=add_link_btn, padding=5))
+
+        def save_config(e):
+            """保存配置"""
+            try:
+                # 收集基本配置值
+                config_updates = {}
+                for key, field in config_fields.items():
+                    if isinstance(field, ft.Checkbox):
+                        config_updates[key] = field.value
+                    else:
+                        value = field.value
+                        # 尝试转换为正确的类型
+                        if key in ['BackgroundImgOpacity', 'BackgroundImgBlur']:
+                            value = float(value) if value else 0.0
+                        elif key in ['PostsPerPage']:
+                            value = int(value) if value else 10
+                        config_updates[key] = value
+
+                # 收集列表配置
+                for key, field in list_fields.items():
+                    value = field.value.strip()
+                    if value:
+                        items = [item.strip()
+                                 for item in value.split(',') if item.strip()]
+                        config_updates[key] = items
+                    else:
+                        config_updates[key] = []
+
+                # 收集链接配置
+                valid_links = []
+                for link_data in links_data:
+                    if link_data is not None:
+                        name = link_data['name'].value.strip()
+                        url = link_data['url'].value.strip()
+                        if name and url:
+                            valid_links.append({'name': name, 'url': url})
+                config_updates['Links'] = valid_links
+
+                # 执行更新命令
+                from commands import UpdateConfig
+                update_cmd = UpdateConfig()
+                result = update_cmd.execute(**config_updates)
+                self.snack(result, False)
+
+            except Exception as ex:
+                self.snack(f"保存失败: {ex}", True)
+                import traceback
+                traceback.print_exc()
+
+        save_btn = ft.ElevatedButton(
+            self.t('save_config'),
+            icon=ft.Icons.SAVE,
+            on_click=save_config,
+        )
+
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Container(content=save_btn, padding=10))
+
+        return ft.Container(
+            content=ft.Column(
+                form_rows,
+                scroll=ft.ScrollMode.AUTO,
+            ),
+            expand=True,
+            padding=20,
+        )
 
 
 def main(page: ft.Page):

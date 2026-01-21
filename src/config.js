@@ -1,11 +1,11 @@
 const config = {
     ProjectUrl: 'https://localhost:5173',//博客的基础URL
     BlogName: 'iiishop的博客',//博客名称
-    ShortDesc: "XXXXDESC",//博客的简短描述
+    ShortDesc: 'XXXXDESC',//博客的简短描述
     BackgroundImg: '/assets/background.png',//博客背景图片的URL
     BackgroundImgOpacity: 0.5,//覆盖在背景图片上的白色层的透明度
-    BackgroundImgBlur: 20,//覆盖在背景图片上的白色层的模糊度
-    theme: "day",//主题，可以是day，其他的待续
+    BackgroundImgBlur: 20.0,//覆盖在背景图片上的白色层的模糊度
+    theme: 'day',//主题，可以是day，其他的待续
     HeadImg: '/assets/head.png',//头像图片的URL
     Name: 'iiishop',//作者名称
     Description: 'A social network for finding love and making friends',//作者描述
@@ -30,11 +30,11 @@ const config = {
     TipListFloat: [
     ],//Tip浮动列表，开始时显示在TipList的最下方，之后根据页面滚动位置自动调整位置
 
-    // Social Links. Maximum 10， 社交链接，最多10个
+    // Social Links. 社交链接
     Links: [
         {
             name: 'GitHub',
-            url: 'https://github.com/',
+            url: 'https://github.com/iiishop',
         },
         {
             name: 'LinkedIn',
