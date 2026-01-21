@@ -10,15 +10,32 @@ import markdownItCodeCopy from 'markdown-it-code-copy';
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
     highlight: function (str, lang) {
+        const langLabel = lang || 'text';
+        let highlightedCode = '';
+
         if (lang && hljs.getLanguage(lang)) {
             try {
-                return '<pre class="hljs"><code>' +
-                    hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-                    '</code></pre>';
-            } catch (__) { }
+                highlightedCode = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+            } catch (__) {
+                highlightedCode = md.utils.escapeHtml(str);
+            }
+        } else {
+            highlightedCode = md.utils.escapeHtml(str);
         }
 
-        return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+        // 为每行添加行号
+        const lines = highlightedCode.split('\n');
+        const numberedLines = lines.map((line, index) => {
+            const lineNumber = index + 1;
+            return `<span class="code-line"><span class="line-number">${lineNumber}</span><span class="line-content">${line}</span></span>`;
+        }).join('\n');
+
+        return '<div class="code-block-wrapper">' +
+            '<div class="code-language">' + langLabel + '</div>' +
+            '<pre class="hljs"><code>' +
+            numberedLines +
+            '</code></pre>' +
+            '</div>';
     }
 });
 
@@ -34,6 +51,11 @@ md.use(markdownItMultimdTable);
 md.use(markdownItCodeCopy, {
     buttonText: 'copy',
     successText: 'copied',
+});
+
+// 自定义插件：在解析前移除 <!-- more --> 标记
+md.core.ruler.before('normalize', 'remove_more_tag', function (state) {
+    state.src = state.src.replace(/<!--\s*more\s*-->/gi, '');
 });
 
 // 自定义插件处理图片路径
