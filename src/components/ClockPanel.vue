@@ -1,8 +1,20 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import gsap from 'gsap';
 
 // 模式切换：'clock' 或 'pomodoro'
 const mode = ref('clock');
+
+// 动画颜色变量
+const themeColors = ref({
+    panelBgStart: '#2a2a2a',
+    panelBgEnd: '#1a1a1a',
+    panelBorder: 'rgba(255, 255, 255, 0.05)',
+    panelTopBar: '#2a2a2a',
+    modeSwitchBg: 'rgba(0, 0, 0, 0.3)',
+    lcdBorder: '#0a1a0f',
+    shadowColor: 'rgba(0, 0, 0, 0.6)'
+});
 
 // 时间状态
 const currentTime = ref(new Date());
@@ -27,6 +39,37 @@ const selectedTimezone = ref(savedTimezone);
 // 监听时区变化，自动保存到localStorage
 watch(selectedTimezone, (newTimezone) => {
     localStorage.setItem('clockPanelTimezone', newTimezone);
+});
+
+// 监听模式变化，使用GSAP做平滑颜色过渡
+watch(mode, (newMode) => {
+    if (newMode === 'pomodoro') {
+        // 切换到番茄钟模式 - 红白配色
+        gsap.to(themeColors.value, {
+            duration: 0.6,
+            ease: 'power2.inOut',
+            panelBgStart: '#ffffff',
+            panelBgEnd: '#f5f5f5',
+            panelBorder: 'rgba(239, 68, 68, 0.3)',
+            panelTopBar: '#ef4444',
+            modeSwitchBg: 'rgba(239, 68, 68, 0.1)',
+            lcdBorder: '#f5f5f5',
+            shadowColor: 'rgba(239, 68, 68, 0.4)'
+        });
+    } else {
+        // 切换回时钟模式 - 黑绿配色
+        gsap.to(themeColors.value, {
+            duration: 0.6,
+            ease: 'power2.inOut',
+            panelBgStart: '#2a2a2a',
+            panelBgEnd: '#1a1a1a',
+            panelBorder: 'rgba(255, 255, 255, 0.05)',
+            panelTopBar: '#2a2a2a',
+            modeSwitchBg: 'rgba(0, 0, 0, 0.3)',
+            lcdBorder: '#0a1a0f',
+            shadowColor: 'rgba(0, 0, 0, 0.6)'
+        });
+    }
 });
 
 // 番茄钟状态
@@ -240,7 +283,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="ClockPanel" :class="{ 'flashing': pomodoroFlashing, 'pomodoro-mode': mode === 'pomodoro' }">
+    <div class="ClockPanel" :class="{ 'flashing': pomodoroFlashing, 'pomodoro-mode': mode === 'pomodoro' }" :style="{
+        '--panel-bg-start': themeColors.panelBgStart,
+        '--panel-bg-end': themeColors.panelBgEnd,
+        '--panel-border': themeColors.panelBorder,
+        '--panel-top-bar': themeColors.panelTopBar,
+        '--mode-switch-bg': themeColors.modeSwitchBg,
+        '--lcd-border': themeColors.lcdBorder,
+        '--shadow-color': themeColors.shadowColor
+    }">
         <!-- 模式切换按钮 -->
         <div class="mode-switch">
             <button class="mode-btn" :class="{ active: mode === 'clock' }" @click="switchMode('clock')">
@@ -279,7 +330,7 @@ onUnmounted(() => {
                     </div>
                     <div v-else class="pomodoro-info">
                         <div class="lcd-status">
-                            {{ pomodoroFlashing ? '⏰ 时间到！' : pomodoroRunning ? '⏱️ 专注中' : '⏸️ 就绪' }}
+                            {{ pomodoroFlashing ? '时间到！' : pomodoroRunning ? '专注中' : '就绪' }}
                         </div>
                     </div>
                 </div>
@@ -352,18 +403,18 @@ onUnmounted(() => {
 .ClockPanel {
     display: flex;
     flex-direction: column;
-    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+    background: linear-gradient(145deg, var(--panel-bg-start), var(--panel-bg-end));
     padding: 1.25rem;
     width: 100%;
     border-radius: 24px;
     box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 8px 32px var(--shadow-color),
         inset 0 1px 0 rgba(255, 255, 255, 0.1),
         inset 0 -1px 2px rgba(0, 0, 0, 0.5);
     gap: 1rem;
     color: var(--clock-panel-text-color, #e5e5e5);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--panel-border);
     position: relative;
     overflow: hidden;
 }
@@ -375,46 +426,38 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a);
+    background: linear-gradient(90deg, var(--panel-top-bar), var(--panel-bg-start), var(--panel-top-bar));
+    transition: background 0.6s ease;
 }
 
 .ClockPanel:hover {
     transform: translateY(-2px);
     box-shadow:
-        0 12px 40px rgba(0, 0, 0, 0.7),
+        0 12px 40px var(--shadow-color),
         inset 0 1px 0 rgba(255, 255, 255, 0.15),
         inset 0 -1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* 番茄钟模式 - 整体红白配色 */
+/* 番茄钟模式 - 动态样式调整 */
 .ClockPanel.pomodoro-mode {
-    background: linear-gradient(145deg, #ffffff, #f5f5f5);
-    border: 2px solid rgba(239, 68, 68, 0.3);
     box-shadow:
-        0 8px 32px rgba(239, 68, 68, 0.4),
+        0 8px 32px var(--shadow-color),
         inset 0 1px 0 rgba(255, 255, 255, 0.9),
         inset 0 -1px 2px rgba(239, 68, 68, 0.2);
 }
 
-.ClockPanel.pomodoro-mode::before {
-    background: linear-gradient(90deg, #fca5a5, #ef4444, #fca5a5);
-}
-
 .ClockPanel.pomodoro-mode:hover {
     box-shadow:
-        0 12px 40px rgba(239, 68, 68, 0.5),
+        0 12px 40px var(--shadow-color),
         inset 0 1px 0 rgba(255, 255, 255, 0.9),
         inset 0 -1px 2px rgba(239, 68, 68, 0.3);
-}
-
-.ClockPanel.pomodoro-mode .mode-switch {
-    background: rgba(239, 68, 68, 0.1);
 }
 
 .ClockPanel.pomodoro-mode .mode-btn {
     background: linear-gradient(145deg, #ffffff, #f5f5f5);
     border-color: rgba(239, 68, 68, 0.2);
     color: #999;
+    transition: all 0.3s ease;
 }
 
 .ClockPanel.pomodoro-mode .mode-btn:hover {
@@ -453,9 +496,10 @@ onUnmounted(() => {
     display: flex;
     gap: 0.5rem;
     padding: 0.375rem;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--mode-switch-bg);
     border-radius: 16px;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    transition: background 0.6s ease;
 }
 
 .mode-btn {
@@ -500,7 +544,7 @@ onUnmounted(() => {
     background:
         linear-gradient(145deg, #1a2820, #132118),
         radial-gradient(ellipse at top, rgba(74, 222, 128, 0.05), transparent);
-    border: 3px solid #0a1a0f;
+    border: 3px solid var(--lcd-border);
     border-radius: 16px;
     padding: 1.5rem 1rem;
     box-shadow:
@@ -515,7 +559,7 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     /* 添加渐变过渡 */
-    transition: all 0.5s ease;
+    transition: all 0.6s ease;
 }
 
 /* 番茄钟模式红白配色 */
