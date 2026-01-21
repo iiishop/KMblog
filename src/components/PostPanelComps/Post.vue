@@ -4,26 +4,39 @@
             <img :src="imageSrc" alt="Image" @load="adjustImagePanelWidth" @error="handleImageError" />
         </div>
         <div class="content-panel">
-            <div v-if="metadata">
-                <div class="title-panel" @click="navigateToPost">
-                    <p>{{ metadata.title }}</p>
-                </div>
-                <div class="info-panel">
-                    <div class="category-panel">
-                        <IconCategory style="width: 1rem; height: 1rem;" v-if="lastCategory" />
-                        <router-link :to="categoryLink">{{ lastCategory }}</router-link>
+            <div v-if="metadata" class="content-wrapper">
+
+                <!-- Left Main Content Area -->
+                <div class="main-content-area">
+                    <div class="title-panel" @click="navigateToPost">
+                        <p>{{ metadata.title }}</p>
                     </div>
-                    <div class="date-panel">
-                        <IconDate style="width: 1rem; height: 1rem;" v-if="metadata.date" />
-                        <router-link :to="archiveLink">{{ metadata.date }}</router-link>
+
+                    <div class="pre-panel" @click="navigateToPost">
+                        <pre>{{ metadata.pre }}</pre>
                     </div>
                 </div>
-                <div class="pre-panel" @click="navigateToPost">
-                    <pre>{{ metadata.pre }}</pre>
+
+                <!-- Right Meta Sidebar -->
+                <div class="meta-sidebar">
+                    <div class="meta-list">
+                        <div class="meta-item category-row" v-if="lastCategory">
+                            <IconCategory class="meta-icon" />
+                            <router-link :to="categoryLink" class="meta-link">{{ lastCategory }}</router-link>
+                        </div>
+                        <div class="meta-item date-row" v-if="metadata.date">
+                            <IconDate class="meta-icon" />
+                            <router-link :to="archiveLink" class="meta-link">{{ metadata.date }}</router-link>
+                        </div>
+                    </div>
+
+                    <div class="props-divider"></div>
+
+                    <div class="tags-container">
+                        <Tag v-for="(tag, index) in metadata.tags" :key="index" :tagname="tag" />
+                    </div>
                 </div>
-                <div class="tag-panel">
-                    <Tag v-for="(tag, index) in metadata.tags" :key="index" :tagname="tag" />
-                </div>
+
             </div>
         </div>
     </div>
@@ -180,92 +193,155 @@ function navigateToPost() {
 </script>
 
 <style scoped>
-/* 添加一些样式 */
-
 .post-panel {
-    gap: 1rem;
+    gap: 1.5rem;
     display: flex;
-    height: 13rem;
+    height: 16rem;
+    /* Slightly taller for correct spacing */
     width: 100%;
     margin: auto;
+    transition: all 0.3s ease;
 }
 
+/* Image Panel */
 .image-panel {
-    border-radius: 1rem;
+    border-radius: 16px;
     height: 100%;
-    width: 30%;
     overflow: hidden;
-    box-shadow: 2px 2px 5px var(--image-box-shadow);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    position: relative;
+    flex-shrink: 0;
 }
 
 .image-panel img {
     width: 100%;
     height: 100%;
-    border-radius: 1rem;
-    transition: transform 0.2s ease;
+    object-fit: cover;
+    border-radius: 16px;
+    transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.image-panel img:hover {
-    transform: scale(1.2);
-    transition: transform 0.2s ease;
+.post-panel:hover .image-panel img {
+    transform: scale(1.1);
 }
 
+/* Content Panel - Glassmorphism & Modern Card */
 .content-panel {
-    padding: 1rem;
-    border-radius: 1rem;
-    background-color: var(--content-background-color);
-    box-shadow: 1px 1px 5px var(--content-box-shadow);
+    padding: 1.5rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
     width: 70%;
-    color: var(--content-text-color);
+    /* Fallback */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    flex-shrink: 1;
     overflow: hidden;
-    user-select: none;
-    transition: all 0.2s ease;
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .content-panel:hover {
-    transform: scale(1.02);
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
+/* Sheen Effect */
+.content-panel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(to right,
+            transparent 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            transparent 100%);
+    transform: skewX(-25deg);
+    transition: none;
+    pointer-events: none;
+}
+
+.content-panel:hover::after {
+    left: 200%;
+    transition: left 0.8s ease-in-out;
+}
+
+/* --- Layout Structure --- */
+.content-wrapper {
+    display: flex;
+    height: 100%;
+    gap: 2rem;
+}
+
+.main-content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+.meta-sidebar {
+    width: 25%;
+    min-width: 160px;
+    border-left: 1px solid rgba(0, 0, 0, 0.05);
+    padding-left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+/* --- Typography & Elements --- */
+
+/* Title Panel - Restored Underline Effect */
 .title-panel {
     display: flex;
-    height: 3rem;
     align-items: center;
     cursor: pointer;
-    /* 添加手形指针 */
+    margin-bottom: 0.8rem;
+    height: 3rem;
+    /* Fixed height for alignment */
 }
 
 .title-panel p {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--title-text-color, #2c3e50);
     position: relative;
-    color: var(--title-text-color);
     transition: color 0.2s ease;
-    text-decoration: none;
     user-select: none;
+    margin: 0;
+    line-height: 1.2;
+    display: inline-block;
 }
 
 .title-panel p::after {
     content: '';
     position: absolute;
     left: 0;
-    bottom: 0;
+    bottom: -2px;
     width: 100%;
     height: 2px;
     background-color: currentColor;
     transform: scaleX(0);
     transform-origin: right;
-    transition: transform 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .title-panel p:hover {
-    color: var(--title-hover-color);
+    color: var(--title-hover-color, #4ca1af);
 }
 
 .title-panel p:hover::after {
@@ -273,137 +349,125 @@ function navigateToPost() {
     transform: scaleX(1);
 }
 
-.info-panel {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 1.6rem;
-}
-
-.category-panel {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-    color: var(--info-text-color);
-    margin: 0.2rem;
-}
-
-.category-panel a {
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    text-align: center;
-    color: var(--info-text-color);
-    position: relative;
-    transition: color 0.2s ease;
-}
-
-.category-panel a::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 2px;
-    background-color: currentColor;
-    transform: scaleX(0);
-    transition: transform 0.2s ease;
-}
-
-.category-panel a:hover {
-    color: var(--category-hover-color);
-}
-
-.category-panel a:hover::after {
-    transform: scaleX(1);
-}
-
-.date-panel {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-    color: var(--info-text-color);
-    margin: 0.2rem;
-}
-
-.date-panel a {
-    text-decoration: none;
-    display: flex;
-    color: var(--info-text-color);
-    align-items: center;
-    text-align: center;
-    position: relative;
-    transition: color 0.2s ease;
-}
-
-.date-panel a:hover {
-    color: var(--date-hover-color);
-    animation: wave 1s infinite;
-}
-
+/* Preview Text */
 .pre-panel {
-    font-family: 'Courier New', Courier, monospace;
-    padding: 1rem;
-    min-height: 5rem;
+    flex-grow: 1;
     cursor: pointer;
-    /* 添加手形指针 */
-    transition: all 0.2s ease;
-    /* 添加背景色过渡效果 */
+    border-radius: 8px;
+    padding: 0.5rem 0;
+    transition: opacity 0.3s ease;
 }
 
 .pre-panel:hover {
-    background-color: var(--pre-hover-color);
+    opacity: 0.8;
 }
 
 .pre-panel pre {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.95rem;
+    color: var(--pre-text-color, #555);
     white-space: pre-wrap;
     word-wrap: break-word;
     margin: 0;
-    padding: 0;
-    line-height: 1.5;
-    color: var(--pre-text-color);
+    line-height: 1.6;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    line-clamp: 2;
-    -webkit-line-clamp: 2;
+    line-clamp: 4;
+    /* Show more lines now that it's narrower */
+    -webkit-line-clamp: 4;
     overflow: hidden;
 }
 
-.tag-panel {
-    height: 2rem;
+/* Sidebar Elements */
+.meta-list {
     display: flex;
-    justify-content: flex-end;
-    /* 使用 flex-end 代替 right */
-    align-items: center;
-    gap: 0.5rem;
-    overflow-x: auto;
-    /* 添加横向滚动条 */
-    width: 100%;
-    /* 确保有固定宽度 */
-    white-space: nowrap;
-    /* 确保内容不换行 */
+    flex-direction: column;
+    gap: 0.8rem;
 }
 
-@keyframes wave {
-    0% {
-        transform: translateY(0);
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.meta-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    opacity: 0.7;
+}
+
+.meta-link {
+    text-decoration: none;
+    color: inherit;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.meta-link:hover {
+    color: var(--nav-link-hover-color, #4facfe);
+}
+
+.props-divider {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.06);
+    width: 100%;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Responsive Handling */
+@media (max-width: 768px) {
+    .content-wrapper {
+        flex-direction: column;
+        gap: 1rem;
     }
 
-    25% {
-        transform: translateY(-2px);
+    .meta-sidebar {
+        width: 100%;
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 1rem;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
     }
 
-    50% {
-        transform: translateY(0);
+    .tags-container {
+        justify-content: flex-end;
     }
 
-    75% {
-        transform: translateY(2px);
+    .meta-list {
+        flex-direction: row;
+        gap: 1.5rem;
     }
 
-    100% {
-        transform: translateY(0);
+    .props-divider {
+        display: none;
+    }
+
+    .post-panel {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .image-panel {
+        width: 100% !important;
+        height: 200px;
+    }
+
+    .content-panel {
+        width: 100%;
     }
 }
 </style>
