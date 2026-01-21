@@ -164,7 +164,7 @@ class BlogManagerGUI:
     def is_blog_initialized(self):
         """检查博客是否已经初始化"""
         try:
-            from path_utils import get_assets_path
+            from mainTools.path_utils import get_assets_path
             assets_path = get_assets_path()
 
             # 检查必要的 JSON 文件是否存在
@@ -767,7 +767,7 @@ class BlogManagerGUI:
         """构建项目"""
         # 显示加载提示
         progress_dlg = ft.AlertDialog(
-            title=ft.Text("🔨 正在构建项目..."),
+            title=ft.Text("正在构建项目..."),
             content=ft.Column([
                 ft.ProgressRing(),
                 ft.Container(height=10),
@@ -828,7 +828,7 @@ class BlogManagerGUI:
     def show_post_preview(self, post_name):
         """显示文章预览"""
         try:
-            from path_utils import get_posts_path
+            from mainTools.path_utils import get_posts_path
             import os
 
             # 确保 post_name 不包含 .md 后缀
@@ -871,7 +871,7 @@ class BlogManagerGUI:
                 content = f.read()
 
             # 解析元数据
-            from utility import parse_markdown_metadata
+            from mainTools.utility import parse_markdown_metadata
             metadata = parse_markdown_metadata(file_path)
 
             # 构建预览内容
@@ -960,7 +960,7 @@ class BlogManagerGUI:
     def show_collection_preview(self, collection_name):
         """显示合集预览"""
         try:
-            from path_utils import get_posts_path
+            from mainTools.path_utils import get_posts_path
             import os
 
             posts_path = get_posts_path()
@@ -978,7 +978,7 @@ class BlogManagerGUI:
                     file_path = os.path.join(collection_path, file)
 
                     try:
-                        from utility import parse_markdown_metadata
+                        from mainTools.utility import parse_markdown_metadata
                         metadata = parse_markdown_metadata(file_path)
                         posts.append({
                             'name': post_name,
@@ -1053,7 +1053,7 @@ class BlogManagerGUI:
 
         # 加载当前配置
         try:
-            from commands import GetConfig
+            from mainTools.commands import GetConfig
             get_config_cmd = GetConfig()
             config_result = get_config_cmd.execute()
             current_config = json.loads(config_result)
@@ -1241,7 +1241,7 @@ class BlogManagerGUI:
                 config_updates['Links'] = valid_links
 
                 # 执行更新命令
-                from commands import UpdateConfig
+                from mainTools.commands import UpdateConfig
                 update_cmd = UpdateConfig()
                 result = update_cmd.execute(**config_updates)
                 self.snack(result, False)

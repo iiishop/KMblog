@@ -37,6 +37,11 @@ npm run build
     - [x] 添加了markdown表格和task的支持
     ### 2025-01-25
     - [x] 添加了code的copy按钮
+    - [x] Bangumi模块
+    ### 2026-01-21
+    - [x] 优化了部分UI细节
+    - [x] 使用flet编写了现代化GUI的博客管理工具
+    - [x] 将build功能集成到GUI中
 
 - ## 功能性配置
     - [ ] 全模块统一处载入动画配置及分别配置
@@ -50,7 +55,6 @@ npm run build
     - [ ] 近期文章模块
 
 - ## Markdown渲染
-    - [ ] Bangumi模块
     - [ ] 音乐播放模块
 
 - ## 优化
