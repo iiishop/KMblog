@@ -1,6 +1,6 @@
 <script setup>
 import globalVar from '@/globalVar';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { gsap } from 'gsap';
 
@@ -15,7 +15,7 @@ const posts = ref({});
 const filteredPosts = ref({});
 const router = useRouter();
 
-onMounted(() => {
+onMounted(async () => {
     posts.value = globalVar.markdowns;
     if (props.markdownUrls.length === 0) {
         filteredPosts.value = posts.value;
@@ -27,14 +27,34 @@ onMounted(() => {
                 return acc;
             }, {});
     }
-    gsap.from('.ArchivePanel', { opacity: 0, y: 50, duration: 1 });
+
+    // Panel Entry Animation
+    gsap.from('.ArchivePanel', {
+        opacity: 0,
+        y: 40,
+        duration: 0.8,
+        ease: 'power3.out'
+    });
 });
 
 // 定义导航到 PostPage 的函数
 function navigateToPost(markdownUrl) {
-    const urlParts = markdownUrl.split('/');
-    const mdName = urlParts.pop().replace('.md', '');
-    const collection = urlParts.length > 3 ? urlParts[3] : null;
+    // 移除空字符串部分，兼容 /posts/... 和 posts/...
+    const urlParts = markdownUrl.split('/').filter(part => part !== '');
+    const fileName = urlParts.pop();
+    const mdName = fileName.replace('.md', '');
+
+    let collection = null;
+    // 检查剩余路径的最后一部分
+    // 如果是 posts/MyCollection/file.md -> 剩余 [posts, MyCollection] -> lastPart 是 MyCollection
+    // 如果是 posts/file.md -> 剩余 [posts] -> lastPart 是 posts
+    if (urlParts.length > 0) {
+        const lastPart = urlParts[urlParts.length - 1];
+        // 只要不是 posts 目录本身，就认为是 collection
+        if (lastPart.toLowerCase() !== 'posts') {
+            collection = lastPart;
+        }
+    }
 
     router.push({
         name: 'PostPage',
@@ -45,16 +65,50 @@ function navigateToPost(markdownUrl) {
 
 <template>
     <div class="ArchivePanel">
-        <div v-for="(post, url, index) in filteredPosts" :key="url" class="post-item">
-            <template v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(Object.values(filteredPosts)[index - 1].date).getFullYear()">
-                <h1 class="year">{{ new Date(post.date).getFullYear() }}</h1>
-            </template>
-            <template v-if="index === 0 || new Date(post.date).getMonth() !== new Date(Object.values(filteredPosts)[index - 1].date).getMonth()">
-                <h2 class="month">{{ new Date(post.date).toLocaleString('default', { month: 'long' }) }}</h2>
-            </template>
-            <div @click="navigateToPost(url)" class="post-content">
-                <h3>{{ post.title }}</h3>
-                <p>{{ post.date }}</p>
+        <!-- Modern Header -->
+        <div class="panel-header">
+            <div class="icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="header-icon">
+                    <path
+                        d="M12.75 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM7.5 15.75a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5ZM8.25 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM9.75 15.75a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5ZM10.5 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 15.75a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5ZM12.75 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM14.25 15.75a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5ZM15 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 15.75a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5ZM15 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 13.5a.75.75 0 1 0 0-1.5 .75.75 0 0 0 0 1.5Z" />
+                    <path fill-rule="evenodd"
+                        d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
+                        clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="header-text">
+                <h1>Archive</h1>
+                <span class="subtitle">历史文章归档</span>
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <div v-for="(post, url, index) in filteredPosts" :key="url" class="post-item-wrapper">
+                <!-- Timeline Marker logic remains same but styled differently -->
+                <div v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(Object.values(filteredPosts)[index - 1].date).getFullYear()"
+                    class="timeline-marker year-marker">
+                    <span class="year-text">{{ new Date(post.date).getFullYear() }}</span>
+                </div>
+
+                <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(Object.values(filteredPosts)[index - 1].date).getMonth()"
+                    class="timeline-marker month-marker">
+                    <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
+                        }}</span>
+                </div>
+
+                <div @click="navigateToPost(url)" class="post-content post-entry">
+                    <div class="post-dot"></div>
+                    <div class="post-info">
+                        <h3>{{ post.title }}</h3>
+                        <p class="post-date">
+                            <svg class="date-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {{ post.date }}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -64,56 +118,202 @@ function navigateToPost(markdownUrl) {
 .ArchivePanel {
     display: flex;
     flex-direction: column;
-    color: rgb(10, 10, 10);
+    color: var(--archive-panel-text-color, #333);
     width: 100%;
-    background-color: #f8f8f8;
-    border-radius: 1rem;
-    box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
-    padding: 1rem;
+    background: var(--archive-panel-background-color, rgba(255, 255, 255, 0.8));
+    border-radius: 20px;
+    box-shadow: 0 10px 30px -10px var(--archive-panel-shadow-color, rgba(0, 0, 0, 0.1));
+    padding: 1.5rem;
     box-sizing: border-box;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.year {
-    margin-top: 2rem;
-    font-size: 2rem;
-    color: #333;
-    border-bottom: 2px solid #ddd;
-    padding-bottom: 0.5rem;
+.ArchivePanel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px -12px var(--archive-panel-shadow-color, rgba(0, 0, 0, 0.15));
 }
 
-.month {
-    margin-top: 1.5rem;
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(128, 128, 128, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.icon-wrapper {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    padding: 10px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.header-icon {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+.header-text {
+    display: flex;
+    flex-direction: column;
+}
+
+h1 {
     font-size: 1.5rem;
-    color: #666;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 0.5rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    background: linear-gradient(to right, var(--archive-panel-text-color, #333), #666);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-.post-item {
+.subtitle {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    font-weight: 500;
+}
+
+.timeline-container {
+    position: relative;
+    padding-left: 1rem;
+    border-left: 2px solid rgba(128, 128, 128, 0.1);
+    margin-left: 0.5rem;
+}
+
+.post-item-wrapper {
+    position: relative;
+}
+
+.timeline-marker {
+    position: relative;
+    margin-left: -1rem;
+    /* stick out to left */
+    padding-left: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.year-marker {
+    margin-top: 1.5rem;
+}
+
+.year-marker::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    /* adjust to center on border line */
+    width: 12px;
+    height: 12px;
+    background: #10b981;
+    border-radius: 50%;
+    border: 3px solid var(--archive-panel-background-color, #fff);
+    box-shadow: 0 0 0 1px #10b981;
+}
+
+.year-text {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--logo-text-color, #333);
+    opacity: 0.8;
+}
+
+.month-marker {
     margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.month-marker::before {
+    content: '';
+    position: absolute;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    background: #34d399;
+    border-radius: 50%;
+    border: 2px solid var(--archive-panel-background-color, #fff);
+}
+
+.month-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .post-content {
     cursor: pointer;
-    padding: 0.5rem;
-    transition: background-color 0.3s, transform 0.3s;
-    border-radius: 0.5rem;
+    padding: 0.8rem 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    /* Subtle bg */
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.post-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #ccc;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background-color 0.3s;
+}
+
+.post-info {
+    width: 100%;
 }
 
 .post-content:hover {
-    background-color: #e0e0e0;
+    background: rgba(255, 255, 255, 0.4);
     transform: translateX(5px);
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    /* Green tint matching header */
+}
+
+.post-content:hover .post-dot {
+    background-color: #10b981;
+    box-shadow: 0 0 8px #10b981;
 }
 
 .post-content h3 {
     margin: 0;
-    font-size: 1.2rem;
-    color: #007BFF;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--archive-panel-text-color, #444);
+    transition: color 0.2s;
 }
 
-.post-content p {
-    margin: 0.2rem 0 0;
-    font-size: 0.9rem;
+.post-content:hover h3 {
+    color: #10b981;
+}
+
+.post-date {
+    margin: 0.3rem 0 0;
+    font-size: 0.75rem;
     color: #999;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.date-icon {
+    width: 12px;
+    height: 12px;
 }
 </style>
