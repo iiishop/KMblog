@@ -4,11 +4,23 @@ from datetime import datetime
 # Util functions
 
 
+def read_file_safe(file_path):
+    encodings = ['utf-8', 'gbk', 'gb18030', 'utf-16', 'latin-1']
+    for enc in encodings:
+        try:
+            with open(file_path, 'r', encoding=enc) as file:
+                return file.read()
+        except UnicodeDecodeError:
+            continue
+    # Fallback with error ignore
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        return file.read()
+
+
 def parse_markdown_metadata(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
-        metadata = parse_markdown(content)
-        return metadata
+    content = read_file_safe(file_path)
+    metadata = parse_markdown(content)
+    return metadata
 
 
 def parse_markdown(content):
@@ -23,7 +35,6 @@ def parse_markdown(content):
         return {}
 
 
-
 def read_markdowns(directory, relative_to=None):
     markdowns = []
     for file in os.listdir(directory):
@@ -31,6 +42,7 @@ def read_markdowns(directory, relative_to=None):
             file_path = os.path.join(directory, file)
             markdowns.append(file_path)
     return markdowns
+
 
 def find_first_image(directory, relative_to=None):
     for file in os.listdir(directory):
