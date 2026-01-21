@@ -181,9 +181,13 @@ const router = useRouter();
 
 // 定义导航到 PostPage 的函数
 function navigateToPost() {
-    const urlParts = props.markdownUrl.split('/');
-    const mdName = urlParts.pop().replace('.md', '');
-    const collection = urlParts.length > 3 ? urlParts[3] : null;
+    // markdownUrl 格式: /Posts/Collection/file.md 或 /Posts/file.md
+    const urlParts = props.markdownUrl.split('/').filter(part => part); // 过滤空字符串
+    const mdName = urlParts[urlParts.length - 1].replace('.md', '');
+
+    // 如果路径有3个部分 ['Posts', 'Collection', 'file.md']，则有合集
+    // 如果路径有2个部分 ['Posts', 'file.md']，则无合集
+    const collection = urlParts.length > 2 ? urlParts[1] : null;
 
     router.push({
         name: 'PostPage',
