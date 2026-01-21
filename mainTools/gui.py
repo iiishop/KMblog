@@ -29,6 +29,7 @@ class BlogToolGUI:
             'confirm_delete_collection': '确定要删除合集 \'{}\' 及其所有文章吗？',
             'operation_cancelled': '操作已取消',
             'lang_switch': '切换语言',
+            'build_project': '构建项目',
         },
         'en': {
             'title': 'KMBlog Management Tool',
@@ -51,6 +52,7 @@ class BlogToolGUI:
             'confirm_delete_collection': 'Are you sure to delete collection \'{}\' and all its posts?',
             'operation_cancelled': 'Operation cancelled',
             'lang_switch': 'Switch Language',
+            'build_project': 'Build Project',
         }
     }
 
@@ -67,6 +69,7 @@ class BlogToolGUI:
             'DeletePost': '删除指定名称的文章（可选合集）。',
             'DeleteCollection': '删除一个合集及其所有文章。',
             'ListAllPosts': '列出文章目录中的所有文章和合集。',
+            'Build': '使用 npm run build 构建博客项目。',
         },
         'en': {
             'InitBlog': 'Initializes the blog structure with necessary directories and a sample post.',
@@ -78,6 +81,8 @@ class BlogToolGUI:
             'AddPost': 'Adds a new post with the given name and optional collection.',
             'DeletePost': 'Deletes a post with the given name from the optional collection.',
             'DeleteCollection': 'Deletes a collection and all its posts.',
+            'ListAllPosts': 'Lists all posts and collections in the posts directory.',
+            'Build': 'Builds the blog project using npm run build.',
             'ListAllPosts': 'Lists all posts and collections in the posts directory.',
         }
     }

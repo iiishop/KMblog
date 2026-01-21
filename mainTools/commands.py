@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 from datetime import datetime
 from utility import parse_markdown_metadata, read_markdowns, find_first_image
 from path_utils import get_base_path, get_posts_path, get_assets_path
@@ -531,3 +532,28 @@ class ListAllPosts(Command):
                     f"    Post: {md_file} | Title: {title} | Created on: {md_creation_date} | Characters: {content_length}")
 
         return "\n".join(formatted_output)
+
+
+class Build(Command):
+    description = "Builds the blog project using npm run build."
+
+    def execute(self):
+        base_path = get_base_path()
+        try:
+            # 在项目根目录执行 npm run build
+            # Windows 需要 shell=True 或使用 npm.cmd
+            result = subprocess.run(
+                'npm run build',
+                cwd=base_path,
+                capture_output=True,
+                text=True,
+                shell=True,  # 在 Windows 上需要 shell=True
+                encoding='utf-8',  # 指定 UTF-8 编码避免 GBK 解码错误
+                errors='replace',  # 遇到无法解码的字符时替换而不是报错
+                check=True
+            )
+            return f"Build successful!\n{result.stdout}"
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Build failed:\n{e.stderr}")
+        except FileNotFoundError:
+            raise Exception("npm not found. Please ensure Node.js is installed and added to PATH.")

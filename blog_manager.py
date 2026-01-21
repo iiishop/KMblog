@@ -73,6 +73,8 @@ class BlogManagerGUI:
                 'cancel': '取消', 'confirm': '确认', 'input_error': '输入错误',
                 'please_input_post': '请输入文章名称！', 'please_input_collection': '请输入合集名称！',
                 'operation_success': '操作成功！', 'articles': '篇文章',
+                'build_project': '构建项目',
+                'blog_initialized': '博客已初始化',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -87,6 +89,8 @@ class BlogManagerGUI:
                 'cancel': 'Cancel', 'confirm': 'OK', 'input_error': 'Error',
                 'please_input_post': 'Enter post name!', 'please_input_collection': 'Enter collection name!',
                 'operation_success': 'Success!', 'articles': 'articles',
+                'build_project': 'Build Project',
+                'blog_initialized': 'Blog Initialized',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -98,6 +102,23 @@ class BlogManagerGUI:
     def switch_view(self, view):
         self.current_view = view
         self.build_ui()
+
+    def is_blog_initialized(self):
+        """检查博客是否已经初始化"""
+        try:
+            from path_utils import get_assets_path
+            assets_path = get_assets_path()
+
+            # 检查必要的 JSON 文件是否存在
+            required_files = [
+                os.path.join(assets_path, 'PostDirectory.json'),
+                os.path.join(assets_path, 'Categories.json'),
+                os.path.join(assets_path, 'Tags.json'),
+            ]
+
+            return all(os.path.exists(f) for f in required_files)
+        except:
+            return False
 
     def build_ui(self):
         """构建主界面"""
@@ -195,8 +216,11 @@ class BlogManagerGUI:
                                     self.show_add_dialog, ft.Colors.GREEN_600),
                     self.action_btn(self.t(
                         'generate'), ft.Icons.BUILD_CIRCLE, self.exec_generate, ft.Colors.BLUE_600),
+                    # 只在博客未初始化时显示初始化按钮
                     self.action_btn(self.t(
-                        'init_blog'), ft.Icons.ROCKET_LAUNCH, self.exec_init, ft.Colors.PURPLE_600),
+                        'init_blog'), ft.Icons.ROCKET_LAUNCH, self.exec_init, ft.Colors.PURPLE_600) if not self.is_blog_initialized() else ft.Container(),
+                    self.action_btn(self.t(
+                        'build_project'), ft.Icons.CONSTRUCTION, self.exec_build, ft.Colors.ORANGE_600),
                 ], spacing=15, wrap=True),
             ]),
             padding=25,
@@ -302,7 +326,7 @@ class BlogManagerGUI:
                 ft.Text(line.strip()[:80], size=13),
             ], spacing=12),
             padding=12,
-            border=ft.border.all(1, ft.Colors.BLUE_100),
+            border=ft.Border.all(1, ft.Colors.BLUE_100),
             border_radius=8,
             bgcolor=ft.Colors.BLUE_50,
             on_hover=on_hover,
@@ -394,7 +418,7 @@ class BlogManagerGUI:
                 ft.Text(line.strip(), size=14, expand=True),
             ], spacing=15),
             padding=18,
-            border=ft.border.all(1, ft.Colors.BLUE_200),
+            border=ft.Border.all(1, ft.Colors.BLUE_200),
             border_radius=10,
             bgcolor=ft.Colors.BLUE_50,
             on_hover=on_hover,
@@ -487,7 +511,7 @@ class BlogManagerGUI:
                 ], spacing=4, expand=True),
             ], spacing=18),
             padding=22,
-            border=ft.border.all(1, ft.Colors.ORANGE_200),
+            border=ft.Border.all(1, ft.Colors.ORANGE_200),
             border_radius=12,
             bgcolor=ft.Colors.ORANGE_50,
             on_hover=on_hover,
@@ -677,6 +701,43 @@ class BlogManagerGUI:
             self.build_ui()
         except Exception as e:
             self.snack(f"{self.t('error')}: {e}", True)
+
+    def exec_build(self, e):
+        """构建项目"""
+        # 显示加载提示
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text("🔨 正在构建项目..."),
+            content=ft.Column([
+                ft.ProgressRing(),
+                ft.Container(height=10),
+                ft.Text("请稍候，这可能需要几分钟时间", size=13, color=ft.Colors.GREY_700),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
+            modal=True,
+        )
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        # 在后台线程中执行构建
+        import threading
+
+        def build_thread():
+            try:
+                result = self.commands['Build']().execute()
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                # 显示成功消息
+                self.snack(self.t('operation_success'))
+                print(result)  # 输出构建日志到控制台
+            except Exception as ex:
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                # 显示错误消息
+                self.snack(f"{self.t('error')}: {ex}", True)
+
+        threading.Thread(target=build_thread, daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""
@@ -896,7 +957,7 @@ class BlogManagerGUI:
                     padding=12,
                     bgcolor=ft.Colors.ORANGE_50,
                     border_radius=8,
-                    border=ft.border.all(1, ft.Colors.ORANGE_200),
+                    border=ft.Border.all(1, ft.Colors.ORANGE_200),
                     on_click=lambda e, name=post['name']: self.show_post_preview(
                         name),
                     tooltip="点击查看详情",
