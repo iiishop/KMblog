@@ -37,8 +37,9 @@ import 'prismjs/components/prism-scss';
 import 'prismjs/components/prism-markup-templating';
 import 'prismjs/components/prism-php';
 
-import markdownItKatex from 'markdown-it-katex';
-import 'katex/dist/katex.min.css'; // 引入katex的CSS
+import markdownItTexmath from 'markdown-it-texmath';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import markdownItTaskLists from 'markdown-it-task-lists';
 import markdownItMultimdTable from 'markdown-it-multimd-table';
 import markdownItCodeCopy from 'markdown-it-code-copy';
@@ -99,8 +100,16 @@ const md = new MarkdownIt({
     }
 });
 
-// 添加对LaTeX的支持
-md.use(markdownItKatex);
+// 添加对 LaTeX 的支持（使用 KaTeX 引擎）
+md.use(markdownItTexmath, {
+    engine: katex,
+    delimiters: 'dollars',
+    katexOptions: {
+        throwOnError: false,
+        errorColor: '#cc0000',
+        strict: false
+    }
+});
 
 // 添加对任务列表的支持
 md.use(markdownItTaskLists, { enabled: true });
