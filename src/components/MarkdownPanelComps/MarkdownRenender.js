@@ -48,7 +48,7 @@ md.use((md) => {
         if (srcIndex >= 0) {
             const src = token.attrs[srcIndex][1];
             if (!src.startsWith('http')) {
-                token.attrs[srcIndex][1] = `/src/Posts/Images/${src}`;
+                token.attrs[srcIndex][1] = `/Posts/Images/${src}`;
             }
         }
         return defaultRender(tokens, idx, options, env, self);

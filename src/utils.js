@@ -84,7 +84,7 @@ export async function parseMarkdownMetadata(content) {
 
 // 异步函数，用于加载和解析 PostDirectory.json 文件
 export async function loadMarkdownLinks() {
-  const data = await loadJsonFile('/src/assets/PostDirectory.json');
+  const data = await loadJsonFile('/assets/PostDirectory.json');
   if (data) {
     const markdownLinks = extractMarkdownLinks(data);
 
@@ -96,7 +96,7 @@ export async function loadMarkdownLinks() {
       if (markdownContent) {
         const { meta } = await parseMarkdownMetadata(markdownContent); // 使用异步解析函数
         const imageName = meta.img;
-        const imageUrl = imageName ? `/src/Posts/Images/${imageName}` : null;
+        const imageUrl = imageName ? `/Posts/Images/${imageName}` : null;
         return { markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date, title: meta.title, pre: meta.pre, tags: meta.tags, categories: meta.categories };
       }
       return null;
@@ -121,7 +121,7 @@ export async function loadMarkdownLinks() {
 
 // 异步函数，用于加载和解析 Tags.json 文件
 export async function loadTags() {
-  const data = await loadJsonFile('/src/assets/Tags.json');
+  const data = await loadJsonFile('/assets/Tags.json');
   if (data) {
     console.log('Tags loaded successfully:', data);
     return data;
@@ -131,7 +131,7 @@ export async function loadTags() {
 
 // 异步函数，用于加载和解析 Categories.json 文件
 export async function loadCategories() {
-  const data = await loadJsonFile('/src/assets/Categories.json');
+  const data = await loadJsonFile('/assets/Categories.json');
   if (data) {
     console.log('Categories loaded successfully:', data);
     return data;
@@ -139,9 +139,9 @@ export async function loadCategories() {
   return {};
 }
 
-// 新增的异步函数，用于加载并解析 /src/assets/PostDirectory.json，返回处理后的 Collections
+// 新增的异步函数，用于加载并解析 /assets/PostDirectory.json，返回处理后的 Collections
 export async function loadCollections() {
-  const data = await loadJsonFile('/src/assets/PostDirectory.json');
+  const data = await loadJsonFile('/assets/PostDirectory.json');
   if (data) {
     const collections = parsePostDirectory(data);
     console.log('Collections loaded successfully:', collections);

@@ -21,9 +21,9 @@ def get_base_path():
 
 def get_posts_path():
     """获取Posts目录路径"""
-    return os.path.join(get_base_path(), 'src', 'Posts')
+    return os.path.join(get_base_path(), 'public', 'Posts')
 
 
 def get_assets_path():
     """获取assets目录路径"""
-    return os.path.join(get_base_path(), 'src', 'assets')
+    return os.path.join(get_base_path(), 'public', 'assets')

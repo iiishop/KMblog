@@ -85,7 +85,7 @@ onMounted(() => {
             </div>
         </div>
         <div class="game-info">
-            <img :src="imageUrl || '/src/assets/loading.gif'" alt="Game Image" class="game-image" />
+            <img :src="imageUrl || '/assets/loading.gif'" alt="Game Image" class="game-image" />
             <p class="game-description">{{ description }}</p>
             <div class="detail-info">
                 <div class="game-price" v-html="price"></div>
@@ -172,8 +172,7 @@ onMounted(() => {
     font-size: 0.8rem;
 }
 
-.game-info
-.game-description {
+.game-info .game-description {
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -182,6 +181,7 @@ onMounted(() => {
     line-clamp: 7;
     -webkit-box-orient: vertical;
 }
+
 .game-rating {}
 
 .game-price {

@@ -61,7 +61,7 @@ class ShowPostsJson(Command):
     def execute(self):
         base_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'src/Posts')
+        posts_path = os.path.join(base_path, 'public/Posts')
         if not os.path.exists(posts_path):
             raise FileNotFoundError(
                 f"No such file or directory: '{posts_path}'")
@@ -101,13 +101,17 @@ class ShowPostsJson(Command):
 
         return result
 
-    def _convert_to_relative_paths(self, paths, start_id, base_path='/src'):
+    def _convert_to_relative_paths(self, paths, start_id, base_path='/public'):
         return [{'id': start_id + i, 'path': self._convert_to_relative_path(path, base_path)} for i, path in enumerate(paths)]
 
-    def _convert_to_relative_path(self, path, base_path='/src'):
+    def _convert_to_relative_path(self, path, base_path='/public'):
         base_path = get_base_path()
         if path.startswith(base_path):
-            return path[len(base_path):].replace('\\', '/')
+            relative_path = path[len(base_path):].replace('\\', '/')
+            # 移除开头的 /public 前缀（因为 Vite 会自动将 public 文件夹映射到根路径）
+            if relative_path.startswith('/public/'):
+                relative_path = relative_path[7:]  # 移除 '/public'
+            return relative_path
         else:
             return path.replace('\\', '/')
 
@@ -165,10 +169,14 @@ class ShowTagsJson(Command):
 
         return tags_dict
 
-    def _convert_to_relative_path(self, path, base_path='/src'):
+    def _convert_to_relative_path(self, path, base_path='/public'):
         base_path = get_base_path()
         if path.startswith(base_path):
-            return path[len(base_path):].replace('\\', '/')
+            relative_path = path[len(base_path):].replace('\\', '/')
+            # 移除开头的 /public 前缀（因为 Vite 会自动将 public 文件夹映射到根路径）
+            if relative_path.startswith('/public/'):
+                relative_path = relative_path[7:]  # 移除 '/public'
+            return relative_path
         else:
             return path.replace('\\', '/')
 
@@ -232,10 +240,14 @@ class ShowCategoriesJson(Command):
             before_category['files'] = []
         before_category['files'].append(relative_path)
 
-    def _convert_to_relative_path(self, path, base_path='/src'):
+    def _convert_to_relative_path(self, path, base_path='/public'):
         base_path = get_base_path()
         if path.startswith(base_path):
-            return path[len(base_path):].replace('\\', '/')
+            relative_path = path[len(base_path):].replace('\\', '/')
+            # 移除开头的 /public 前缀（因为 Vite 会自动将 public 文件夹映射到根路径）
+            if relative_path.startswith('/public/'):
+                relative_path = relative_path[7:]  # 移除 '/public'
+            return relative_path
         else:
             return path.replace('\\', '/')
 

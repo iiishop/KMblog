@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { defineProps, ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { markRaw } from 'vue';
 import config from '@/config';
 

@@ -23,7 +23,7 @@ const getMarkdownUrls = (categoryPath) => {
         }
     }
     currentCategory = currentCategory[lastPart];
-    
+
     markdownUrls = markdownUrls.concat(currentCategory.files);
     // 写一个递归获取子目录中的markdown文件的方法
     const getMarkdownUrlsFromChildCategories = (childCategories) => {
@@ -63,9 +63,9 @@ const routes = [
             const { collection, mdName } = route.params;
             let markdownUrl = '';
             if (collection) {
-                markdownUrl = `/src/Posts/${collection}/${mdName}.md`;
+                markdownUrl = `/Posts/${collection}/${mdName}.md`;
             } else {
-                markdownUrl = `/src/Posts/Markdowns/${mdName}.md`;
+                markdownUrl = `/Posts/Markdowns/${mdName}.md`;
             }
             return { markdownUrl: markdownUrl };
         }

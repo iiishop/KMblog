@@ -29,8 +29,8 @@ coverage
 
 *.tsbuildinfo
 mainTools/__pycache__/
-src/Posts/
-src/assets/Tags.json
-src/assets/PostDirectory.json
+public/Posts/
+public/assets/Tags.json
+public/assets/PostDirectory.json
+public/assets/Categories.json
 .vscode
-src/assets/Categories.json

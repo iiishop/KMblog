@@ -28,7 +28,6 @@ import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { defineProps } from 'vue';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
@@ -61,7 +60,7 @@ const parseMarkdown = async (url) => {
     const { meta } = await parseMarkdownMetadata(markdown);
     metadata.value = meta;
     if (metadata.value.img) {
-      metadata.value.img = `/src/Posts/Images/${metadata.value.img}`;
+      metadata.value.img = `/Posts/Images/${metadata.value.img}`;
     }
     const date = new Date(metadata.value.date);
     const hours = date.getHours();

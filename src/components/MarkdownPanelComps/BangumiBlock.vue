@@ -12,7 +12,7 @@
             </div>
         </div>
         <div class="bangumi-detail">
-            <img :src="imageUrl || '/src/assets/loading.gif'" alt="Bangumi Cover" class="bangumi-cover" />
+            <img :src="imageUrl || '/assets/loading.gif'" alt="Bangumi Cover" class="bangumi-cover" />
             <div class="bangumi-tags">
                 <span v-for="tag in tags" :key="tag">{{ tag }}</span>
             </div>

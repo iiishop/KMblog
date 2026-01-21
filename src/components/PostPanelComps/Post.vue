@@ -48,7 +48,7 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
 import { parseMarkdownMetadata } from "@/utils";
-import loadingGif from '@/assets/loading.gif';
+import loadingGif from '/public/assets/loading.gif';
 
 // 使用动态导入进行代码分割
 const Tag = defineAsyncComponent(() => import('./Tag.vue'));
