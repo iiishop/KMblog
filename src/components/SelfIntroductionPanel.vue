@@ -62,52 +62,123 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 20px;
-  padding: 1.5rem;
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
   width: 100%;
-  background-color: var(--user-info-background-color);
-  box-shadow: 1px 1px 5px var(--user-info-box-shadow);
+  /* 极致质感背景：保持原变量为基底，叠加细腻光泽 */
+  background: var(--user-info-background-color);
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* 现代多层阴影 & 内发光边框 */
+  box-shadow: 
+    0 15px 35px -5px rgba(0,0,0,0.1), 
+    0 0 0 1px rgba(255,255,255,0.6) inset;
   color: var(--user-info-text-color);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
 }
 
+/* 悬停时的上浮与光影增强 */
 .user-info:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-8px);
+  box-shadow: 
+    0 25px 50px -12px rgba(0,0,0,0.15),
+    0 0 0 1px rgba(255,255,255,0.9) inset;
 }
 
 .user-info img {
-  width: 40%;
-  height: auto;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
   border-radius: 50%;
-  box-shadow: 0px 0px 5px var(--user-info-img-box-shadow);
-  transition: all 0.5s ease;
+  /* 双层立体边框 */
+  border: 4px solid rgba(255,255,255,0.95);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background-color: #fff;
 }
 
 .user-info img:hover {
-  transform: rotate(180deg);
+  transform: rotate(360deg) scale(1.15);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+  border-color: #fff;
+}
+
+.user-info h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  /* 文字渐变增强层次（需背景色配合，若背景深色则回退到inherit） */
+  background: linear-gradient(120deg, var(--user-info-text-color) 0%, #888 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--user-info-text-color); /* 回退颜色 */
+}
+
+.user-info p {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  line-height: 1.6;
+  max-width: 90%;
+  font-weight: 500;
 }
 
 .stats {
-  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  padding: 1.25rem 0;
+  margin-bottom: 1.5rem;
+  /* 精致的分隔线 */
+  border-top: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 
 .stats div {
-  display: inline-block;
-  margin: 0 10px;
-}
-
-.stats span {
-  display: block;
+  margin: 0 !important; /* 覆盖原有 inline-block 的 margin */
 }
 
 .stat-link {
   text-decoration: none;
   color: inherit;
-  transition: color 0.3s ease;
+  flex: 1;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .stat-link:hover {
+  transform: translateY(-3px);
+}
+
+/* 统计项内部布局 */
+.stat-link div.clickable, 
+.stat-link div {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-link span:first-child {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.6;
+  font-weight: 700;
+}
+
+.stat-link span:last-child {
+  font-size: 1.5rem;
+  font-weight: 800;
+  transition: color 0.3s ease;
+}
+
+.stat-link:hover span:last-child {
   color: var(--link-hover-color);
 }
 
@@ -115,16 +186,122 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .link {
-  font-size: 1.5rem;
-  transition: all 0.3s ease;
+  font-size: 1.3rem;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.04);
+  color: var(--user-info-text-color);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .link:hover {
-  color: var(--link-hover-color);
-  transform: scale(1.2);
+  color: #fff;
+  background-color: var(--link-hover-color, #333);
+  transform: translateY(-4px) scale(1.1);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+/* === 新增装饰性元素 === */
+
+/* 1. 动态流光 (优雅的素色光影) */
+.user-info::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  /* 改用白色透明渐变，营造流动的光感但没有杂色 */
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.05) 45deg,
+    rgba(255, 255, 255, 0.4) 90deg, 
+    rgba(255, 255, 255, 0.05) 135deg,
+    transparent 180deg,
+    transparent 360deg
+  );
+  filter: blur(35px);
+  /* 慢速旋转，像灯塔或光影流转 */
+  animation: rotateLight 12s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes rotateLight {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 2. 亮光扫描 (保留动感，调整为柔白) */
+.user-info::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  /* 纯净的白光扫过 */
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0.5) 50%, 
+    rgba(255, 255, 255, 0) 60%,
+    transparent 100%
+  );
+  transform: skewX(-25deg);
+  /* 5秒一次，动感适中 */
+  animation: laserSweep 5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes laserSweep {
+  0% { left: -100%; opacity: 0; }
+  20% { opacity: 1; }
+  100% { left: 200%; opacity: 0; }
+}
+
+/* 2. 确保内容位于装饰层之上 */
+.user-info > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 3. 标题底部动态装饰线 */
+.user-info h2 {
+  position: relative;
+  display: inline-block; /* 收缩宽度以适应文字 */
+}
+
+.user-info h2::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 4px;
+  background: var(--user-info-text-color);
+  opacity: 0.15;
+  border-radius: 10px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.user-info:hover h2::after {
+  width: 50px;
+  opacity: 0.4;
+  background: var(--link-hover-color, var(--user-info-text-color));
 }
 </style>
