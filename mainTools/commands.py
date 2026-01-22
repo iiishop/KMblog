@@ -775,29 +775,49 @@ class DeleteCollection(Command):
         # List the posts in the collection
         posts = [file for file in os.listdir(
             directory) if file.endswith('.md')]
-        if not posts:
-            return f"Error: Collection '{collection}' is empty or contains no posts."
 
-        print(f"Collection '{collection}' contains the following posts:")
-        for post in posts:
-            print(f" - {post}")
+        if posts:
+            print(f"Collection '{collection}' contains the following posts:")
+            for post in posts:
+                print(f" - {post}")
+        else:
+            print(f"Collection '{collection}' is empty.")
 
         # Ask for confirmation
         confirm = input(
-            f"Are you sure you want to delete this collection and all its posts? (Y/N): ").strip().lower()
+            f"Are you sure you want to delete this collection? (Posts will be moved to Markdowns) (Y/N): ").strip().lower()
         if confirm not in ['y', 'yes']:
             return f"Deletion of collection '{collection}' aborted."
 
-        # Delete all posts and the directory
+        # Move all .md files to Markdowns directory
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        os.makedirs(markdowns_path, exist_ok=True)
+
+        moved_count = 0
         for post in posts:
-            os.remove(os.path.join(directory, post))
-        os.rmdir(directory)
+            src_path = os.path.join(directory, post)
+            dst_path = os.path.join(markdowns_path, post)
+
+            # Handle filename conflicts
+            counter = 1
+            base_name, ext = os.path.splitext(post)
+            while os.path.exists(dst_path):
+                dst_path = os.path.join(
+                    markdowns_path, f"{base_name}_{counter}{ext}")
+                counter += 1
+
+            shutil.move(src_path, dst_path)
+            moved_count += 1
+            print(f"Moved: {post} -> Markdowns/{os.path.basename(dst_path)}")
+
+        # Delete the entire collection directory and remaining files
+        shutil.rmtree(directory)
 
         # Output the posts directory structure to a JSON file
         output_command = Generate()
         output_result = output_command.execute()
 
-        return f"Collection '{collection}' and all its posts have been deleted.\n{output_result}"
+        return f"Collection '{collection}' deleted. {moved_count} posts moved to Markdowns.\n{output_result}"
 
 
 class ListAllPosts(Command):

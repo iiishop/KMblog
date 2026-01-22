@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-
+from mainTools.commands import Command
 import flet as ft
 import sys
 import os
@@ -15,7 +15,7 @@ import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-from mainTools.commands import Command
+
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -24,6 +24,20 @@ class BlogManagerGUI:
         self.commands = self.get_commands()
         self.current_lang = 'zh'
         self.current_view = 'dashboard'
+        self.expanded_collections = set()  # 记录展开的合集
+        self.draggable_data_map = {}  # 映射 Draggable ID 到文章数据
+        self.needs_generate = False  # 标记是否需要重新生成配置
+        self.generate_timer = None  # 延迟生成的定时器
+
+        # 数据缓存层
+        self.posts_cache = {}  # 缓存文章数据
+        self.is_cache_valid = False  # 缓存是否有效
+        self.collection_widgets = {}  # 存储合集控件引用，用于增量更新
+
+        # 延迟刷新定时器
+        self.ui_refresh_timer = None  # UI刷新定时器
+        self.pending_refresh = False  # 标记是否有待处理的UI刷新
+
         self.build_ui()
 
     def setup_page(self):
@@ -237,6 +251,9 @@ class BlogManagerGUI:
 
     def build_ui(self):
         """构建主界面"""
+        import time
+        print(f"[性能-时间戳] 开始build_ui: {time.time():.3f}")
+
         self.page.controls.clear()
         layout = ft.Row([
             self.build_sidebar(),
@@ -246,13 +263,13 @@ class BlogManagerGUI:
         ], spacing=0, expand=True)
         self.page.add(layout)
         self.page.update()
+        print(f"[性能-时间戳] UI更新完成: {time.time():.3f}")
 
     def build_sidebar(self):
         """侧边栏"""
         nav_items = [
             ('dashboard', ft.Icons.DASHBOARD, self.t('dashboard')),
             ('posts', ft.Icons.ARTICLE, self.t('posts')),
-            ('collections', ft.Icons.FOLDER, self.t('collections')),
             ('settings', ft.Icons.SETTINGS, self.t('settings')),
         ]
 
@@ -307,8 +324,6 @@ class BlogManagerGUI:
             return self.build_dashboard()
         elif self.current_view == 'posts':
             return self.build_posts_view()
-        elif self.current_view == 'collections':
-            return self.build_collections_view()
         elif self.current_view == 'settings':
             return self.build_settings_view()
         return ft.Text("Unknown view")
@@ -327,29 +342,30 @@ class BlogManagerGUI:
         # 构建快速操作区域 - 扁平化网格设计
         action_buttons = [
             self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
-                          self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
+                            self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
             self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE,
-                          self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
+                            self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
             self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION,
-                          self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
+                            self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
             self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD,
-                          self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
+                            self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
             self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
-                          self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
+                            self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
         ]
 
         if not self.is_blog_initialized():
             action_buttons.append(
                 self.action_btn(self.t('init_blog'), ft.Icons.ROCKET_LAUNCH,
-                              self.exec_init, ft.Colors.PURPLE_600, '初始化')
+                                self.exec_init, ft.Colors.PURPLE_600, '初始化')
             )
 
         actions_content = ft.Column([
-            ft.Text(self.t('quick_actions'), size=22, weight=ft.FontWeight.BOLD),
+            ft.Text(self.t('quick_actions'), size=22,
+                    weight=ft.FontWeight.BOLD),
             ft.Container(height=15),
             ft.Row(action_buttons, spacing=20, run_spacing=20, wrap=True),
         ])
-        
+
         actions = ft.Container(
             content=actions_content,
             padding=30,
@@ -405,14 +421,14 @@ class BlogManagerGUI:
                     blur_radius=10, color=ft.Colors.with_opacity(0.2, color))
                 e.control.scale = 1.0
             e.control.update()
-        
+
         return ft.Container(
             content=ft.Column([
                 ft.Icon(icon, size=36, color=ft.Colors.WHITE),
-                ft.Text(text, size=14, weight=ft.FontWeight.BOLD, 
-                       color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
+                ft.Text(text, size=14, weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
                 ft.Text(desc, size=11, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
-                       text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
+                        text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
             ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             width=160,
             height=120,
@@ -488,7 +504,7 @@ class BlogManagerGUI:
         )
 
     def build_posts_view(self):
-        """文章视图"""
+        """文章视图 - 合集包裹式"""
         self.post_field = ft.TextField(label=self.t('post_name'), width=350)
         self.coll_field = ft.TextField(
             label=self.t('collection_name'), width=350)
@@ -503,7 +519,7 @@ class BlogManagerGUI:
                 ft.Row([
                     ft.Button(self.t('add_post'), icon=ft.Icons.ADD, on_click=lambda e: self.exec_add_post(
                     ), bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE),
-                    ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.build_ui(
+                    ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.force_refresh(
                     ), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
                 ], spacing=12),
             ]),
@@ -514,26 +530,488 @@ class BlogManagerGUI:
                 blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
         )
 
-        return ft.Column([header, ft.Container(height=20), self.build_posts_list()], scroll=ft.ScrollMode.AUTO, expand=True)
+        return ft.Column([header, ft.Container(height=20), self.build_collection_groups()], scroll=ft.ScrollMode.AUTO, expand=True)
 
-    def build_posts_list(self):
-        """文章列表"""
+    def update_draggable_map(self, control=None):
+        """递归更新 Draggable 控件的 ID 映射"""
+        if control is None:
+            control = self.page
+
+        # 检查控件类型
+        if isinstance(control, ft.Draggable) and hasattr(control, 'data'):
+            # 获取控件的真实 ID
+            if hasattr(control, 'uid'):
+                real_id = control.uid
+            elif hasattr(control, '_Control__uid'):
+                real_id = control._Control__uid
+            else:
+                real_id = id(control)
+
+            # 如果有数据，存储映射
+            if control.data:
+                self.draggable_data_map[real_id] = control.data
+                print(
+                    f"[Drag] Mapped Draggable ID {real_id} -> {control.data}")
+
+        # 递归处理子控件
+        if hasattr(control, 'content'):
+            if isinstance(control.content, list):
+                for child in control.content:
+                    self.update_draggable_map(child)
+            elif control.content is not None:
+                self.update_draggable_map(control.content)
+
+        if hasattr(control, 'controls'):
+            for child in control.controls:
+                self.update_draggable_map(child)
+
+    def build_collection_groups(self):
+        """构建合集分组列表"""
+        import time
+        start_time = time.time()
+
         try:
-            result = self.commands['ListAllPosts']().execute()
-            lines = [l for l in result.split('\n') if 'Post:' in l]
-            cards = [self.post_card(l) for l in lines] if lines else [ft.Text(
-                self.t('no_posts'), size=18, color=ft.Colors.GREY_500)]
+            # 清空映射表和控件引用
+            self.draggable_data_map.clear()
+            self.collection_widgets.clear()
 
-            return ft.Container(
-                content=ft.Column(cards, spacing=12),
+            # 获取所有文章数据（使用缓存）
+            posts_data = self.get_posts_grouped_by_collection()
+
+            collection_widgets = []
+
+            # 首先显示 Markdowns (无合集) 的文章
+            if 'Markdowns' in posts_data and posts_data['Markdowns']:
+                collection_widgets.append(
+                    self.build_collection_group(
+                        '📄 无合集', 'Markdowns', posts_data['Markdowns'], is_default=True)
+                )
+
+            # 然后显示其他合集
+            for coll_name in sorted(posts_data.keys()):
+                if coll_name != 'Markdowns' and posts_data[coll_name]:
+                    collection_widgets.append(
+                        self.build_collection_group(
+                            f'📁 {coll_name}', coll_name, posts_data[coll_name])
+                    )
+
+            if not collection_widgets:
+                return ft.Container(
+                    content=ft.Text(self.t('no_posts'), size=18,
+                                    color=ft.Colors.GREY_500),
+                    padding=25,
+                    bgcolor=ft.Colors.WHITE,
+                    border_radius=12,
+                )
+
+            container = ft.Container(
+                content=ft.Column(collection_widgets, spacing=15),
                 padding=25,
                 bgcolor=ft.Colors.WHITE,
                 border_radius=12,
                 shadow=ft.BoxShadow(
                     blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
             )
+
+            elapsed = time.time() - start_time
+            print(
+                f"[性能] 构建合集列表耗时: {elapsed:.3f}秒 ({len(collection_widgets)}个合集)")
+            print(f"[性能-时间戳] 构建完成时刻: {time.time():.3f}")
+            return container
         except Exception as e:
+            print(f"Error building collection groups: {e}")
+            import traceback
+            traceback.print_exc()
             return ft.Container(content=ft.Text(f"Error: {e}", color=ft.Colors.RED_500))
+
+    def get_posts_grouped_by_collection(self, force_refresh=False):
+        """获取按合集分组的文章数据（带缓存）"""
+        import time
+
+        print(f"[性能-时间戳] 开始获取posts数据: {time.time():.3f}")
+
+        # 如果缓存有效且不强制刷新，直接返回缓存
+        if not force_refresh and self.is_cache_valid:
+            print("[Cache] Using cached posts data")
+            return self.posts_cache
+
+        start_time = time.time()
+        result = self.commands['ListAllPosts']().execute()
+        lines = result.split('\n')
+
+        grouped_posts = {}
+        current_collection = 'Markdowns'
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if line.startswith('Collection:'):
+                # 解析合集名称
+                parts = line.split('|')
+                current_collection = parts[0].replace(
+                    'Collection:', '').strip()
+                grouped_posts[current_collection] = []
+            elif line.startswith('Post:'):
+                # 解析文章信息
+                if current_collection not in grouped_posts:
+                    grouped_posts[current_collection] = []
+                grouped_posts[current_collection].append(line)
+
+        # 缓存数据
+        self.posts_cache = grouped_posts
+        self.is_cache_valid = True
+
+        elapsed = time.time() - start_time
+        print(f"[性能] 获取文章数据耗时: {elapsed:.3f}秒")
+        return grouped_posts
+
+    def build_collection_group(self, display_name, collection_name, posts, is_default=False):
+        """构建单个合集组"""
+        is_expanded = collection_name in self.expanded_collections
+
+        # 合集头部
+        def toggle_expand(e):
+            if is_expanded:
+                self.expanded_collections.discard(collection_name)
+            else:
+                self.expanded_collections.add(collection_name)
+            self.build_ui()
+
+        # 删除合集按钮 (仅非默认合集)
+        delete_button = None
+        if not is_default:
+            def on_delete_collection(e):
+                self.confirm(
+                    self.t('confirm_delete'),
+                    self.t('confirm_delete_collection').format(
+                        collection_name),
+                    lambda: self.do_del_coll(collection_name)
+                )
+            delete_button = ft.IconButton(
+                icon=ft.Icons.DELETE,
+                icon_color=ft.Colors.RED_500,
+                tooltip=self.t('delete_collection'),
+                on_click=on_delete_collection,
+            )
+
+        # 拖放接收处理
+        def on_drag_accept(e):
+            print(f"[Drag] on_drag_accept triggered")
+            print(f"[Drag] src_id: {e.src_id}")
+
+            # 尝试直接从事件获取源控件
+            src_control = None
+            if hasattr(e, 'src') and e.src:
+                src_control = e.src
+                print(f"[Drag] Found src control: {type(src_control)}")
+
+            # 如果找到源控件且有数据
+            if src_control and hasattr(src_control, 'data') and src_control.data:
+                data = src_control.data
+                print(f"[Drag] Got data from src control: {data}")
+
+                post_name = data.get('post_name')
+                source_collection = data.get('source_collection')
+                print(
+                    f"[Drag] Moving {post_name} from {source_collection} to {collection_name}")
+
+                try:
+                    # 移动文章
+                    self.move_post_to_collection(
+                        post_name, source_collection, collection_name)
+                except Exception as ex:
+                    print(f"[Drag] Error in move_post_to_collection: {ex}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"[Drag] Warning: Could not get data from src control")
+
+        # 拖放悬停效果
+        def on_will_accept(e):
+            import time
+            print(f"[性能-时间戳] 拖拽开始(on_will_accept): {time.time():.3f}")
+            print(f"[Drag] on_will_accept: entering {collection_name}")
+            e.control.bgcolor = ft.Colors.BLUE_100
+            e.control.border = ft.Border.all(2, ft.Colors.BLUE_500)
+            e.control.update()
+
+        def on_leave(e):
+            print(f"[Drag] on_leave: leaving {collection_name}")
+            e.control.bgcolor = ft.Colors.BLUE_GREY_50 if not is_default else ft.Colors.GREY_100
+            e.control.border = None
+            e.control.update()
+
+        # 构建头部容器
+        header_container = ft.Container(
+            content=ft.Row([
+                ft.Icon(
+                    ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT,
+                    size=24,
+                    color=ft.Colors.GREY_700
+                ),
+                ft.Text(
+                    f"{display_name} ({len(posts)})",
+                    size=18,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.GREY_900,
+                    expand=True
+                ),
+                delete_button if delete_button else ft.Container(),
+            ], spacing=10),
+            padding=ft.Padding(12, 8, 12, 8),
+            bgcolor=ft.Colors.BLUE_GREY_50 if not is_default else ft.Colors.GREY_100,
+            border_radius=8,
+            on_click=toggle_expand,
+            ink=True,
+        )
+
+        # 将头部包装在 DragTarget 中
+        header = ft.DragTarget(
+            group="posts",
+            content=header_container,
+            on_accept=on_drag_accept,
+            on_will_accept=on_will_accept,
+            on_leave=on_leave,
+        )
+
+        # 文章列表 (展开时显示)
+        posts_list = None
+        if is_expanded:
+            post_widgets = []
+            for post_line in posts:
+                post_widgets.append(self.build_draggable_post(
+                    post_line, collection_name))
+
+            posts_list = ft.Container(
+                content=ft.Column(post_widgets, spacing=8),
+                padding=ft.Padding(35, 10, 10, 10),
+            )
+
+        return ft.Column([
+            header,
+            posts_list if posts_list else ft.Container(),
+        ], spacing=5)
+
+    def build_draggable_post(self, line, source_collection):
+        """构建可拖拽的文章项"""
+        # 从列表中提取文章名
+        line_clean = line.replace('Post:', '').strip()
+        parts = line_clean.split('|')
+        post_info = parts[0].strip()
+
+        # 处理文件名
+        if '/' in post_info:
+            post_name = post_info.split('/')[-1].strip()
+        else:
+            post_name = post_info
+
+        # 移除 .md 扩展名
+        if post_name.endswith('.md'):
+            post_name = post_name[:-3]
+
+        # 创建拖拽数据
+        drag_data = {
+            'post_name': post_name,
+            'source_collection': source_collection
+        }
+
+        print(
+            f"[Drag] Creating draggable: {post_name} from {source_collection}")
+
+        def on_hover(e):
+            if e.data == "true":
+                e.control.bgcolor = ft.Colors.BLUE_100
+                e.control.scale = 1.01
+            else:
+                e.control.bgcolor = ft.Colors.BLUE_50
+                e.control.scale = 1.0
+            e.control.update()
+
+        def on_delete(e):
+            e.stop_propagation()  # 阻止事件冒泡
+            self.confirm(
+                self.t('confirm_delete'),
+                self.t('confirm_delete_post').format(post_name),
+                lambda: self.do_del_post(
+                    post_name, None if source_collection == 'Markdowns' else source_collection)
+            )
+
+        # 构建可拖拽的文章卡片
+        post_card = ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.DRAG_INDICATOR, size=20,
+                        color=ft.Colors.GREY_400),
+                ft.Icon(ft.Icons.ARTICLE, size=22, color=ft.Colors.BLUE_600),
+                ft.Text(line.strip(), size=13, expand=True),
+                ft.IconButton(
+                    icon=ft.Icons.DELETE,
+                    icon_size=18,
+                    icon_color=ft.Colors.RED_400,
+                    tooltip=self.t('delete_post'),
+                    on_click=on_delete,
+                ),
+            ], spacing=10),
+            padding=12,
+            border=ft.Border.all(1, ft.Colors.BLUE_200),
+            border_radius=8,
+            bgcolor=ft.Colors.BLUE_50,
+            on_hover=on_hover,
+            animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+            tooltip="拖动到合集以移动文章",
+        )
+
+        # 使用 Draggable 包装
+        import json
+        drag_json = json.dumps(drag_data)
+        print(f"[Drag] Draggable data JSON: {drag_json}")
+
+        draggable = ft.Draggable(
+            group="posts",
+            content=post_card,
+            content_when_dragging=ft.Container(
+                content=ft.Text("正在移动...", size=12, color=ft.Colors.GREY_400),
+                padding=12,
+                border=ft.Border.all(1, ft.Colors.GREY_300),
+                border_radius=8,
+                bgcolor=ft.Colors.GREY_50,
+            ),
+            content_feedback=ft.Container(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.ARTICLE, size=22, color=ft.Colors.WHITE),
+                    ft.Text(post_name, size=13, color=ft.Colors.WHITE),
+                ], spacing=10),
+                padding=12,
+                bgcolor=ft.Colors.with_opacity(0.9, ft.Colors.BLUE_700),
+                border_radius=8,
+                width=300,
+                shadow=ft.BoxShadow(
+                    blur_radius=10, color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK)),
+            ),
+            data=drag_data,  # 直接附加数据
+        )
+
+        # 直接存储映射（使用Python对象id作为id）
+        draggable_id = id(draggable)
+        self.draggable_data_map[draggable_id] = drag_data
+
+        return draggable
+
+    def move_post_to_collection(self, post_name, source_collection, target_collection):
+        """移动文章到目标合集"""
+        import time
+        start_time = time.time()
+
+        try:
+            from mainTools.move_post_command import MovePost
+            move_cmd = MovePost()
+            result = move_cmd.execute(
+                post_name, source_collection, target_collection)
+
+            if result['success']:
+                print(f"[性能] 文件移动耗时: {time.time() - start_time:.3f}秒")
+
+                # 标记需要重新生成配置（延迟执行）
+                self.needs_generate = True
+                self.schedule_generate()
+
+                # 使缓存失效（下次刷新时会重新获取）
+                self.is_cache_valid = False
+
+                # 显示简短提示（不刷新UI）
+                self.snack(f"✓ 已移动 {post_name} → 点击刷新按钮查看")
+            else:
+                self.snack(result['message'], True)
+        except Exception as e:
+            print(f"Move post error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.snack(f"移动失败: {e}", True)
+
+    def force_refresh(self):
+        """强制刷新（使缓存失效）"""
+        print("[Cache] Force refresh - invalidating cache")
+        self.is_cache_valid = False
+        self.build_ui()
+
+    def incremental_refresh_posts(self):
+        """增量刷新posts视图（快速更新）"""
+        import time
+        start_time = time.time()
+        print(f"[性能-时间戳] 开始增量刷新: {start_time:.3f}")
+
+        if self.current_view != 'posts':
+            return
+
+        try:
+            # 找到主布局中的内容容器
+            layout = self.page.controls[0]
+            content_container = layout.controls[2]
+
+            # 重新构建posts视图（会使用新的缓存数据）
+            new_content = self.build_posts_view()
+            content_container.content = new_content
+
+            # 只更新这个容器
+            self.page.update()
+            print(f"[性能-时间戳] 增量刷新UI更新完成: {time.time():.3f}")
+
+            elapsed = time.time() - start_time
+            print(f"[性能] 增量刷新UI耗时: {elapsed:.3f}秒")
+        except Exception as e:
+            print(f"Error in incremental refresh: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def schedule_ui_refresh(self):
+        """延迟2秒后刷新UI（防抖，支持连续拖动）"""
+        import threading
+
+        # 取消之前的定时器
+        if self.ui_refresh_timer:
+            self.ui_refresh_timer.cancel()
+            print("[UI刷新] 重置刷新定时器（检测到新的拖动操作）")
+
+        # 标记有待处理的刷新
+        self.pending_refresh = True
+
+        # 设置新的定时器
+        def do_refresh():
+            if self.pending_refresh:
+                print("[UI刷新] 执行延迟UI刷新...")
+                try:
+                    self.incremental_refresh_posts()
+                    self.pending_refresh = False
+                    print("[UI刷新] 完成")
+                except Exception as e:
+                    print(f"[UI刷新] 错误: {e}")
+
+        self.ui_refresh_timer = threading.Timer(2.0, do_refresh)
+        self.ui_refresh_timer.start()
+        print("[UI刷新] 已调度刷新（2秒后执行）")
+
+    def schedule_generate(self):
+        """延迟2秒后执行Generate（防抖）"""
+        import threading
+
+        # 取消之前的定时器
+        if self.generate_timer:
+            self.generate_timer.cancel()
+
+        # 设置新的定时器
+        def do_generate():
+            if self.needs_generate:
+                print("[Generate] Executing delayed generate...")
+                try:
+                    self.commands['Generate']().execute()
+                    self.needs_generate = False
+                    print("[Generate] Done")
+                except Exception as e:
+                    print(f"[Generate] Error: {e}")
+
+        self.generate_timer = threading.Timer(2.0, do_generate)
+        self.generate_timer.start()
 
     def post_card(self, line):
         """文章卡片"""
@@ -549,12 +1027,13 @@ class BlogManagerGUI:
         else:
             post_name = post_info
             coll_name = None
-        
+
         # 移除 .md 扩展名
         if post_name.endswith('.md'):
             post_name = post_name[:-3]
-        
-        print(f"DEBUG: post_name='{post_name}', coll_name='{coll_name}', line='{line}'")
+
+        print(
+            f"DEBUG: post_name='{post_name}', coll_name='{coll_name}', line='{line}'")
 
         def on_hover(e):
             if e.data == "true":
@@ -608,11 +1087,7 @@ class BlogManagerGUI:
                 ft.Text(self.t('collection_list'), size=28,
                         weight=ft.FontWeight.BOLD),
                 ft.Container(height=15),
-                ft.Row([self.coll_name_field], spacing=20),
-                ft.Container(height=15),
                 ft.Row([
-                    ft.Button(self.t('delete_collection'), icon=ft.Icons.DELETE, on_click=lambda e: self.exec_del_coll(
-                    ), bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE),
                     ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.build_ui(
                     ), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
                 ], spacing=12),
@@ -668,6 +1143,13 @@ class BlogManagerGUI:
         def on_click(e):
             self.show_collection_preview(name)
 
+        def on_delete(e):
+            self.confirm(
+                self.t('confirm_delete'),
+                self.t('confirm_delete_collection').format(name),
+                lambda: self.do_del_coll(name)
+            )
+
         return ft.Container(
             content=ft.Row([
                 ft.Container(
@@ -680,6 +1162,12 @@ class BlogManagerGUI:
                     ft.Text(info, size=13, color=ft.Colors.GREY_600),
                     ft.Text(date, size=12, color=ft.Colors.GREY_500),
                 ], spacing=4, expand=True),
+                ft.IconButton(
+                    icon=ft.Icons.DELETE,
+                    icon_color=ft.Colors.RED_500,
+                    tooltip=self.t('delete_collection'),
+                    on_click=on_delete,
+                ),
             ], spacing=18),
             padding=22,
             border=ft.Border.all(1, ft.Colors.ORANGE_200),
@@ -835,15 +1323,15 @@ class BlogManagerGUI:
 
     def do_del_coll(self, coll):
         """实际删除合集"""
+        print(f"DEBUG do_del_coll: coll='{coll}'")
         inputs = [coll, 'y']
         idx = [0]
 
         def mock(p):
-            if idx[0] < len(inputs):
-                v = inputs[idx[0]]
-                idx[0] += 1
-                return v
-            return ''
+            v = inputs[idx[0]] if idx[0] < len(inputs) else ''
+            print(f"DEBUG mock input: prompt='{p}', returning='{v}'")
+            idx[0] += 1
+            return v
 
         import builtins
         orig_in = builtins.input
@@ -851,10 +1339,14 @@ class BlogManagerGUI:
         builtins.input = mock
         builtins.print = lambda *a, **k: None
         try:
-            self.commands['DeleteCollection']().execute()
+            result = self.commands['DeleteCollection']().execute()
+            print(f"DEBUG delete result: {result}")
             self.snack(self.t('operation_success'))
             self.build_ui()
         except Exception as e:
+            print(f"DEBUG delete error: {e}")
+            import traceback
+            traceback.print_exc()
             self.snack(f"{self.t('error')}: {e}", True)
         finally:
             builtins.input = orig_in
