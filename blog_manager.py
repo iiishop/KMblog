@@ -324,28 +324,35 @@ class BlogManagerGUI:
                 stats['collections']), ft.Icons.FOLDER, ft.Colors.ORANGE_500),
         ], spacing=20)
 
+        # 构建快速操作区域 - 扁平化网格设计
+        action_buttons = [
+            self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
+                          self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
+            self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE,
+                          self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
+            self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION,
+                          self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
+            self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD,
+                          self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
+            self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
+                          self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
+        ]
+
+        if not self.is_blog_initialized():
+            action_buttons.append(
+                self.action_btn(self.t('init_blog'), ft.Icons.ROCKET_LAUNCH,
+                              self.exec_init, ft.Colors.PURPLE_600, '初始化')
+            )
+
+        actions_content = ft.Column([
+            ft.Text(self.t('quick_actions'), size=22, weight=ft.FontWeight.BOLD),
+            ft.Container(height=15),
+            ft.Row(action_buttons, spacing=20, run_spacing=20, wrap=True),
+        ])
+        
         actions = ft.Container(
-            content=ft.Column([
-                ft.Text(self.t('quick_actions'), size=22,
-                        weight=ft.FontWeight.BOLD),
-                ft.Container(height=15),
-                ft.Row([
-                    self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
-                                    self.show_add_dialog, ft.Colors.GREEN_600),
-                    self.action_btn(self.t(
-                        'generate'), ft.Icons.BUILD_CIRCLE, self.exec_generate, ft.Colors.BLUE_600),
-                    # 只在博客未初始化时显示初始化按钮
-                    self.action_btn(self.t(
-                        'init_blog'), ft.Icons.ROCKET_LAUNCH, self.exec_init, ft.Colors.PURPLE_600) if not self.is_blog_initialized() else ft.Container(),
-                    self.action_btn(self.t(
-                        'build_project'), ft.Icons.CONSTRUCTION, self.exec_build, ft.Colors.ORANGE_600),
-                    self.action_btn(self.t(
-                        'deploy_github'), ft.Icons.CLOUD_UPLOAD, self.show_github_dialog, ft.Colors.INDIGO_600),
-                    self.action_btn(self.t(
-                        'migrate_hexo'), ft.Icons.TRANSFORM, self.show_migrate_dialog, ft.Colors.TEAL_600),
-                ], spacing=15, wrap=True),
-            ]),
-            padding=25,
+            content=actions_content,
+            padding=30,
             bgcolor=ft.Colors.WHITE,
             border_radius=12,
             shadow=ft.BoxShadow(
@@ -385,14 +392,37 @@ class BlogManagerGUI:
             expand=True,
         )
 
-    def action_btn(self, text, icon, onclick, color):
-        """操作按钮"""
-        return ft.Button(
-            content=ft.Row(
-                [ft.Icon(icon, size=22), ft.Text(text, size=15)], spacing=10),
+    def action_btn(self, text, icon, onclick, color, desc=""):
+        """操作按钮 - 改进版"""
+        def on_hover(e):
+            if e.data == "true":
+                e.control.shadow = ft.BoxShadow(
+                    blur_radius=20, spread_radius=2,
+                    color=ft.Colors.with_opacity(0.4, color))
+                e.control.scale = 1.02
+            else:
+                e.control.shadow = ft.BoxShadow(
+                    blur_radius=10, color=ft.Colors.with_opacity(0.2, color))
+                e.control.scale = 1.0
+            e.control.update()
+        
+        return ft.Container(
+            content=ft.Column([
+                ft.Icon(icon, size=36, color=ft.Colors.WHITE),
+                ft.Text(text, size=14, weight=ft.FontWeight.BOLD, 
+                       color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
+                ft.Text(desc, size=11, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
+                       text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
+            ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            width=160,
+            height=120,
+            padding=15,
+            bgcolor=color,
+            border_radius=12,
+            shadow=ft.BoxShadow(
+                blur_radius=10, color=ft.Colors.with_opacity(0.2, color)),
+            on_hover=on_hover,
             on_click=onclick,
-            style=ft.ButtonStyle(padding=22, bgcolor=color,
-                                 color=ft.Colors.WHITE),
         )
 
     def build_recent_posts(self):
@@ -473,8 +503,6 @@ class BlogManagerGUI:
                 ft.Row([
                     ft.Button(self.t('add_post'), icon=ft.Icons.ADD, on_click=lambda e: self.exec_add_post(
                     ), bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE),
-                    ft.Button(self.t('delete_post'), icon=ft.Icons.DELETE, on_click=lambda e: self.exec_del_post(
-                    ), bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE),
                     ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.build_ui(
                     ), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
                 ], spacing=12),
@@ -517,8 +545,16 @@ class BlogManagerGUI:
         # 如果包含路径分隔符，取最后一部分
         if '/' in post_info:
             post_name = post_info.split('/')[-1].strip()
+            coll_name = post_info.split('/')[0].strip()
         else:
             post_name = post_info
+            coll_name = None
+        
+        # 移除 .md 扩展名
+        if post_name.endswith('.md'):
+            post_name = post_name[:-3]
+        
+        print(f"DEBUG: post_name='{post_name}', coll_name='{coll_name}', line='{line}'")
 
         def on_hover(e):
             if e.data == "true":
@@ -534,10 +570,23 @@ class BlogManagerGUI:
             print(f"Clicking post: '{post_name}' from line: '{line}'")  # 调试信息
             self.show_post_preview(post_name)
 
+        def on_delete(e):
+            self.confirm(
+                self.t('confirm_delete'),
+                self.t('confirm_delete_post').format(post_name),
+                lambda: self.do_del_post(post_name, coll_name)
+            )
+
         return ft.Container(
             content=ft.Row([
                 ft.Icon(ft.Icons.ARTICLE, size=26, color=ft.Colors.BLUE_600),
                 ft.Text(line.strip(), size=14, expand=True),
+                ft.IconButton(
+                    icon=ft.Icons.DELETE,
+                    icon_color=ft.Colors.RED_500,
+                    tooltip=self.t('delete_post'),
+                    on_click=on_delete,
+                ),
             ], spacing=15),
             padding=18,
             border=ft.Border.all(1, ft.Colors.BLUE_200),
@@ -749,24 +798,28 @@ class BlogManagerGUI:
 
     def do_del_post(self, post, coll):
         """实际删除文章"""
+        print(f"DEBUG do_del_post: post='{post}', coll='{coll}'")
         inputs = [post, coll or '', 'y']
         idx = [0]
 
         def mock(p):
-            if idx[0] < len(inputs):
-                v = inputs[idx[0]]
-                idx[0] += 1
-                return v
-            return ''
+            v = inputs[idx[0]] if idx[0] < len(inputs) else ''
+            print(f"DEBUG mock input: prompt='{p}', returning='{v}'")
+            idx[0] += 1
+            return v
 
         import builtins
         orig = builtins.input
         builtins.input = mock
         try:
-            self.commands['DeletePost']().execute()
+            result = self.commands['DeletePost']().execute()
+            print(f"DEBUG delete result: {result}")
             self.snack(self.t('operation_success'))
             self.build_ui()
         except Exception as e:
+            print(f"DEBUG delete error: {e}")
+            import traceback
+            traceback.print_exc()
             self.snack(f"{self.t('error')}: {e}", True)
         finally:
             builtins.input = orig
