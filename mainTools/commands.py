@@ -308,7 +308,12 @@ class ShowTagsJson(Command):
 
                 # Update tags_dict with tags from metadata
                 if 'tags' in metadata and metadata['tags']:
-                    for tag in metadata['tags']:
+                    tags = metadata['tags']
+                    if tags is None:
+                        continue
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    for tag in tags:
                         if tag not in tags_dict:
                             tags_dict[tag] = []
                         tags_dict[tag].append(
@@ -330,7 +335,12 @@ class ShowTagsJson(Command):
 
                 # Update tags_dict with tags from metadata
                 if 'tags' in metadata and metadata['tags']:
-                    for tag in metadata['tags']:
+                    tags = metadata['tags']
+                    if tags is None:
+                        continue
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    for tag in tags:
                         if tag not in tags_dict:
                             tags_dict[tag] = []
                         tags_dict[tag].append(
@@ -498,8 +508,12 @@ class Generate(Command):
                     file_path = os.path.join(markdowns_path, file)
                     metadata = parse_markdown_metadata(file_path)
                     tags = metadata.get('tags', [])
-                    if isinstance(tags, str):
+                    # 确保 tags 是列表且不为 None
+                    if tags is None:
+                        tags = []
+                    elif isinstance(tags, str):
                         tags = [tags]
+
                     if crypto_tag in tags:
                         relative_path = self._convert_to_relative_path(
                             file_path)
@@ -518,8 +532,12 @@ class Generate(Command):
                     file_path = os.path.join(dir_path, file)
                     metadata = parse_markdown_metadata(file_path)
                     tags = metadata.get('tags', [])
-                    if isinstance(tags, str):
+                    # 确保 tags 是列表且不为 None
+                    if tags is None:
+                        tags = []
+                    elif isinstance(tags, str):
                         tags = [tags]
+
                     if crypto_tag in tags:
                         relative_path = self._convert_to_relative_path(
                             file_path)
@@ -1163,6 +1181,460 @@ class GetCryptoPassword(Command):
             except:
                 pass
         return ''
+
+
+class MigrateFromHexo(Command):
+    description = "Migrates blog posts from Hexo format to KMBlog format."
+
+    def execute(self):
+        """迁移所有 Hexo 格式的文章到 KMBlog 格式"""
+        posts_path = get_posts_path()
+
+        if not os.path.exists(posts_path):
+            raise FileNotFoundError(f"Posts directory not found: {posts_path}")
+
+        migrated_count = 0
+        skipped_count = 0
+        error_count = 0
+
+        # 第一步：迁移图片
+        print("[迁移] 开始迁移图片...")
+        image_migration_result = self._migrate_images(posts_path)
+        print(image_migration_result)
+
+        # 第二步：移动 md 文件到第一层（Collection 目录根）
+        print("[迁移] 开始整理 markdown 文件...")
+        md_migration_result = self._reorganize_markdown_files(posts_path)
+        print(md_migration_result)
+
+        # 第三步：递归扫描所有 .md 文件并更新格式
+        print("[迁移] 开始迁移 markdown 格式...")
+        for root, dirs, files in os.walk(posts_path):
+            for file in files:
+                if file.endswith('.md'):
+                    file_path = os.path.join(root, file)
+                    try:
+                        if self._migrate_file(file_path):
+                            migrated_count += 1
+                        else:
+                            skipped_count += 1
+                    except Exception as e:
+                        print(f"[迁移错误] {file}: {e}")
+                        error_count += 1
+
+        # 第四步：删除空的第二层文件夹
+        print("[迁移] 开始删除原 Hexo 文件夹...")
+        cleanup_result = self._cleanup_empty_directories(posts_path)
+        print(cleanup_result)
+
+        return f"迁移完成！\n{image_migration_result}\n{md_migration_result}\nMarkdown 格式迁移: {migrated_count} 篇, 跳过: {skipped_count} 篇, 错误: {error_count} 篇\n{cleanup_result}"
+
+    def _migrate_images(self, posts_path: str) -> str:
+        """迁移所有图片到 Images 目录，处理名称冲突"""
+        images_dir = os.path.join(posts_path, 'Images')
+        os.makedirs(images_dir, exist_ok=True)
+
+        image_extensions = {'.jpg', '.jpeg',
+                            '.png', '.gif', '.webp', '.svg', '.ico'}
+        migrated_count = 0
+        image_map = {}  # 记录原始路径和新文件名的映射
+
+        # 遍历所有子目录寻找图片
+        for root, dirs, files in os.walk(posts_path):
+            # 跳过 Images 目录本身
+            if root == images_dir:
+                continue
+
+            for file in files:
+                if os.path.splitext(file)[1].lower() in image_extensions:
+                    old_path = os.path.join(root, file)
+
+                    # 计算新文件名（处理冲突）
+                    new_filename = self._get_unique_filename(
+                        images_dir, file, old_path, posts_path)
+                    new_path = os.path.join(images_dir, new_filename)
+
+                    try:
+                        # 移动文件
+                        shutil.move(old_path, new_path)
+
+                        # 记录映射关系（用于更新 md 文件中的图片链接）
+                        relative_old_path = os.path.relpath(
+                            old_path, posts_path)
+                        image_map[file] = new_filename  # 原始文件名 -> 新文件名
+
+                        print(f"[图片迁移] {file} -> {new_filename}")
+                        migrated_count += 1
+                    except Exception as e:
+                        print(f"[图片错误] {file}: {e}")
+
+        # 第二步：更新 md 文件中的图片链接
+        self._update_image_links_in_md(posts_path, image_map)
+
+        return f"已迁移 {migrated_count} 张图片到 Images 目录"
+
+    def _reorganize_markdown_files(self, posts_path: str) -> str:
+        """将第二层的 md 文件移到第一层（Collection 目录）"""
+        reorganized_count = 0
+
+        # 遍历第一层目录（Collection）
+        for collection in os.listdir(posts_path):
+            collection_path = os.path.join(posts_path, collection)
+
+            # 跳过特殊目录和文件
+            if not os.path.isdir(collection_path) or collection in ['Images', 'Markdowns']:
+                continue
+
+            # 遍历第二层目录
+            for second_level in os.listdir(collection_path):
+                second_level_path = os.path.join(collection_path, second_level)
+
+                if not os.path.isdir(second_level_path):
+                    continue
+
+                # 查找该目录中的 .md 文件
+                for file in os.listdir(second_level_path):
+                    if file.endswith('.md'):
+                        old_path = os.path.join(second_level_path, file)
+                        new_path = os.path.join(collection_path, file)
+
+                        try:
+                            # 处理名称冲突
+                            if os.path.exists(new_path):
+                                # 生成唯一文件名
+                                name, ext = os.path.splitext(file)
+                                counter = 1
+                                while os.path.exists(new_path):
+                                    new_path = os.path.join(
+                                        collection_path, f"{name}-{counter}{ext}")
+                                    counter += 1
+
+                            # 移动文件
+                            shutil.move(old_path, new_path)
+                            print(f"[文件整理] {file} 已移动到 {collection}/")
+                            reorganized_count += 1
+                        except Exception as e:
+                            print(f"[文件整理错误] {file}: {e}")
+
+        return f"已整理 {reorganized_count} 个 markdown 文件"
+
+    def _cleanup_empty_directories(self, posts_path: str) -> str:
+        """删除所有空的第二层文件夹"""
+        deleted_count = 0
+
+        # 遍历第一层目录（Collection）
+        for collection in os.listdir(posts_path):
+            collection_path = os.path.join(posts_path, collection)
+
+            # 跳过特殊目录和文件
+            if not os.path.isdir(collection_path) or collection in ['Images', 'Markdowns']:
+                continue
+
+            # 遍历第二层目录
+            second_level_dirs = []
+            for second_level in os.listdir(collection_path):
+                second_level_path = os.path.join(collection_path, second_level)
+
+                if os.path.isdir(second_level_path):
+                    second_level_dirs.append((second_level, second_level_path))
+
+            # 删除这些第二层目录（无论是否为空）
+            for dirname, dirpath in second_level_dirs:
+                try:
+                    # 递归删除整个目录
+                    shutil.rmtree(dirpath)
+                    print(f"[删除文件夹] {collection}/{dirname} 已删除")
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"[删除错误] {collection}/{dirname}: {e}")
+
+        return f"已删除 {deleted_count} 个第二层文件夹"
+
+    def _get_unique_filename(self, images_dir: str, filename: str, old_path: str, posts_path: str) -> str:
+        """生成唯一的文件名，处理冲突"""
+        target_path = os.path.join(images_dir, filename)
+
+        # 如果没有冲突，直接使用原文件名
+        if not os.path.exists(target_path):
+            return filename
+
+        # 有冲突，生成新名称：在扩展名前添加前缀
+        # 前缀格式：Collection-ArticleFolder-
+        # 例如：Code-MyArticle-image.png
+
+        try:
+            # 获取文章所在的目录信息
+            rel_path = os.path.relpath(old_path, posts_path)
+            path_parts = rel_path.split(os.sep)
+
+            # path_parts 结构：
+            # ['Collection', 'ArticleFolder', 'image.png'] 或
+            # ['Markdowns', 'image.png']
+
+            if len(path_parts) >= 3:
+                # 有 Collection 和 ArticleFolder
+                collection = path_parts[0]
+                article_folder = path_parts[1]
+                prefix = f"{collection}-{article_folder}-"
+            elif len(path_parts) == 2 and path_parts[0] != 'Markdowns':
+                # 直接在 Posts 下的某个文件夹中
+                prefix = f"{path_parts[0]}-"
+            else:
+                # Markdowns 目录中的文件，使用较短的前缀
+                prefix = "markdown-"
+
+            # 分离文件名和扩展名
+            name, ext = os.path.splitext(filename)
+            new_filename = prefix + filename
+
+            # 继续检查新名称是否存在冲突
+            counter = 1
+            while os.path.exists(os.path.join(images_dir, new_filename)):
+                new_filename = f"{prefix}{name}-{counter}{ext}"
+                counter += 1
+
+            return new_filename
+        except Exception as e:
+            # 如果处理失败，使用时间戳
+            import time
+            timestamp = int(time.time())
+            name, ext = os.path.splitext(filename)
+            return f"{name}-{timestamp}{ext}"
+
+    def _update_image_links_in_md(self, posts_path: str, image_map: dict) -> None:
+        """更新 md 文件中的图片链接"""
+        if not image_map:
+            return
+
+        print("[图片链接] 开始更新 md 文件中的图片链接...")
+
+        updated_count = 0
+
+        # 遍历所有 md 文件
+        for root, dirs, files in os.walk(posts_path):
+            for file in files:
+                if file.endswith('.md'):
+                    md_path = os.path.join(root, file)
+
+                    try:
+                        with open(md_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+
+                        original_content = content
+
+                        # 更新所有图片链接
+                        for old_name, new_name in image_map.items():
+                            # 匹配多种图片链接格式
+                            # ![alt](./image.png) 或 ![alt](image.png) 或 ![alt](../folder/image.png) 等
+
+                            # 构建正则表达式来匹配包含原文件名的链接
+                            patterns = [
+                                # 形式 1: ![...](./filename)
+                                rf"(\!\[.*?\]\(\.\/[^)]*){re.escape(old_name)}",
+                                # 形式 2: ![...](...filename) - 任何包含路径的
+                                rf"(\!\[.*?\]\([^)]*\/{re.escape(old_name)})",
+                                # 形式 3: ![...](filename) - 直接文件名
+                                rf"(\!\[.*?\]\(){re.escape(old_name)}(\))",
+                                # 形式 4: 其他可能的引用格式
+                                rf"(\[.*?\]\([^)]*\/{re.escape(old_name)})",
+                            ]
+
+                            for pattern in patterns:
+                                # 匹配并替换
+                                matches = list(re.finditer(pattern, content))
+                                for match in matches:
+                                    if old_name in match.group(0):
+                                        # 替换为新的文件名（保持原有的格式）
+                                        new_link = match.group(
+                                            0).replace(old_name, new_name)
+                                        content = content.replace(
+                                            match.group(0), new_link, 1)
+
+                        # 如果内容有变化，写回文件
+                        if content != original_content:
+                            with open(md_path, 'w', encoding='utf-8') as f:
+                                f.write(content)
+                            print(f"[图片链接] 已更新: {file}")
+                            updated_count += 1
+
+                    except Exception as e:
+                        print(f"[图片链接错误] {file}: {e}")
+
+        print(f"[图片链接] 已更新 {updated_count} 个 md 文件中的图片链接")
+
+    def _migrate_file(self, file_path: str) -> bool:
+        """迁移单个文件，返回是否迁移过"""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # 提取 metadata 部分
+        metadata_match = re.match(r'^---\n([\s\S]*?)\n---\n', content)
+        if not metadata_match:
+            return False  # 格式不正确
+
+        metadata_text = metadata_match.group(1)
+        body = content[metadata_match.end():]
+
+        # 解析 metadata（支持 YAML 格式）
+        metadata = self._parse_yaml_metadata(metadata_text)
+
+        # 检查是否已经是 KMBlog 格式（有 pre 或 img 字段）
+        if 'pre' in metadata or 'img' in metadata or isinstance(metadata.get('tags'), list) and len(metadata.get('tags', [])) > 0 and isinstance(metadata['tags'][0], dict):
+            return False  # 已经是新格式
+
+        # 转换格式
+        new_metadata = self._convert_metadata(metadata)
+
+        # 构建新的文件内容
+        new_content = self._build_new_content(new_metadata, body)
+
+        # 写回文件
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+
+        return True
+
+    def _parse_yaml_metadata(self, metadata_text: str) -> dict:
+        """解析 YAML 格式的 metadata"""
+        metadata = {}
+        lines = metadata_text.split('\n')
+        current_key = None
+        current_list = []
+
+        for line in lines:
+            line = line.rstrip()
+
+            # 检查是否是键值对
+            if ': ' in line and not line.startswith(' '):
+                # 保存前一个列表
+                if current_key and current_list:
+                    metadata[current_key] = current_list
+                    current_list = []
+
+                key, value = line.split(': ', 1)
+                key = key.strip()
+                value = value.strip()
+
+                # 处理数组格式 [a, b, c]
+                if value.startswith('[') and value.endswith(']'):
+                    array_str = value[1:-1]
+                    metadata[key] = [item.strip().strip('\'"')
+                                     for item in array_str.split(',')]
+                else:
+                    metadata[key] = value
+                current_key = None
+
+            # 检查是否是列表项 - key:
+            elif ': ' in line and not line.startswith(' '):
+                # 保存前一个列表
+                if current_key and current_list:
+                    metadata[current_key] = current_list
+                    current_list = []
+
+                key, value = line.split(': ', 1)
+                metadata[key.strip()] = value.strip()
+                current_key = None
+
+            # 检查是否是 YAML 列表开始
+            elif line.endswith(':') and not line.startswith(' '):
+                key = line[:-1].strip()
+                if current_key and current_list:
+                    metadata[current_key] = current_list
+                current_key = key
+                current_list = []
+
+            # 检查是否是列表项 - 空格开头
+            elif line.startswith('- ') and current_key:
+                item = line[2:].strip().strip('\'"')
+                current_list.append(item)
+
+        # 保存最后一个列表
+        if current_key and current_list:
+            metadata[current_key] = current_list
+
+        return metadata
+
+    def _convert_metadata(self, metadata: dict) -> dict:
+        """转换 metadata 格式"""
+        new_metadata = {}
+
+        # 保留基本字段
+        for key in ['title', 'date']:
+            if key in metadata:
+                new_metadata[key] = metadata[key]
+
+        # 转换 tags - 确保是列表格式
+        if 'tags' in metadata:
+            tags = metadata['tags']
+            if isinstance(tags, str):
+                # 如果是字符串，尝试解析
+                if tags.startswith('[') and tags.endswith(']'):
+                    tags = [t.strip().strip('\'"')
+                            for t in tags[1:-1].split(',')]
+                else:
+                    tags = [tags]
+            elif not isinstance(tags, list):
+                tags = [str(tags)]
+            new_metadata['tags'] = tags
+        else:
+            new_metadata['tags'] = []
+
+        # 转换 categories
+        if 'categories' in metadata:
+            categories = metadata['categories']
+            if isinstance(categories, str):
+                if categories.startswith('[') and categories.endswith(']'):
+                    categories = [c.strip().strip('\'"')
+                                  for c in categories[1:-1].split(',')]
+                else:
+                    categories = [categories]
+            elif not isinstance(categories, list):
+                categories = [str(categories)]
+            new_metadata['categories'] = categories
+        else:
+            new_metadata['categories'] = []
+
+        # 添加新字段（如果不存在）
+        if 'pre' not in new_metadata:
+            new_metadata['pre'] = ''
+        if 'img' not in new_metadata:
+            new_metadata['img'] = ''
+
+        return new_metadata
+
+    def _build_new_content(self, metadata: dict, body: str) -> str:
+        """构建新格式的文件内容"""
+        lines = ['---']
+
+        # 写入各字段
+        for key in ['title', 'date']:
+            if key in metadata:
+                lines.append(f"{key}: {metadata[key]}")
+
+        # 写入 tags（列表格式）
+        if 'tags' in metadata and metadata['tags']:
+            lines.append('tags:')
+            for tag in metadata['tags']:
+                lines.append(f'- {tag}')
+        else:
+            lines.append('tags:')
+
+        # 写入 categories（列表格式）
+        if 'categories' in metadata and metadata['categories']:
+            lines.append('categories:')
+            for cat in metadata['categories']:
+                lines.append(f'- {cat}')
+        else:
+            lines.append('categories:')
+
+        # 写入 pre 和 img
+        lines.append(f"pre: {metadata.get('pre', '')}")
+        lines.append(f"img: {metadata.get('img', '')}")
+
+        lines.append('---')
+        lines.append(body)
+
+        return '\n'.join(lines)
 
 
 # 导入 GitHub 相关命令

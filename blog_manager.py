@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-
+from mainTools.commands import Command
 import flet as ft
 import sys
 import os
@@ -15,7 +15,7 @@ import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-from mainTools.commands import Command
+
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -124,6 +124,15 @@ class BlogManagerGUI:
                 'crypto_tag': '加密标签',
                 'crypto_password': '加密密码',
                 'crypto_config': '加密配置',
+                'migrate_hexo': '从Hexo迁移',
+                'migrate_title': 'Hexo 文章迁移',
+                'migrate_desc': '自动将 Hexo 格式的文章转换为 KMBlog 格式\n\n变化内容：\n• tags 和 categories 改为换行列表格式\n• 添加 pre（文章简介）和 img（文章封面）字段\n\n字段说明：\n• pre: 文章简介，会显示在文章列表中\n• img: 文章封面图片名称（放在 /public/Posts/Images 目录中）',
+                'migrate_confirm': '确认迁移',
+                'migrating': '正在迁移...',
+                'migrate_success': '迁移成功',
+                'migrate_failed': '迁移失败',
+                'migrate_complete': '迁移完成',
+                'migrate_start': '开始迁移',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -188,6 +197,15 @@ class BlogManagerGUI:
                 'crypto_tag': 'Crypto Tag',
                 'crypto_password': 'Crypto Password',
                 'crypto_config': 'Crypto Config',
+                'migrate_hexo': 'Migrate from Hexo',
+                'migrate_title': 'Migrate from Hexo',
+                'migrate_desc': 'Automatically convert Hexo format posts to KMBlog format\n\nChanges:\n• tags and categories converted to line-separated list format\n• Added pre (post preview) and img (post cover) fields\n\nField descriptions:\n• pre: Post preview, displayed in post list\n• img: Post cover image name (place in /public/Posts/Images directory)',
+                'migrate_confirm': 'Confirm Migration',
+                'migrating': 'Migrating...',
+                'migrate_success': 'Migration Success',
+                'migrate_failed': 'Migration Failed',
+                'migrate_complete': 'Migration Complete',
+                'migrate_start': 'Start Migration',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -323,6 +341,8 @@ class BlogManagerGUI:
                         'build_project'), ft.Icons.CONSTRUCTION, self.exec_build, ft.Colors.ORANGE_600),
                     self.action_btn(self.t(
                         'deploy_github'), ft.Icons.CLOUD_UPLOAD, self.show_github_dialog, ft.Colors.INDIGO_600),
+                    self.action_btn(self.t(
+                        'migrate_hexo'), ft.Icons.TRANSFORM, self.show_migrate_dialog, ft.Colors.TEAL_600),
                 ], spacing=15, wrap=True),
             ]),
             padding=25,
@@ -869,6 +889,92 @@ class BlogManagerGUI:
         import threading
         threading.Thread(target=lambda: self.page.run_thread(
             build_task), daemon=True).start()
+
+    def show_migrate_dialog(self, e):
+        """显示迁移对话框"""
+        content = ft.Column([
+            ft.Text(self.t('migrate_title'), size=20,
+                    weight=ft.FontWeight.BOLD),
+            ft.Container(height=10),
+            ft.Text(self.t('migrate_desc'), size=13, color=ft.Colors.GREY_700),
+        ], tight=True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(""),
+            content=content,
+            actions=[
+                ft.TextButton(self.t('cancel'),
+                              on_click=lambda e: self.close_dlg(dlg)),
+                ft.Button(self.t('migrate_confirm'),
+                          on_click=lambda e: self.confirm_migrate(dlg)),
+            ],
+        )
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+
+    def confirm_migrate(self, dlg):
+        """确认迁移，开始执行"""
+        self.close_dlg(dlg)
+
+        # 创建进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text(self.t('migrating'), size=14)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text(self.t('migrate_title')),
+            content=ft.Column([
+                progress_bar,
+                ft.Container(height=10),
+                status_text,
+                detail_text,
+            ], tight=True, spacing=5),
+            modal=True,
+        )
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        def migrate_task():
+            try:
+                status_text.value = self.t('migrating')
+                progress_bar.value = 0.3
+                detail_text.value = "扫描文章..."
+                self.page.update()
+
+                import time
+                time.sleep(0.5)
+
+                result = self.commands['MigrateFromHexo']().execute()
+
+                # 迁移完成
+                progress_bar.value = 1.0
+                status_text.value = self.t('migrate_complete')
+                detail_text.value = result
+                self.page.update()
+
+                time.sleep(1)
+
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+
+                # 显示成功消息
+                self.snack(result)
+                print(result)
+
+            except Exception as ex:
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                # 显示错误消息
+                self.snack(f"{self.t('error')}: {ex}", True)
+
+        # 使用Flet的run_thread在后台执行
+        import threading
+        threading.Thread(target=lambda: self.page.run_thread(
+            migrate_task), daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""
