@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-
+from mainTools.commands import Command
 import flet as ft
 import sys
 import os
@@ -15,7 +15,7 @@ import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-from mainTools.commands import Command
+
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -800,26 +800,52 @@ class BlogManagerGUI:
 
     def exec_build(self, e):
         """构建项目"""
-        # 显示加载提示
+        # 创建进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text("准备构建...", size=14)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+
         progress_dlg = ft.AlertDialog(
-            title=ft.Text("正在构建项目..."),
+            title=ft.Text("正在构建项目"),
             content=ft.Column([
-                ft.ProgressRing(),
+                progress_bar,
                 ft.Container(height=10),
-                ft.Text("请稍候，这可能需要几分钟时间", size=13, color=ft.Colors.GREY_700),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
+                status_text,
+                detail_text,
+            ], tight=True, spacing=5),
             modal=True,
         )
         self.page.overlay.append(progress_dlg)
         progress_dlg.open = True
         self.page.update()
 
-        # 在后台线程中执行构建
-        import threading
-
-        def build_thread():
+        def build_task():
+            """在后台线程执行构建"""
             try:
+                # 更新进度
+                progress_bar.value = 0.2
+                status_text.value = "正在安装依赖..."
+                detail_text.value = "npm install"
+                self.page.update()
+
+                import time
+                time.sleep(0.5)
+
+                progress_bar.value = 0.5
+                status_text.value = "正在构建项目..."
+                detail_text.value = "npm run build"
+                self.page.update()
+
                 result = self.commands['Build']().execute()
+
+                # 构建完成
+                progress_bar.value = 1.0
+                status_text.value = "构建完成！"
+                detail_text.value = ""
+                self.page.update()
+
+                time.sleep(0.5)
+
                 # 关闭进度对话框
                 progress_dlg.open = False
                 self.page.update()
@@ -833,7 +859,10 @@ class BlogManagerGUI:
                 # 显示错误消息
                 self.snack(f"{self.t('error')}: {ex}", True)
 
-        threading.Thread(target=build_thread, daemon=True).start()
+        # 使用Flet的run_thread在后台执行
+        import threading
+        threading.Thread(target=lambda: self.page.run_thread(
+            build_task), daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""
@@ -1467,54 +1496,76 @@ class BlogManagerGUI:
         self.page.update()
 
     def start_github_deploy(self, token, repo_name):
-        """开始GitHub部署"""
-        # 创建进度对话框
-        progress_text = ft.Text("正在准备部署...", size=14)
-        progress_bar = ft.ProgressBar(value=0, width=500)
-        progress_percent = ft.Text("0%", size=12, color=ft.Colors.GREY_600)
+        """开始GitHub部署（使用run_thread）"""
+        # 创建详细进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text("准备部署...", size=14)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
 
-        progress_dlg = ft.AlertDialog(
+        loading_dlg = ft.AlertDialog(
             title=ft.Text(self.t('deploying')),
             content=ft.Column([
-                progress_text,
                 progress_bar,
-                progress_percent,
                 ft.Container(height=10),
-                ft.Text("这可能需要几分钟，请耐心等待...", size=12,
-                        color=ft.Colors.GREY_600),
-            ], tight=True, spacing=10, width=500),
+                status_text,
+                detail_text,
+            ], tight=True, spacing=5),
             modal=True,
         )
 
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.page.overlay.append(loading_dlg)
+        loading_dlg.open = True
         self.page.update()
 
-        def update_progress(message, percent):
-            """更新进度 - 线程安全的UI更新"""
-            progress_text.value = message
-            progress_bar.value = percent / 100
-            progress_percent.value = f"{int(percent)}%"
-            # 直接调用update()更新页面
+        def deploy_task():
+            """在后台线程执行部署"""
             try:
-                self.page.update()
-            except Exception as e:
-                print(f"进度更新异常: {e}")
+                import time
 
-        def deploy_thread():
-            """部署线程"""
-            try:
+                # 阶段1: 生成配置
+                progress_bar.value = 0.1
+                status_text.value = "生成配置文件..."
+                detail_text.value = "Generate configuration"
+                self.page.update()
+                time.sleep(0.3)
+
+                # 阶段2: 构建项目
+                progress_bar.value = 0.3
+                status_text.value = "构建项目..."
+                detail_text.value = "Building project"
+                self.page.update()
+                time.sleep(0.3)
+
+                # 阶段3: 验证仓库
+                progress_bar.value = 0.5
+                status_text.value = "验证GitHub仓库..."
+                detail_text.value = "Verifying repository"
+                self.page.update()
+
+                # 执行部署
                 from mainTools.github_commands import FullDeploy
                 deploy_cmd = FullDeploy()
-                result = deploy_cmd.execute(token, repo_name, update_progress)
 
-                # 在主线程中关闭进度对话框
-                import time
-                time.sleep(0.1)  # 给UI线程一些时间
-                progress_dlg.open = False
+                # 阶段4: 上传文件
+                progress_bar.value = 0.7
+                status_text.value = "上传文件到GitHub..."
+                detail_text.value = "Uploading files"
                 self.page.update()
 
-                if result['success']:
+                result = deploy_cmd.execute(token, repo_name)
+
+                # 阶段5: 完成
+                progress_bar.value = 1.0
+                status_text.value = "部署完成！"
+                detail_text.value = ""
+                self.page.update()
+                time.sleep(0.5)
+
+                # 关闭loading对话框
+                loading_dlg.open = False
+                self.page.update()
+
+                if result and result['success']:
                     # 显示成功对话框
                     success_dlg = ft.AlertDialog(
                         title=ft.Text(self.t('deploy_success'),
@@ -1546,20 +1597,21 @@ class BlogManagerGUI:
                     success_dlg.open = True
                     self.page.update()
                 else:
-                    self.snack(result['message'], True)
+                    self.snack(result.get('message', '部署失败'), True)
 
             except Exception as e:
-                import time
-                time.sleep(0.1)
-                progress_dlg.open = False
+                # 关闭loading对话框
+                loading_dlg.open = False
                 self.page.update()
+                # 显示错误
                 self.snack(f"部署失败: {str(e)}", True)
                 import traceback
                 traceback.print_exc()
 
-        # 在后台线程执行部署
+        # 使用Flet的run_thread在后台执行
         import threading
-        threading.Thread(target=deploy_thread, daemon=True).start()
+        threading.Thread(target=lambda: self.page.run_thread(
+            deploy_task), daemon=True).start()
 
 
 def main(page: ft.Page):
