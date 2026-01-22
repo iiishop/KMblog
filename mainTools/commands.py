@@ -298,12 +298,90 @@ class ListCollections(Command):
 class Generate(Command):
     description = "Outputs the posts directory structure, tags, and categories to JSON files."
 
+    def _get_crypto_tag(self):
+        """从 config.js 中读取 CryptoTag 配置"""
+        try:
+            base_path = get_base_path()
+            config_path = os.path.join(base_path, 'src', 'config.js')
+            if not os.path.exists(config_path):
+                return None
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # 匹配 CryptoTag 配置
+            pattern = r"CryptoTag:\s*['\"]([^'\"]*)['\"]"
+            match = re.search(pattern, content)
+            if match:
+                return match.group(1)
+            return None
+        except:
+            return None
+
+    def _collect_crypto_posts(self, crypto_tag):
+        """收集包含加密标签的文章"""
+        if not crypto_tag:
+            return []
+
+        posts_path = get_posts_path()
+        crypto_posts = []
+
+        # 检查 Markdowns 目录
+        markdowns_path = os.path.join(posts_path, 'Markdowns')
+        if os.path.exists(markdowns_path):
+            for file in os.listdir(markdowns_path):
+                if file.endswith('.md'):
+                    file_path = os.path.join(markdowns_path, file)
+                    metadata = parse_markdown_metadata(file_path)
+                    tags = metadata.get('tags', [])
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    if crypto_tag in tags:
+                        relative_path = self._convert_to_relative_path(
+                            file_path)
+                        crypto_posts.append(relative_path)
+
+        # 检查各个合集目录
+        directories = [
+            file for file in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, file)) and file not in ['Markdowns', 'Images']
+        ]
+
+        for dir_name in directories:
+            dir_path = os.path.join(posts_path, dir_name)
+            for file in os.listdir(dir_path):
+                if file.endswith('.md'):
+                    file_path = os.path.join(dir_path, file)
+                    metadata = parse_markdown_metadata(file_path)
+                    tags = metadata.get('tags', [])
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    if crypto_tag in tags:
+                        relative_path = self._convert_to_relative_path(
+                            file_path)
+                        crypto_posts.append(relative_path)
+
+        return crypto_posts
+
+    def _convert_to_relative_path(self, path):
+        """转换为相对路径"""
+        base_path = get_base_path()
+        if path.startswith(base_path):
+            relative_path = path[len(base_path):].replace('\\', '/')
+            # 移除开头的 /public 前缀
+            if relative_path.startswith('/public/'):
+                relative_path = relative_path[7:]
+            return relative_path
+        else:
+            return path.replace('\\', '/')
+
     def execute(self):
         posts_path = get_posts_path()
         assets_path = get_assets_path()
         posts_output_path = os.path.join(assets_path, 'PostDirectory.json')
         tags_output_path = os.path.join(assets_path, 'Tags.json')
         categories_output_path = os.path.join(assets_path, 'Categories.json')
+        crypto_output_path = os.path.join(assets_path, 'Crypto.json')
 
         show_posts_command = ShowPostsJson()
         posts_directory = show_posts_command.execute()
@@ -314,10 +392,15 @@ class Generate(Command):
         show_categories_command = ShowCategoriesJson()
         categories_dictionary = show_categories_command.execute()
 
+        # 收集加密文章
+        crypto_tag = self._get_crypto_tag()
+        crypto_posts = self._collect_crypto_posts(crypto_tag)
+
         # Ensure the output directory exists
         os.makedirs(os.path.dirname(posts_output_path), exist_ok=True)
         os.makedirs(os.path.dirname(tags_output_path), exist_ok=True)
         os.makedirs(os.path.dirname(categories_output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(crypto_output_path), exist_ok=True)
 
         # Output posts directory to JSON file
         with open(posts_output_path, 'w', encoding='utf-8') as json_file:
@@ -332,7 +415,28 @@ class Generate(Command):
             json.dump(categories_dictionary, json_file,
                       indent=2, ensure_ascii=False)
 
-        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}"
+        # Output crypto posts to JSON file with password preservation
+        existing_password = ""
+        if os.path.exists(crypto_output_path):
+            try:
+                with open(crypto_output_path, 'r', encoding='utf-8') as json_file:
+                    existing_data = json.load(json_file)
+                    # 如果现有文件包含 password 字段，保留它
+                    if isinstance(existing_data, dict) and 'password' in existing_data:
+                        existing_password = existing_data.get('password', '')
+            except:
+                pass
+
+        # 构建新的 crypto 数据结构
+        crypto_data = {
+            'password': existing_password,
+            'posts': crypto_posts
+        }
+
+        with open(crypto_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(crypto_data, json_file, indent=2, ensure_ascii=False)
+
+        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)"
 
 
 class AddPost(Command):
@@ -580,7 +684,7 @@ class GetConfig(Command):
         # 解析配置文件
         config = {}
 
-        # 匹配字符串值（单引号或双引号）
+        # 匹配字符串值（单引号或双引号）- 注意 CryptoTag 也会被这里匹配
         string_pattern = r"(\w+):\s*['\"]([^'\"]*)['\"]"
         for match in re.finditer(string_pattern, content):
             key = match.group(1)
@@ -688,6 +792,61 @@ class UpdateConfig(Command):
             f.write(content)
 
         return f"Configuration updated successfully!"
+
+
+class UpdateCryptoPassword(Command):
+    description = "Updates the password in Crypto.json file."
+
+    def execute(self, password):
+        base_path = get_base_path()
+        assets_path = get_assets_path()
+        crypto_output_path = os.path.join(assets_path, 'Crypto.json')
+
+        # 读取现有的 Crypto.json
+        existing_posts = []
+        if os.path.exists(crypto_output_path):
+            try:
+                with open(crypto_output_path, 'r', encoding='utf-8') as json_file:
+                    existing_data = json.load(json_file)
+                    # 如果现有文件包含 posts 字段，保留它
+                    if isinstance(existing_data, dict) and 'posts' in existing_data:
+                        existing_posts = existing_data.get('posts', [])
+            except:
+                pass
+
+        # 构建新的 crypto 数据结构
+        crypto_data = {
+            'password': password,
+            'posts': existing_posts
+        }
+
+        # 确保目录存在
+        os.makedirs(os.path.dirname(crypto_output_path), exist_ok=True)
+
+        # 写入文件
+        with open(crypto_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(crypto_data, json_file, indent=2, ensure_ascii=False)
+
+        return f"Crypto password updated successfully!"
+
+
+class GetCryptoPassword(Command):
+    description = "Gets the password from Crypto.json file."
+
+    def execute(self):
+        base_path = get_base_path()
+        assets_path = get_assets_path()
+        crypto_output_path = os.path.join(assets_path, 'Crypto.json')
+
+        if os.path.exists(crypto_output_path):
+            try:
+                with open(crypto_output_path, 'r', encoding='utf-8') as json_file:
+                    data = json.load(json_file)
+                    if isinstance(data, dict):
+                        return data.get('password', '')
+            except:
+                pass
+        return ''
 
 
 # 导入 GitHub 相关命令

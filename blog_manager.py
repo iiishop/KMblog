@@ -121,6 +121,9 @@ class BlogManagerGUI:
                 'next_step': '下一步',
                 'previous_step': '上一步',
                 'start_deploy': '开始部署',
+                'crypto_tag': '加密标签',
+                'crypto_password': '加密密码',
+                'crypto_config': '加密配置',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -182,6 +185,9 @@ class BlogManagerGUI:
                 'next_step': 'Next',
                 'previous_step': 'Previous',
                 'start_deploy': 'Start Deploy',
+                'crypto_tag': 'Crypto Tag',
+                'crypto_password': 'Crypto Password',
+                'crypto_config': 'Crypto Config',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -1132,6 +1138,15 @@ class BlogManagerGUI:
         form_rows.append(ft.Text(self.t('settings'),
                          size=24, weight=ft.FontWeight.BOLD))
 
+        # 加载加密密码
+        crypto_password = ''
+        try:
+            from mainTools.commands import GetCryptoPassword
+            get_crypto_pwd_cmd = GetCryptoPassword()
+            crypto_password = get_crypto_pwd_cmd.execute()
+        except:
+            pass
+
         config_items = [
             ('BlogName', self.t('blog_name'), 'text'),
             ('ShortDesc', self.t('short_desc'), 'text'),
@@ -1171,6 +1186,32 @@ class BlogManagerGUI:
 
             config_fields[key] = field
             form_rows.append(ft.Container(content=field, padding=5))
+
+        # 加密配置
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text(self.t('crypto_config'),
+                         size=20, weight=ft.FontWeight.BOLD))
+
+        # CryptoTag 字段
+        crypto_tag_field = ft.TextField(
+            label=self.t('crypto_tag'),
+            value=current_config.get('CryptoTag', ''),
+            width=500,
+            hint_text="例如: 暂未公开",
+        )
+        config_fields['CryptoTag'] = crypto_tag_field
+        form_rows.append(ft.Container(content=crypto_tag_field, padding=5))
+
+        # Password 字段（单独保存到 Crypto.json）
+        password_field = ft.TextField(
+            label=self.t('crypto_password'),
+            value=crypto_password,
+            width=500,
+            password=True,
+            can_reveal_password=True,
+            hint_text="用于加密文章的密码",
+        )
+        form_rows.append(ft.Container(content=password_field, padding=5))
 
         # 列表配置
         form_rows.append(ft.Divider())
@@ -1308,7 +1349,16 @@ class BlogManagerGUI:
                 from mainTools.commands import UpdateConfig
                 update_cmd = UpdateConfig()
                 result = update_cmd.execute(**config_updates)
-                self.snack(result, False)
+
+                # 保存加密密码到 Crypto.json
+                password = password_field.value.strip()
+                try:
+                    from mainTools.commands import UpdateCryptoPassword
+                    update_pwd_cmd = UpdateCryptoPassword()
+                    pwd_result = update_pwd_cmd.execute(password)
+                    self.snack(f"{result}\n{pwd_result}", False)
+                except Exception as pwd_ex:
+                    self.snack(f"{result}\n密码保存失败: {pwd_ex}", True)
 
             except Exception as ex:
                 self.snack(f"保存失败: {ex}", True)

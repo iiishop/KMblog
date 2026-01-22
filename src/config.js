@@ -2,6 +2,7 @@ const config = {
     ProjectUrl: 'https://iiishop.github.io',//博客的基础URL
     BlogName: 'iiishop的博客',//博客名称
     ShortDesc: 'XXXXDESC',//博客的简短描述
+    CryptoTag: '暂未公开',//加密文章标签，包含此标签的文章将被收集到Crypto.json
     BackgroundImg: '/assets/background.png',//博客背景图片的URL
     BackgroundImgOpacity: 0.5,//覆盖在背景图片上的白色层的透明度
     BackgroundImgBlur: 20.0,//覆盖在背景图片上的白色层的模糊度
