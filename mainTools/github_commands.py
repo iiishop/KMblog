@@ -488,15 +488,12 @@ class PushToGitHub:
         try:
             base_path = get_base_path()
             dist_path = os.path.join(base_path, 'dist')
-            public_path = os.path.join(base_path, 'public')
 
             # 验证目录存在
             if not os.path.exists(dist_path):
                 raise Exception("dist 目录不存在，请先构建项目")
-            if not os.path.exists(public_path):
-                raise Exception("public 目录不存在")
 
-            report_progress("正在连接 GitHub...", 5)
+            report_progress("正在连接 GitHub...", 10)
             api = GitHubAPI(token)
 
             # 验证token
@@ -504,35 +501,28 @@ class PushToGitHub:
             if not is_valid:
                 raise Exception(f"Token验证失败: {username}")
 
-            report_progress(f"已连接为用户: {username}", 10)
+            report_progress(f"已连接为用户: {username}", 20)
 
             # 检查仓库是否存在
             repo = api.get_repo(username, repo_name)
             if not repo:
-                report_progress(f"仓库不存在，正在创建 {repo_name}...", 15)
+                report_progress(f"仓库不存在，正在创建 {repo_name}...", 30)
                 repo = api.create_repo(repo_name)
-                report_progress("仓库创建成功", 20)
+                report_progress("仓库创建成功", 40)
             else:
-                report_progress(f"找到仓库: {repo_name}", 20)
+                report_progress(f"找到仓库: {repo_name}", 40)
 
             # 获取默认分支
             default_branch = api.get_default_branch(username, repo_name)
-            report_progress(f"默认分支: {default_branch}", 25)
-
-            # 确保 source 分支存在
-            source_branch = api.get_branch(username, repo_name, 'source')
-            if not source_branch:
-                report_progress("创建 source 分支...", 30)
-                api.create_branch(username, repo_name,
-                                  'source', default_branch)
+            report_progress(f"默认分支: {default_branch}", 50)
 
             # 收集 dist 目录的文件
-            report_progress("正在收集 dist 文件...", 35)
+            report_progress("正在收集 dist 文件...", 60)
             dist_files = collect_directory_files(dist_path)
             for rel_path in dist_files:
                 print(f"[收集文件] dist: {rel_path}")
 
-            report_progress(f"找到 {len(dist_files)} 个 dist 文件", 45)
+            report_progress(f"找到 {len(dist_files)} 个 dist 文件", 70)
             print(f"[收集文件完整列表] dist 文件: {sorted(dist_files.keys())}")
 
             # 添加 .nojekyll 文件以禁用 Jekyll 处理
@@ -540,17 +530,8 @@ class PushToGitHub:
             dist_files['.nojekyll'] = b''
             print("[收集文件] 添加 .nojekyll 文件以禁用 Jekyll")
 
-            # 收集 public 目录的文件
-            report_progress("正在收集 public 文件...", 50)
-            public_files = collect_directory_files(public_path)
-            for rel_path in public_files:
-                print(f"[收集文件] public: {rel_path}")
-
-            report_progress(f"找到 {len(public_files)} 个 public 文件", 60)
-            print(f"[收集文件完整列表] public 文件: {sorted(public_files.keys())}")
-
             # 推送 dist 到默认分支（使用差异更新）
-            report_progress(f"正在推送到 {default_branch} 分支...", 65)
+            report_progress(f"正在推送到 {default_branch} 分支...", 80)
 
             # 差异上传dist文件
             api.upload_files(
@@ -560,20 +541,7 @@ class PushToGitHub:
                 use_diff=True  # 启用差异检查
             )
 
-            report_progress(f"{default_branch} 分支推送完成", 80)
-
-            # 推送 public 到 source 分支（使用差异更新）
-            report_progress("正在推送到 source 分支...", 85)
-
-            # 差异上传public文件
-            api.upload_files(
-                username, repo_name, 'source',
-                public_files,
-                f'Update source [{len(public_files)} files]',
-                use_diff=True  # 启用差异检查
-            )
-
-            report_progress("source 分支推送完成", 95)
+            report_progress(f"{default_branch} 分支推送完成", 90)
 
             repo_url = f"https://github.com/{username}/{repo_name}"
             pages_url = f"https://{username}.github.io/{repo_name}/"
