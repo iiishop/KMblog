@@ -43,6 +43,56 @@ import 'katex/dist/katex.min.css';
 import markdownItTaskLists from 'markdown-it-task-lists';
 import markdownItMultimdTable from 'markdown-it-multimd-table';
 import markdownItCodeCopy from 'markdown-it-code-copy';
+import mermaid from 'mermaid';
+
+// 初始化 mermaid，配置高美观度的主题
+mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    securityLevel: 'loose',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    // 宽度适配配置
+    maxWidth: '100%',
+    useMaxWidth: true,
+    themeVariables: {
+        // 基础颜色
+        primaryColor: '#eef2ff',          // 节点背景色 (极浅的靛蓝)
+        primaryTextColor: '#374151',      // 节点文字颜色 (深灰)
+        primaryBorderColor: '#818cf8',    // 节点边框 (柔和的靛蓝)
+        lineColor: '#6b7280',             // 连线颜色 (灰色)
+        secondaryColor: '#fdf2f8',        // 次要节点背景
+        tertiaryColor: '#fff',            // 第三级背景
+
+        // 流程图特定
+        mainBkg: '#eef2ff',
+        nodeBorder: '#818cf8',
+        clusterBkg: '#f9fafb',            // 子图背景
+        clusterBorder: '#d1d5db',
+
+        // 序列图特定
+        actorBkg: '#e0e7ff',
+        actorBorder: '#6366f1',
+        actorTextColor: '#1f2937',
+        signalColor: '#374151',
+        signalTextColor: '#111827',
+        labelBoxBkgColor: '#ffffff',
+        labelBoxBorderColor: '#e5e7eb',
+
+        // 甘特图特定
+        gridLineStartPadding: '350px', // 确保标签有足够空间
+        fontSize: '15px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    },
+    flowchart: {
+        curve: 'basis', // 更平滑的曲线
+        htmlLabels: true,
+        useMaxWidth: true
+    },
+    gantt: {
+        useWidth: undefined, // 让 Gantt 使用容器宽度
+        numberSectionStyles: 4
+    }
+});
 
 // 语言别名映射
 const languageAliases = {
@@ -177,4 +227,37 @@ md.use((md) => {
         return defaultFence(tokens, idx, options, env, self);
     };
 });
+
+// 自定义插件处理 mermaid 图表
+md.use((md) => {
+    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+    };
+
+    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const info = token.info.trim();
+
+        // 检查是否为 mermaid 代码块
+        if (info === 'mermaid') {
+            const content = token.content.trim();
+            // 生成唯一的 ID 用于 mermaid 渲染
+            const uniqueId = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+
+            return `<div class="mermaid-wrapper">
+    <div id="${uniqueId}" class="mermaid">
+${content}
+    </div>
+</div>
+<script>
+    if (typeof mermaid !== 'undefined') {
+        mermaid.contentLoaded();
+    }
+</script>`;
+        }
+
+        return defaultFence(tokens, idx, options, env, self);
+    };
+});
+
 export default md;

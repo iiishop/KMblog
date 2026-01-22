@@ -415,3 +415,76 @@
 .markdown .contains-task-list .task-list-item {
     margin-bottom: 0.75rem;
 }
+
+/* Mermaid 图表精美样式 */
+.markdown .mermaid-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2.5rem 0;
+    overflow: hidden; /* 防止任何内容超出容器 */
+    background: linear-gradient(to bottom right, #ffffff, #f8fafc); /* 极浅的渐变背景 */
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.05), 
+        0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+    width: 100%; /* 确保容器填满父元素 */
+    box-sizing: border-box;
+    max-width: 100%; /* 防止内容扩展容器 */
+}
+
+.markdown .mermaid-wrapper:hover {
+    box-shadow: 
+        0 10px 15px -3px rgba(0, 0, 0, 0.08), 
+        0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    border-color: #cbd5e1;
+}
+
+/* 滚动条美化 */
+.markdown .mermaid-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.markdown .mermaid-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.markdown .mermaid-wrapper::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+}
+
+.markdown .mermaid-wrapper::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+.markdown .mermaid {
+    display: block; /* 修复甘特图宽度检测问题：从 flex 改为 block，确保 Mermaid 能正确读取容器宽度 */
+    width: 100%; /* 完全填充容器宽度 */
+    height: 400px;
+    margin: 0 auto;
+    background-color: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-align: center;
+    max-width: 100%; /* 防止超出 */
+    box-sizing: border-box;
+    overflow: hidden; /* 防止内部 SVG 溢出 */
+}
+
+.markdown .mermaid svg {
+    width: 100% !important; /* 强制 100% 宽度适配容器 */
+    height: 100% !important; /* 填满容器高度 */
+    max-width: 100% !important; /* 防止超出容器宽度 */
+    max-height: 400px !important;
+    display: block; /* 消除 SVG 默认的 inline 间距 */
+    margin: 0 auto; /* 居中 */
+    text-rendering: optimizeLegibility;
+}
+.markdown {
+    /* 保持原有的变量作为后备，但主要依赖 JS 配置 */
+    --primary: #007bff;
+    --background: #fff;
+}

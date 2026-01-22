@@ -28,6 +28,8 @@ import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
+import mermaid from 'mermaid';
+import 'mermaid/dist/mermaid.esm.min.mjs';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
@@ -105,6 +107,46 @@ const parseMarkdown = async (url, decryptedText = null) => {
       'bangumiblock': BangumiBlock
       // 在这里添加其他组件映射
     });
+
+    // 渲染 Mermaid 图表
+    await nextTick();
+    if (typeof mermaid !== 'undefined') {
+      try {
+        // 重置状态
+        mermaid.mermaidAPI.reset();
+
+        // 重新初始化并渲染
+        await mermaid.run({
+          nodes: document.querySelectorAll('.mermaid'),
+        });
+
+        // 修复渲染后的 SVG 尺寸，确保不超出容器
+        await nextTick();
+        const mermaidSvgs = document.querySelectorAll('.mermaid svg');
+        mermaidSvgs.forEach(svg => {
+          // 删除所有内联宽高属性，让 CSS 完全控制
+          svg.removeAttribute('width');
+          svg.removeAttribute('height');
+
+          // 强制应用样式
+          svg.style.width = '100%';
+          svg.style.height = '400px';
+          svg.style.maxWidth = '100%';
+          svg.style.maxHeight = '400px';
+          svg.style.display = 'block';
+          svg.style.margin = '0 auto';
+
+          // 移除可能导致超出的内联样式
+          if (svg.getAttribute('style')) {
+            const styleStr = svg.getAttribute('style');
+            // 移除固定的 max-width 限制（如 max-width: 300px）
+            svg.setAttribute('style', styleStr.replace(/max-width:\s*\d+px;?/gi, ''));
+          }
+        });
+      } catch (error) {
+        console.warn('Mermaid rendering failed:', error);
+      }
+    }
   } catch (error) {
     console.error('Error fetching or parsing markdown file:', error);
   }
