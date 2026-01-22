@@ -11,6 +11,50 @@ from urllib import request, error
 from path_utils import get_base_path
 
 
+def extract_base_name(file_path):
+    """提取文件的基础名称（去除 hash 后缀）
+    例如: assets/app-abc123.js -> assets/app.js
+         assets/style-xyz789.css -> assets/style.css
+    """
+    import re
+    # 匹配模式：文件名-hash.扩展名
+    # hash 通常是 8 个字符的字母数字组合
+    pattern = r'^(.+)-([a-zA-Z0-9_-]{6,12})(\.[^.]+)$'
+    match = re.match(pattern, file_path)
+
+    if match:
+        base_path = match.group(1)  # 路径和基础名
+        extension = match.group(3)   # 扩展名
+        return base_path + extension
+
+    return file_path  # 如果不匹配模式，返回原始路径
+
+
+def find_versioned_files(remote_files, base_name):
+    """在远程文件中查找同基础名的不同版本
+    例如：如果 base_name 是 assets/app.js
+         查找所有 assets/app-*.js 文件
+    """
+    import re
+    # 从 base_name 提取目录、名称和扩展名
+    parts = base_name.rsplit('.', 1)
+    if len(parts) != 2:
+        return []
+
+    name_part = parts[0]
+    extension = parts[1]
+
+    # 构建匹配模式：name_part-hash.extension
+    pattern = f"^{re.escape(name_part)}-[a-zA-Z0-9_-]{{6,12}}\\.{re.escape(extension)}$"
+
+    versioned_files = []
+    for remote_path in remote_files.keys():
+        if re.match(pattern, remote_path):
+            versioned_files.append(remote_path)
+
+    return versioned_files
+
+
 # ============== 辅助函数 ==============
 
 def normalize_path(path):
@@ -96,28 +140,59 @@ class GitHubAPI:
             'User-Agent': 'KMBlog-Manager'
         }
 
-    def _request(self, url, method='GET', data=None):
-        """发送HTTP请求"""
+    def _request(self, url, method='GET', data=None, max_retries=3, timeout=30):
+        """发送HTTP请求（带重试机制）
+
+        Args:
+            url: 请求 URL
+            method: HTTP 方法
+            data: 请求数据
+            max_retries: 最大重试次数
+            timeout: 超时时间（秒）
+        """
+        import time
+        import socket
+
         req = request.Request(url, headers=self.headers, method=method)
         if data:
             req.data = json.dumps(data).encode('utf-8')
             req.add_header('Content-Type', 'application/json')
 
-        try:
-            with request.urlopen(req) as response:
-                response_body = response.read().decode('utf-8')
-                # 处理 204 No Content 响应（DELETE 请求）
-                if response.status == 204 or not response_body:
-                    return {}
-                return json.loads(response_body)
-        except error.HTTPError as e:
-            error_msg = e.read().decode('utf-8')
+        last_error = None
+        for attempt in range(max_retries):
             try:
-                error_json = json.loads(error_msg)
-                raise Exception(
-                    f"GitHub API Error: {error_json.get('message', error_msg)}")
-            except:
-                raise Exception(f"GitHub API Error: {e.code} - {error_msg}")
+                with request.urlopen(req, timeout=timeout) as response:
+                    response_body = response.read().decode('utf-8')
+                    # 处理 204 No Content 响应（DELETE 请求）
+                    if response.status == 204 or not response_body:
+                        return {}
+                    return json.loads(response_body)
+
+            except (socket.timeout, TimeoutError, error.URLError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2  # 指数退避: 2s, 4s, 6s
+                    print(
+                        f"[Retry] 网络超时，{wait_time}秒后重试 ({attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"[Error] 达到最大重试次数，请求失败")
+                    raise Exception(f"网络超时: {str(e)}")
+
+            except error.HTTPError as e:
+                error_msg = e.read().decode('utf-8')
+                try:
+                    error_json = json.loads(error_msg)
+                    raise Exception(
+                        f"GitHub API Error: {error_json.get('message', error_msg)}")
+                except:
+                    raise Exception(
+                        f"GitHub API Error: {e.code} - {error_msg}")
+
+        # 如果所有重试都失败
+        if last_error:
+            raise last_error
 
     def verify_token(self):
         """验证token有效性"""
@@ -288,30 +363,88 @@ class GitHubAPI:
             changed_files = {}
             new_files = {}
             unchanged_count = 0
+            files_to_delete = set()  # 需要删除的文件
 
+            # 第一步：检查本地文件的变化
+            local_paths = set()
             for path, content in files_dict.items():
                 normalized_path = normalize_path(path)  # 使用辅助函数
+                local_paths.add(normalized_path)
+
                 local_sha = calculate_git_sha(content)  # 使用辅助函数
                 remote_sha = remote_files.get(normalized_path)
 
                 if remote_sha is None:
-                    new_files[normalized_path] = content
+                    # 文件不存在远程，但可能是版本更新（hash 变化）
+                    base_name = extract_base_name(normalized_path)
+
+                    if base_name != normalized_path:
+                        # 这是一个带 hash 的文件，查找旧版本
+                        old_versions = find_versioned_files(
+                            remote_files, base_name)
+
+                        if old_versions:
+                            # 找到旧版本，标记为更新而非新增
+                            changed_files[normalized_path] = content
+                            # 标记旧版本需要删除
+                            for old_version in old_versions:
+                                files_to_delete.add(old_version)
+                            print(
+                                f"[版本更新] {normalized_path} (替换 {len(old_versions)} 个旧版本)")
+                        else:
+                            # 没有找到旧版本，确实是新文件
+                            new_files[normalized_path] = content
+                    else:
+                        # 普通文件，确实是新增
+                        new_files[normalized_path] = content
+
                 elif remote_sha != local_sha:
                     changed_files[normalized_path] = content
                 else:
                     unchanged_count += 1
 
+            # 第二步：检查远程多余的文件（本地没有的文件需要删除）
+            remote_only_files = set(remote_files.keys()) - local_paths
+            for remote_file in remote_only_files:
+                # 检查是否是旧版本文件（已经在上面标记过）
+                if remote_file not in files_to_delete:
+                    # 检查是否是某个本地文件的旧版本
+                    base_name = extract_base_name(remote_file)
+                    is_old_version = False
+
+                    if base_name != remote_file:
+                        # 这可能是带hash的文件，检查本地是否有同名但不同hash的版本
+                        for local_path in local_paths:
+                            if extract_base_name(local_path) == base_name:
+                                is_old_version = True
+                                break
+
+                    if is_old_version:
+                        # 这是旧版本，添加到删除列表
+                        files_to_delete.add(remote_file)
+                    else:
+                        # 这是真正多余的文件，也需要删除以保持同步
+                        files_to_delete.add(remote_file)
+                        print(f"[删除多余文件] {remote_file} (本地不存在)")
+
             print(
-                f"[差异检查] 新增: {len(new_files)} 个, 修改: {len(changed_files)} 个, 未变: {unchanged_count} 个")
+                f"[差异检查] 新增: {len(new_files)} 个, 修改: {len(changed_files)} 个, 未变: {unchanged_count} 个, 删除: {len(files_to_delete)} 个")
 
             # 只处理有变化的文件
             files_to_upload = {**new_files, **changed_files}
 
-            if not files_to_upload:
-                print(f"[差异检查] 没有文件需要上传，跳过")
+            # 显示需要删除的文件
+            if files_to_delete:
+                print(f"[清理] 将删除以下文件:")
+                for old_file in sorted(files_to_delete):
+                    print(f"  - {old_file}")
+
+            if not files_to_upload and not files_to_delete:
+                print(f"[差异检查] 没有文件需要上传或删除，跳过")
                 return branch_info['commit']['sha']
 
-            print(f"[差异检查] 将上传 {len(files_to_upload)} 个有变化的文件")
+            print(
+                f"[差异检查] 将上传 {len(files_to_upload)} 个文件, 删除 {len(files_to_delete)} 个文件")
             files_dict = files_to_upload
 
         # 创建blob对象
@@ -332,18 +465,38 @@ class GitHubAPI:
             if isinstance(content, str):
                 content = content.encode('utf-8')
 
-            try:
-                blob_url = f'{self.BASE_URL}/repos/{owner}/{repo_name}/git/blobs'
-                blob_data = {
-                    'content': base64.b64encode(content).decode('utf-8'),
-                    'encoding': 'base64'
-                }
-                blob = self._request(blob_url, method='POST', data=blob_data)
-                blobs[normalized_path] = blob['sha']
-                print(f"[upload_files] blob 创建成功: {normalized_path}")
-            except Exception as e:
-                print(f"警告: 创建blob失败 {normalized_path}: {e}")
-                continue
+            # 带重试的 blob 创建
+            blob_url = f'{self.BASE_URL}/repos/{owner}/{repo_name}/git/blobs'
+            blob_data = {
+                'content': base64.b64encode(content).decode('utf-8'),
+                'encoding': 'base64'
+            }
+
+            max_blob_retries = 5  # blob 创建最多重试 5 次
+            blob_created = False
+
+            for retry in range(max_blob_retries):
+                try:
+                    blob = self._request(
+                        blob_url, method='POST', data=blob_data, max_retries=3)
+                    blobs[normalized_path] = blob['sha']
+                    print(f"[upload_files] blob 创建成功: {normalized_path}")
+                    blob_created = True
+                    break
+                except Exception as e:
+                    if retry < max_blob_retries - 1:
+                        import time
+                        wait_time = (retry + 1) * 3  # 3s, 6s, 9s, 12s, 15s
+                        print(f"警告: 创建 blob 失败 {normalized_path}: {e}")
+                        print(
+                            f"[Retry] {wait_time}秒后重试 blob 创建 ({retry + 1}/{max_blob_retries})...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"错误: 创建 blob 最终失败 {normalized_path}: {e}")
+                        blob_created = False
+
+            if not blob_created:
+                print(f"警告: 跳过文件 {normalized_path}，将继续处理其他文件")
 
         # 如果没有文件，直接返回
         print(f"[upload_files] 共创建了 {len(blobs)} 个 blob")
@@ -361,6 +514,17 @@ class GitHubAPI:
             }
             for path, sha in sorted(blobs.items())  # 排序以确保一致性
         ]
+
+        # 如果有需要删除的文件（旧版本），添加到 tree 中标记为删除
+        if use_diff and 'files_to_delete' in locals() and files_to_delete:
+            for file_to_delete in files_to_delete:
+                tree_items.append({
+                    'path': file_to_delete,
+                    'mode': '100644',
+                    'type': 'blob',
+                    'sha': None  # sha 为 None 表示删除该文件
+                })
+            print(f"[清理] 已标记 {len(files_to_delete)} 个旧版本文件待删除")
 
         print(f"[upload_files] 准备上传 {len(tree_items)} 个文件到GitHub...")
         print(f"[upload_files] tree items 列表（前10个和最后5个）:")
@@ -543,7 +707,6 @@ class PushToGitHub:
             )
 
             report_progress(f"{default_branch} 分支推送完成", 90)
-
 
             repo_url = f"https://github.com/{username}/{repo_name}"
             pages_url = f"https://{username}.github.io/{repo_name}/"

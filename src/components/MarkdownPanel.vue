@@ -43,6 +43,10 @@ const props = defineProps({
   markdownUrl: {
     type: String,
     required: true
+  },
+  decryptedContent: {
+    type: String,
+    default: null
   }
 });
 
@@ -50,10 +54,19 @@ const metadata = ref({});
 const htmlContent = ref('');
 
 // 解析 Markdown 文件并提取 metadata 和内容
-const parseMarkdown = async (url) => {
+const parseMarkdown = async (url, decryptedText = null) => {
   try {
-    const response = await axios.get(url);
-    const markdown = response.data;
+    let markdown;
+
+    // 如果有解密后的内容，直接使用
+    if (decryptedText) {
+      markdown = decryptedText;
+      console.log('使用解密后的内容');
+    } else {
+      // 否则从 URL 加载
+      const response = await axios.get(url);
+      markdown = response.data;
+    }
 
     // 使用 front-matter 解析 metadata
     const { body } = fm(markdown);
@@ -97,13 +110,13 @@ const parseMarkdown = async (url) => {
   }
 };
 
-// 监控 markdownUrl 的变化
-watch(() => props.markdownUrl, (newUrl) => {
-  parseMarkdown(newUrl);
+// 监控 markdownUrl 和 decryptedContent 的变化
+watch(() => [props.markdownUrl, props.decryptedContent], ([newUrl, newContent]) => {
+  parseMarkdown(newUrl, newContent);
 }, { immediate: true });
 
 onMounted(() => {
-  parseMarkdown(props.markdownUrl);
+  parseMarkdown(props.markdownUrl, props.decryptedContent);
 });
 const lastCategory = computed(() => {
   if (metadata.value.categories && metadata.value.categories.length > 0) {
