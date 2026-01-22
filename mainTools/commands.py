@@ -1247,6 +1247,14 @@ class MigrateFromHexo(Command):
 
             for file in files:
                 if os.path.splitext(file)[1].lower() in image_extensions:
+                    # 跳过 /public/Posts 直接子目录下的 image.png 文件
+                    if file == 'image.png':
+                        rel_path = os.path.relpath(root, posts_path)
+                        # 计算深度：只有一级路径分隔符表示直接在 posts_path 下
+                        if os.sep not in rel_path:  # 直接在某个子目录下，没有进一步的嵌套
+                            print(f"[图片跳过] {file} (集合封面，不迁移)")
+                            continue
+
                     old_path = os.path.join(root, file)
 
                     # 计算新文件名（处理冲突）
