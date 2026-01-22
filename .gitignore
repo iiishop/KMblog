@@ -34,3 +34,4 @@ public/assets/Tags.json
 public/assets/PostDirectory.json
 public/assets/Categories.json
 .vscode
+build/KMblogManager/*

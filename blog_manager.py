@@ -4,17 +4,18 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-
+from mainTools.commands import Command
 import flet as ft
 import sys
 import os
 import importlib
 import inspect
 import json
+import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-from mainTools.commands import Command
+
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -104,6 +105,22 @@ class BlogManagerGUI:
                 'link_name': '链接名称',
                 'link_url': '链接URL',
                 'add_link': '添加链接',
+                'deploy_github': '部署到GitHub',
+                'github_token': 'GitHub Token',
+                'github_repo': '仓库名称',
+                'verify_token': '验证Token',
+                'get_token_guide': '获取Token指南',
+                'token_valid': 'Token有效',
+                'token_invalid': 'Token无效',
+                'deploying': '正在部署...',
+                'deploy_success': '部署成功',
+                'deploy_failed': '部署失败',
+                'token_permissions': 'Token权限要求',
+                'token_perm_desc': '您需要一个具有以下权限的GitHub Personal Access Token:\n- repo (完整仓库访问权限)',
+                'get_token_url': '获取Token地址: https://github.com/settings/tokens/new',
+                'next_step': '下一步',
+                'previous_step': '上一步',
+                'start_deploy': '开始部署',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -149,6 +166,22 @@ class BlogManagerGUI:
                 'link_name': 'Name',
                 'link_url': 'URL',
                 'add_link': 'Add Link',
+                'deploy_github': 'Deploy to GitHub',
+                'github_token': 'GitHub Token',
+                'github_repo': 'Repository Name',
+                'verify_token': 'Verify Token',
+                'get_token_guide': 'Get Token Guide',
+                'token_valid': 'Token Valid',
+                'token_invalid': 'Token Invalid',
+                'deploying': 'Deploying...',
+                'deploy_success': 'Deploy Success',
+                'deploy_failed': 'Deploy Failed',
+                'token_permissions': 'Token Permissions',
+                'token_perm_desc': 'You need a GitHub Personal Access Token with:\n- repo (Full repository access)',
+                'get_token_url': 'Get Token: https://github.com/settings/tokens/new',
+                'next_step': 'Next',
+                'previous_step': 'Previous',
+                'start_deploy': 'Start Deploy',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -282,6 +315,8 @@ class BlogManagerGUI:
                         'init_blog'), ft.Icons.ROCKET_LAUNCH, self.exec_init, ft.Colors.PURPLE_600) if not self.is_blog_initialized() else ft.Container(),
                     self.action_btn(self.t(
                         'build_project'), ft.Icons.CONSTRUCTION, self.exec_build, ft.Colors.ORANGE_600),
+                    self.action_btn(self.t(
+                        'deploy_github'), ft.Icons.CLOUD_UPLOAD, self.show_github_dialog, ft.Colors.INDIGO_600),
                 ], spacing=15, wrap=True),
             ]),
             padding=25,
@@ -1268,6 +1303,255 @@ class BlogManagerGUI:
             expand=True,
             padding=20,
         )
+
+    def show_github_dialog(self, e):
+        """显示GitHub部署配置对话框"""
+        from mainTools.github_commands import LoadGitHubConfig
+
+        # 加载已保存的配置
+        load_cmd = LoadGitHubConfig()
+        saved_config = load_cmd.execute()
+
+        # 创建多步骤对话框
+        current_step = [1]  # 当前步骤
+
+        # Step 1: Token配置
+        token_field = ft.TextField(
+            label=self.t('github_token'),
+            value=saved_config.get('token', ''),
+            password=True,
+            can_reveal_password=True,
+            width=500
+        )
+
+        token_status = ft.Text("", size=12)
+        verify_btn = ft.Button(
+            self.t('verify_token'),
+            icon=ft.Icons.VERIFIED_USER,
+            on_click=lambda e: self.verify_github_token(
+                token_field, token_status)
+        )
+
+        step1_content = ft.Column([
+            ft.Text(self.t('token_permissions'),
+                    size=16, weight=ft.FontWeight.BOLD),
+            ft.Text(self.t('token_perm_desc'), size=12),
+            ft.Container(height=10),
+            ft.Button(
+                "打开Token页面",
+                icon=ft.Icons.TOKEN,
+                on_click=lambda e: webbrowser.open(
+                    'https://github.com/settings/tokens/new')
+            ),
+            ft.Container(height=20),
+            token_field,
+            ft.Row([verify_btn, token_status], spacing=10),
+        ], tight=True, spacing=15)
+
+        # Step 2: 仓库名称
+        repo_field = ft.TextField(
+            label=self.t('github_repo'),
+            value=saved_config.get('repo_name', ''),
+            hint_text='my-blog',
+            width=500
+        )
+
+        step2_content = ft.Column([
+            ft.Text(self.t('github_repo'), size=16, weight=ft.FontWeight.BOLD),
+            ft.Container(height=10),
+            repo_field,
+            ft.Text('如果仓库不存在，将自动创建', size=12, color=ft.Colors.GREY_600),
+        ], tight=True, spacing=15)
+
+        # 创建对话框容器
+        dialog_content = ft.Container(
+            content=step1_content, width=550, height=350)
+
+        def update_dialog_content():
+            """更新对话框内容"""
+            if current_step[0] == 1:
+                dialog_content.content = step1_content
+                next_btn.text = self.t('next_step')
+                prev_btn.visible = False
+            else:
+                dialog_content.content = step2_content
+                next_btn.text = self.t('start_deploy')
+                prev_btn.visible = True
+            self.page.update()
+
+        def next_step(e):
+            """下一步或开始部署"""
+            if current_step[0] == 1:
+                # 验证 token
+                token = token_field.value.strip()
+                if not token:
+                    self.snack('请输入 GitHub Token', True)
+                    return
+
+                # 验证 token 有效性
+                from mainTools.github_commands import VerifyGitHubToken
+                verify_cmd = VerifyGitHubToken()
+                result = verify_cmd.execute(token)
+
+                if not result['success']:
+                    self.snack(result['message'], True)
+                    return
+
+                # 进入下一步
+                current_step[0] = 2
+                update_dialog_content()
+            else:
+                # 开始部署
+                token = token_field.value.strip()
+                repo = repo_field.value.strip()
+
+                if not repo:
+                    self.snack('请输入仓库名称', True)
+                    return
+
+                # 保存配置
+                from mainTools.github_commands import SaveGitHubConfig
+                save_cmd = SaveGitHubConfig()
+                save_cmd.execute(token, repo)
+
+                # 关闭配置对话框
+                self.close_dlg(dlg)
+
+                # 开始部署
+                self.start_github_deploy(token, repo)
+
+        def prev_step(e):
+            """上一步"""
+            current_step[0] = 1
+            update_dialog_content()
+
+        prev_btn = ft.TextButton(
+            self.t('previous_step'), on_click=prev_step, visible=False)
+        next_btn = ft.Button(self.t('next_step'), on_click=next_step)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(self.t('deploy_github')),
+            content=dialog_content,
+            actions=[
+                ft.TextButton(self.t('cancel'),
+                              on_click=lambda e: self.close_dlg(dlg)),
+                prev_btn,
+                next_btn,
+            ],
+        )
+
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+
+    def verify_github_token(self, token_field, status_text):
+        """验证GitHub Token"""
+        token = token_field.value.strip()
+        if not token:
+            status_text.value = "❌ 请输入Token"
+            status_text.color = ft.Colors.RED
+            self.page.update()
+            return
+
+        from mainTools.github_commands import VerifyGitHubToken
+        verify_cmd = VerifyGitHubToken()
+        result = verify_cmd.execute(token)
+
+        if result['success']:
+            status_text.value = f"✅ {result['message']}"
+            status_text.color = ft.Colors.GREEN
+        else:
+            status_text.value = f"❌ {result['message']}"
+            status_text.color = ft.Colors.RED
+
+        self.page.update()
+
+    def start_github_deploy(self, token, repo_name):
+        """开始GitHub部署"""
+        # 创建进度对话框
+        progress_text = ft.Text("正在准备部署...", size=14)
+        progress_bar = ft.ProgressBar(value=0, width=500)
+        progress_percent = ft.Text("0%", size=12, color=ft.Colors.GREY_600)
+
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text(self.t('deploying')),
+            content=ft.Column([
+                progress_text,
+                progress_bar,
+                progress_percent,
+                ft.Container(height=10),
+                ft.Text("这可能需要几分钟，请耐心等待...", size=12,
+                        color=ft.Colors.GREY_600),
+            ], tight=True, spacing=10, width=500),
+            modal=True,
+        )
+
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        def update_progress(message, percent):
+            """更新进度"""
+            progress_text.value = message
+            progress_bar.value = percent / 100
+            progress_percent.value = f"{int(percent)}%"
+            self.page.update()
+
+        def deploy_thread():
+            """部署线程"""
+            try:
+                from mainTools.github_commands import FullDeploy
+                deploy_cmd = FullDeploy()
+                result = deploy_cmd.execute(token, repo_name, update_progress)
+
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+
+                if result['success']:
+                    # 显示成功对话框
+                    success_dlg = ft.AlertDialog(
+                        title=ft.Text(self.t('deploy_success'),
+                                      color=ft.Colors.GREEN),
+                        content=ft.Column([
+                            ft.Text(result['message']),
+                            ft.Container(height=10),
+                            ft.Row([
+                                ft.Button(
+                                    "查看仓库",
+                                    icon=ft.Icons.OPEN_IN_NEW,
+                                    on_click=lambda e: webbrowser.open(
+                                        result.get('repo_url', ''))
+                                ) if result.get('repo_url') else ft.Container(),
+                                ft.Button(
+                                    "查看Pages",
+                                    icon=ft.Icons.LAUNCH,
+                                    on_click=lambda e: webbrowser.open(
+                                        result.get('pages_url', ''))
+                                ) if result.get('pages_url') else ft.Container(),
+                            ], spacing=10),
+                        ], tight=True),
+                        actions=[
+                            ft.TextButton(
+                                '确定', on_click=lambda e: self.close_dlg(success_dlg))
+                        ],
+                    )
+                    self.page.overlay.append(success_dlg)
+                    success_dlg.open = True
+                    self.page.update()
+                else:
+                    self.snack(result['message'], True)
+
+            except Exception as e:
+                progress_dlg.open = False
+                self.page.update()
+                self.snack(f"部署失败: {str(e)}", True)
+                import traceback
+                traceback.print_exc()
+
+        # 在后台线程执行部署
+        import threading
+        threading.Thread(target=deploy_thread, daemon=True).start()
 
 
 def main(page: ft.Page):
