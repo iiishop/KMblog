@@ -6,6 +6,7 @@ import os
 import json
 import base64
 import hashlib
+import shutil
 from urllib import request, error
 from path_utils import get_base_path
 
@@ -542,6 +543,7 @@ class PushToGitHub:
             )
 
             report_progress(f"{default_branch} 分支推送完成", 90)
+
 
             repo_url = f"https://github.com/{username}/{repo_name}"
             pages_url = f"https://{username}.github.io/{repo_name}/"

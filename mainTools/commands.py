@@ -8,6 +8,9 @@ from datetime import datetime
 from urllib import request, error, parse as urlparse
 from utility import parse_markdown_metadata, read_markdowns, find_first_image, read_file_safe
 from path_utils import get_base_path, get_posts_path, get_assets_path
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 class Command:
@@ -15,6 +18,124 @@ class Command:
 
     def execute(self):
         raise NotImplementedError("You should implement this method.")
+
+
+class CryptoEncryptor:
+    """文章加密工具类 - 使用 AES-GCM 加密算法"""
+    
+    @staticmethod
+    def derive_key(password: str, salt: bytes = None) -> tuple:
+        """从密码派生加密密钥"""
+        if salt is None:
+            salt = os.urandom(16)
+        
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        key = kdf.derive(password.encode('utf-8'))
+        return key, salt
+    
+    @staticmethod
+    def encrypt_file(file_path: str, password: str, output_path: str) -> dict:
+        """加密文件
+        
+        Args:
+            file_path: 源文件路径
+            password: 加密密码
+            output_path: 输出文件路径
+            
+        Returns:
+            dict: {'success': bool, 'message': str, 'salt': str, 'nonce': str}
+        """
+        try:
+            # 读取文件内容
+            with open(file_path, 'rb') as f:
+                plaintext = f.read()
+            
+            # 派生密钥
+            key, salt = CryptoEncryptor.derive_key(password)
+            
+            # 创建 AES-GCM 加密器
+            aesgcm = AESGCM(key)
+            nonce = os.urandom(12)  # GCM 模式推荐 12 字节
+            
+            # 加密
+            ciphertext = aesgcm.encrypt(nonce, plaintext, None)
+            
+            # 保存加密后的数据：salt + nonce + ciphertext
+            encrypted_data = salt + nonce + ciphertext
+            
+            # 确保输出目录存在
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # 写入加密文件
+            with open(output_path, 'wb') as f:
+                f.write(encrypted_data)
+            
+            return {
+                'success': True,
+                'message': f'加密成功: {os.path.basename(file_path)}',
+                'salt': base64.b64encode(salt).decode('utf-8'),
+                'nonce': base64.b64encode(nonce).decode('utf-8')
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'加密失败: {str(e)}'
+            }
+    
+    @staticmethod
+    def decrypt_file(file_path: str, password: str, output_path: str) -> dict:
+        """解密文件
+        
+        Args:
+            file_path: 加密文件路径
+            password: 解密密码
+            output_path: 输出文件路径
+            
+        Returns:
+            dict: {'success': bool, 'message': str}
+        """
+        try:
+            # 读取加密数据
+            with open(file_path, 'rb') as f:
+                encrypted_data = f.read()
+            
+            # 提取 salt, nonce 和 ciphertext
+            salt = encrypted_data[:16]
+            nonce = encrypted_data[16:28]
+            ciphertext = encrypted_data[28:]
+            
+            # 派生密钥
+            key, _ = CryptoEncryptor.derive_key(password, salt)
+            
+            # 创建 AES-GCM 解密器
+            aesgcm = AESGCM(key)
+            
+            # 解密
+            plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+            
+            # 确保输出目录存在
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # 写入解密文件
+            with open(output_path, 'wb') as f:
+                f.write(plaintext)
+            
+            return {
+                'success': True,
+                'message': f'解密成功: {os.path.basename(file_path)}'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'解密失败: {str(e)}'
+            }
 
 
 class InitBlog(Command):
@@ -435,8 +556,39 @@ class Generate(Command):
 
         with open(crypto_output_path, 'w', encoding='utf-8') as json_file:
             json.dump(crypto_data, json_file, indent=2, ensure_ascii=False)
+        
+        # 加密文章
+        encrypted_count = 0
+        if crypto_posts and existing_password:
+            print(f"[Crypto] 开始加密 {len(crypto_posts)} 篇文章...")
+            
+            # 创建 cryptoPosts 目录（在项目根目录）
+            base_path = get_base_path()
+            crypto_posts_dir = os.path.join(base_path, 'cryptoPosts')
+            os.makedirs(crypto_posts_dir, exist_ok=True)
+            
+            for post_path in crypto_posts:
+                # 转换为完整路径
+                full_path = os.path.join(base_path, 'public', post_path.lstrip('/'))
+                
+                if os.path.exists(full_path):
+                    # 生成加密后的文件路径（保持相同的目录结构）
+                    relative_path = os.path.relpath(full_path, os.path.join(base_path, 'public', 'Posts'))
+                    encrypted_path = os.path.join(crypto_posts_dir, relative_path)
+                    
+                    # 加密文件
+                    result = CryptoEncryptor.encrypt_file(full_path, existing_password, encrypted_path)
+                    if result['success']:
+                        encrypted_count += 1
+                        print(f"[Crypto] ✓ {os.path.basename(full_path)}")
+                    else:
+                        print(f"[Crypto] ✗ {result['message']}")
+                else:
+                    print(f"[Crypto] 警告: 文件不存在 {full_path}")
+            
+            print(f"[Crypto] 加密完成: {encrypted_count}/{len(crypto_posts)} 篇文章")
 
-        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)"
+        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)\nEncrypted: {encrypted_count} files"
 
 
 class AddPost(Command):
@@ -647,7 +799,60 @@ class Build(Command):
 
     def execute(self):
         base_path = get_base_path()
+        crypto_json_path = os.path.join(base_path, 'public', 'assets', 'Crypto.json')
+        temp_crypto_json_path = os.path.join(base_path, 'Crypto.json')
+        crypto_posts_dir = os.path.join(base_path, 'cryptoPosts')
+        posts_dir = os.path.join(base_path, 'public', 'Posts')
+        backup_dir = os.path.join(base_path, 'Posts_backup_temp')
+        
+        crypto_moved = False
+        swapped_files = []  # 记录交换的文件信息
+        
         try:
+            # Build 前：将 Crypto.json 暂时移出 public 目录，避免密码明文被 push
+            if os.path.exists(crypto_json_path):
+                shutil.move(crypto_json_path, temp_crypto_json_path)
+                crypto_moved = True
+                print("[Security] Crypto.json 已暂时移出 public 目录")
+            
+            # Build 前：只交换需要加密的文件
+            if os.path.exists(crypto_posts_dir):
+                print("[Crypto] 开始交换加密文件...")
+                os.makedirs(backup_dir, exist_ok=True)
+                
+                # 遍历 cryptoPosts 中的所有加密文件
+                for root, dirs, files in os.walk(crypto_posts_dir):
+                    for file in files:
+                        if file.endswith('.md'):
+                            # 加密文件路径
+                            encrypted_file = os.path.join(root, file)
+                            # 相对路径
+                            rel_path = os.path.relpath(encrypted_file, crypto_posts_dir)
+                            # public/Posts 中对应的明文文件
+                            original_file = os.path.join(posts_dir, rel_path)
+                            # 备份位置
+                            backup_file = os.path.join(backup_dir, rel_path)
+                            
+                            if os.path.exists(original_file):
+                                # 确保备份目录存在
+                                os.makedirs(os.path.dirname(backup_file), exist_ok=True)
+                                
+                                # 步骤1：将明文文件移动到备份位置
+                                shutil.move(original_file, backup_file)
+                                
+                                # 步骤2：将密文文件复制到 public/Posts
+                                shutil.copy2(encrypted_file, original_file)
+                                
+                                # 记录交换信息
+                                swapped_files.append({
+                                    'original_file': original_file,
+                                    'backup_file': backup_file,
+                                    'encrypted_file': encrypted_file
+                                })
+                                print(f"[Crypto] 交换: {rel_path}")
+                
+                print(f"[Crypto] 已交换 {len(swapped_files)} 个加密文件")
+            
             # 在项目根目录执行 npm run build
             # Windows 需要 shell=True 或使用 npm.cmd
             result = subprocess.run(
@@ -660,12 +865,45 @@ class Build(Command):
                 errors='replace',  # 遇到无法解码的字符时替换而不是报错
                 check=True
             )
+            
             return f"Build successful!\n{result.stdout}"
+            
         except subprocess.CalledProcessError as e:
             raise Exception(f"Build failed:\n{e.stderr}")
         except FileNotFoundError:
             raise Exception(
                 "npm not found. Please ensure Node.js is installed and added to PATH.")
+        finally:
+            # Build 后：恢复 Crypto.json 到原位置
+            if crypto_moved and os.path.exists(temp_crypto_json_path):
+                shutil.move(temp_crypto_json_path, crypto_json_path)
+                print("[Security] Crypto.json 已恢复到 public/assets 目录")
+            
+            # Build 后：恢复被交换的文件
+            if swapped_files:
+                print("[Crypto] 开始恢复原始文件...")
+                for swap_info in swapped_files:
+                    try:
+                        # 删除 public/Posts 中的密文
+                        if os.path.exists(swap_info['original_file']):
+                            os.remove(swap_info['original_file'])
+                        
+                        # 将明文从备份位置移回
+                        if os.path.exists(swap_info['backup_file']):
+                            shutil.move(swap_info['backup_file'], swap_info['original_file'])
+                            print(f"[Crypto] 恢复: {os.path.basename(swap_info['original_file'])}")
+                    except Exception as e:
+                        print(f"[Crypto] 恢复失败 {os.path.basename(swap_info['original_file'])}: {e}")
+                
+                print(f"[Crypto] 已恢复 {len(swapped_files)} 个文件")
+                
+                # 清理备份目录
+                if os.path.exists(backup_dir):
+                    try:
+                        shutil.rmtree(backup_dir)
+                        print("[Crypto] 已清理临时备份目录")
+                    except:
+                        pass
 
 
 class GetConfig(Command):

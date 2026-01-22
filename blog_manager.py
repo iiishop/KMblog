@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-from mainTools.commands import Command
+
 import flet as ft
 import sys
 import os
@@ -15,7 +15,7 @@ import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-
+from mainTools.commands import Command
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
