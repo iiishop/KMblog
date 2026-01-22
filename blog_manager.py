@@ -4,7 +4,7 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 
-from mainTools.commands import Command
+
 import flet as ft
 import sys
 import os
@@ -15,7 +15,7 @@ import webbrowser
 
 # 添加 mainTools 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
-
+from mainTools.commands import Command
 
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
@@ -1491,11 +1491,15 @@ class BlogManagerGUI:
         self.page.update()
 
         def update_progress(message, percent):
-            """更新进度"""
+            """更新进度 - 线程安全的UI更新"""
             progress_text.value = message
             progress_bar.value = percent / 100
             progress_percent.value = f"{int(percent)}%"
-            self.page.update()
+            # 直接调用update()更新页面
+            try:
+                self.page.update()
+            except Exception as e:
+                print(f"进度更新异常: {e}")
 
         def deploy_thread():
             """部署线程"""
@@ -1504,7 +1508,9 @@ class BlogManagerGUI:
                 deploy_cmd = FullDeploy()
                 result = deploy_cmd.execute(token, repo_name, update_progress)
 
-                # 关闭进度对话框
+                # 在主线程中关闭进度对话框
+                import time
+                time.sleep(0.1)  # 给UI线程一些时间
                 progress_dlg.open = False
                 self.page.update()
 
@@ -1543,6 +1549,8 @@ class BlogManagerGUI:
                     self.snack(result['message'], True)
 
             except Exception as e:
+                import time
+                time.sleep(0.1)
                 progress_dlg.open = False
                 self.page.update()
                 self.snack(f"部署失败: {str(e)}", True)

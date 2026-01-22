@@ -1,5 +1,5 @@
 const config = {
-    ProjectUrl: 'https://localhost:5173',//博客的基础URL
+    ProjectUrl: 'https://iiishop.github.io',//博客的基础URL
     BlogName: 'iiishop的博客',//博客名称
     ShortDesc: 'XXXXDESC',//博客的简短描述
     BackgroundImg: '/assets/background.png',//博客背景图片的URL
