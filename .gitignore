@@ -38,3 +38,4 @@ build/KMblogManager/*
 github_config.json
 public/assets/Crypto.json
 cryptoPosts/
+.github/skills/
