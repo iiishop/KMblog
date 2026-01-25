@@ -246,7 +246,10 @@ onMounted(() => fetchRepoDetails());
                     <div class="contributor-stack">
                         <img v-for="c in contributors" :key="c.id" :src="c.avatar_url" :title="c.login"
                             class="contributor-avatar" />
-                        <div v-if="contributorsHasMore" class="contributor-extra" :title="contributorsExtraCount ? '+' + contributorsExtraCount + ' more contributors' : 'more contributors'" :aria-label="contributorsExtraCount ? ('+' + contributorsExtraCount + ' more contributors') : 'more contributors'" role="img">{{ contributorsExtraCount ? '+' + contributorsExtraCount : '…' }}</div>
+                        <div v-if="contributorsHasMore" class="contributor-extra"
+                            :title="contributorsExtraCount ? '+' + contributorsExtraCount + ' more contributors' : 'more contributors'"
+                            :aria-label="contributorsExtraCount ? ('+' + contributorsExtraCount + ' more contributors') : 'more contributors'"
+                            role="img">{{ contributorsExtraCount ? '+' + contributorsExtraCount : '…' }}</div>
                     </div>
                 </div>
                 <div class="system-tag">
@@ -348,7 +351,10 @@ onMounted(() => fetchRepoDetails());
     flex-shrink: 0;
     margin-top: auto;
 }
-.repo-meta-strip .meta-item span { color: var(--text-main); }
+
+.repo-meta-strip .meta-item span {
+    color: var(--text-main);
+}
 
 .visual-panel {
     flex: 0 0 160px;
@@ -434,6 +440,7 @@ onMounted(() => fetchRepoDetails());
     align-items: center;
     flex-shrink: 0;
 }
+
 .contributor-stack {
     gap: calc(0.5rem);
     display: flex;
@@ -488,6 +495,7 @@ onMounted(() => fetchRepoDetails());
     align-items: center;
     gap: 0.5rem;
 }
+
 .owner-chip .prefix {
     color: var(--text-main);
     background: rgba(74, 169, 255, 0.06);
@@ -506,11 +514,11 @@ onMounted(() => fetchRepoDetails());
     border-radius: 50%;
     margin-left: -8px;
     border: 2px solid var(--bg-dark);
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--text-main);
     font-size: 0.72rem;
     font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 @media (max-width: 600px) {

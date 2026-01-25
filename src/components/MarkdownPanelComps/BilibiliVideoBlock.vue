@@ -16,6 +16,33 @@ const themeColor = ref('#FB7299');
 const accentColor = ref('#FF8FB3');
 const secondaryColor = ref('#23ADE5');
 
+// Level color mapping (lv 0..6) and contrast helper
+// lv index: 0,1,2,3,4,5,6
+// 3 -> green, 4 -> yellow, 5 -> orange, 6 -> red
+const _lvColors = ['#6B7280', '#4AA9FF', '#23BDB0', '#44D07A', '#FFD166', '#FF8B4B', '#FF4B4B'];
+
+const hexToRgb = (hex) => {
+    const raw = hex.replace('#', '');
+    const bigint = parseInt(raw, 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+};
+
+const luminance = (r, g, b) => {
+    // perceived brightness
+    return (0.299 * r + 0.587 * g + 0.114 * b);
+};
+
+const lvBg = computed(() => {
+    if (!creatorStats?.value) return _lvColors[0];
+    const lv = Math.max(0, Math.min(6, Number(creatorStats.value.level || 0)));
+    return _lvColors[lv];
+});
+
+const lvText = computed(() => {
+    const [r, g, b] = hexToRgb(lvBg.value);
+    return luminance(r, g, b) > 160 ? '#000000' : '#FFFFFF';
+});
+
 // Mouse interaction for parallax
 const cardRef = ref(null);
 const mouseX = ref(0);
@@ -279,7 +306,7 @@ onMounted(() => fetchVideoDetails());
                             <div class="author-row">
                                 <span class="author-id">{{ videoData.owner.name }}</span>
                                 <div class="fans-badge" v-if="creatorStats">
-                                    <span class="fans-label">LV.{{ creatorStats.level }}</span>
+                                    <span class="fans-label" :style="{ background: lvBg, color: lvText }" :title="'Level ' + (creatorStats.level ?? 0)">LV.{{ creatorStats.level }}</span>
                                     <span class="fans-count">{{ formatStat(creatorStats.follower).display }} 粉丝</span>
                                 </div>
                             </div>
