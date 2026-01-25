@@ -230,6 +230,60 @@ const extractThemeColor = () => {
     };
 };
 
+// ---- Mention & Tag parsing + rendering helpers ----
+const escapeHtml = (str) => {
+    if (str == null) return '';
+    return String(str).replace(/[&<>\"'`]/g, (s) => {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;", "`": "&#96;" })[s];
+    });
+};
+
+const extractMentionsAndTags = (text) => {
+    const mentions = new Set();
+    const tags = new Set();
+    if (!text) return { mentions: [], tags: [] };
+    // Mentions: @username (stop at whitespace or punctuation)
+    text.replace(/@([A-Za-z0-9_\.\-\u4e00-\u9fff]{1,64})/g, (m, name) => {
+        mentions.add(name);
+        return m;
+    });
+    // Tags: #标签  (allow unicode letters and CJK)
+    text.replace(/#([\p{L}0-9_\-\u4e00-\u9fff]{1,64})/gu, (m, tag) => {
+        tags.add(tag);
+        return m;
+    });
+    return { mentions: Array.from(mentions), tags: Array.from(tags) };
+};
+
+const parseDescToHtml = (text) => {
+    if (!text) return '';
+    let s = escapeHtml(text);
+    // preserve paragraphs / line breaks
+    s = s.replace(/\r\n|\r|\n/g, '<br>');
+
+    // Replace mentions with non-link spans (keep in-text, no href)
+    // Use the same conservative charset used in extraction so we don't consume <br> or other markup
+    s = s.replace(/@([A-Za-z0-9_\.\-\u4e00-\u9fff]{1,64})/g, (m, name) => {
+        const esc = escapeHtml(name);
+        return `<span class="mention-link">@${esc}</span>`;
+    });
+
+    // Remove display-only marker "[话题]#" sequences (strict match) so they don't show in description
+    s = s.replace(/\[话题\]#/g, '');
+
+    // Remove tags from text flow (Don't render #tag in description)
+    s = s.replace(/#([\p{L}0-9_\-\u4e00-\u9fff]{1,64})/gu, '');
+
+    // Cleanup excessive line breaks if tags were removed
+    s = s.replace(/(<br>\s*){3,}/g, '<br><br>');
+
+    return s;
+};
+
+const parsedDescHtml = computed(() => parseDescToHtml(noteData.value?.desc || ''));
+const extractedMeta = computed(() => extractMentionsAndTags(noteData.value?.desc || ''));
+
+
 const visualStats = computed(() => {
     if (!noteData.value) return [];
     return [
@@ -300,7 +354,15 @@ onMounted(() => fetchNote());
                     <a :href="props.noteurl" target="_blank">{{ noteData.title }}</a>
                 </h3>
 
-                <p class="note-abstract">{{ noteData.desc }}</p>
+                <p class="note-abstract" v-html="parsedDescHtml" :aria-label="noteData.desc"></p>
+
+                <div class="chips-row" v-if="extractedMeta.tags.length">
+                    <div class="chips-left">
+                        <a v-for="t in extractedMeta.tags" :key="'t-' + t" class="tag-chip"
+                            :href="`https://www.xiaohongshu.com/search/result?keyword=${encodeURIComponent('#' + t)}`"
+                            target="_blank" rel="noopener noreferrer" aria-label="tag">#{{ t }}</a>
+                    </div>
+                </div>
 
                 <div class="meta-footer">
                     <div class="user-block">
@@ -322,20 +384,22 @@ onMounted(() => fetchNote());
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&family=Inter:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono&display=swap');
 
 .xhs-embed-container {
-    --card-bg: rgba(255, 255, 255, 0.05);
-    --card-border: rgba(255, 255, 255, 0.1);
+    --card-bg: #0a0a0a;
+    --card-border: rgba(255, 255, 255, 0.08);
     --text-primary: #fff;
-    --text-dim: rgba(255, 255, 255, 0.7);
+    --text-dim: #999;
+    --theme-red-deep: #D31027;
 
     width: 100%;
-    margin: 2.5rem 0;
+    margin: 3.5rem 0;
     position: relative;
-    font-family: 'Inter', -apple-system, sans-serif;
-    border-radius: 20px;
-    perspective: 1000px;
+    font-family: 'DM Sans', sans-serif;
+    border-radius: 4px;
+    /* Brutalist sharp corners */
+    perspective: 2000px;
     isolation: isolate;
     color: var(--text-primary);
 }
@@ -344,73 +408,60 @@ onMounted(() => fetchNote());
     position: absolute;
     inset: 0;
     z-index: -1;
-    border-radius: 20px;
+    border-radius: 4px;
     overflow: hidden;
-    background: #1a0505;
+    background: #000;
 }
 
 .bg-blur {
     position: absolute;
-    inset: -20%;
+    inset: -10%;
     background-size: cover;
     background-position: center;
-    filter: blur(40px) brightness(0.4) saturate(1.5);
-    opacity: 0.6;
+    filter: grayscale(1) brightness(0.2);
+    /* High fashion muted bg */
+    opacity: 0.4;
+    transition: opacity 0.8s ease;
 }
 
 .noise-layer {
     position: absolute;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
-    opacity: 0.6;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E");
+    opacity: 0.8;
 }
 
 .red-wash {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(255, 36, 66, 0.1), transparent 80%);
+    background: radial-gradient(circle at 0% 0%, rgba(211, 16, 39, 0.15), transparent 70%);
 }
 
 .xhs-card {
     position: relative;
     display: flex;
-    gap: 1.5rem;
-    padding: 1.25rem;
+    gap: 2.5rem;
+    padding: 2.5rem;
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    backdrop-filter: blur(24px);
-    border-radius: 20px;
-    transform-style: preserve-3d;
-    transition: transform 0.1s linear;
+    border-radius: 4px;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
     overflow: hidden;
 }
 
-.card-glass-reflection {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 100%;
-    background: linear-gradient(110deg, transparent 40%, rgba(255, 255, 255, 0.05) 45%, transparent 50%);
-    pointer-events: none;
-    z-index: 10;
-}
-
-/* Media Setup */
+/* Media Area: Fashion Layout */
 .media-area {
-    flex: 0 0 220px;
+    flex: 0 0 280px;
     position: relative;
-    aspect-ratio: 3/4;
-    border-radius: 12px;
+    aspect-ratio: 3/4.2;
     overflow: hidden;
-    transform: translateZ(20px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 20px 20px 0px var(--theme-red-deep);
+    /* Offset background shape */
 }
 
 .media-container {
     width: 100%;
     height: 100%;
-    position: relative;
 }
 
 .media-layer {
@@ -418,99 +469,131 @@ onMounted(() => fetchNote());
     height: 100%;
     background-size: cover;
     background-position: center;
-    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.media-area:hover .media-layer {
-    transform: scale(1.05);
-}
-
-.media-vignette {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.6));
+    filter: saturate(1.1) contrast(1.1);
 }
 
 .type-badge {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 10px;
+    bottom: 0px;
+    left: 0px;
+    background: var(--theme-red-deep);
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
     font-weight: 700;
     color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    backdrop-filter: blur(4px);
+    letter-spacing: 2px;
 }
 
-/* Content Setup */
+/* Content Area: Editorial Typography */
 .content-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    position: relative;
-    z-index: 2;
-    transform: translateZ(0);
 }
 
 .xhs-header {
     display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    margin-bottom: 0.75rem;
-    color: var(--theme-red);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.5rem;
 }
 
 .brand-tag {
-    background: rgba(255, 36, 66, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--theme-red-deep);
+    border: 1px solid var(--theme-red-deep);
+    padding: 2px 8px;
 }
 
 .note-id {
-    color: var(--text-dim);
-    font-family: monospace;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #444;
 }
 
 .note-title {
-    margin: 0 0 1rem 0;
-    font-family: 'Noto Serif SC', serif;
-    font-size: 1.25rem;
-    line-height: 1.4;
+    margin: 0 0 1.5rem 0;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.5rem;
+    font-style: italic;
+    line-height: 1.1;
     font-weight: 700;
 }
 
 .note-title a {
-    color: white;
+    color: #fff;
     text-decoration: none;
-    background: linear-gradient(to right, #fff, #ffccc7);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    transition: all 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 .note-abstract {
-    font-size: 0.85rem;
-    line-height: 1.6;
+    font-size: 0.95rem;
+    line-height: 1.8;
     color: var(--text-dim);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    margin-bottom: 2rem;
+    font-weight: 400;
+    max-height: 100px;
+    /* limit height */
     overflow: hidden;
-    margin-bottom: auto;
+    position: relative;
+}
+
+.note-abstract::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20px;
+    pointer-events: none;
+    /* gradient fade + subtle blur to mask overflowed text */
+    background: linear-gradient(to bottom, rgba(10, 10, 10, 0), var(--card-bg));
+    backdrop-filter: blur(1px);
+}
+
+/* Mentions In-Text: No Hover */
+.note-abstract :deep(.mention-link) {
+    color: var(--theme-red-deep);
+    text-decoration: none;
+    font-weight: 700;
+    cursor: default;
+    /* No hover logic */
+}
+
+/* Chips: No Hover */
+.chips-row {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chips-left {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tag-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: default;
+    /* No hover logic */
 }
 
 .meta-footer {
     margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px dashed var(--card-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -519,94 +602,57 @@ onMounted(() => fetchNote());
 .user-block {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
 }
 
 .user-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--theme-red);
+    width: 32px;
+    height: 32px;
+    border-radius: 0;
+    /* Square minimalist avatar */
+    border: 1px solid #333;
 }
 
 .user-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
 }
 
 .stats-row {
     display: flex;
-    gap: 8px;
+    gap: 20px;
 }
 
 .stat-pill {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 4px 8px;
-    border-radius: 12px;
-    color: var(--text-dim);
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #666;
 }
 
 .stat-pill .icon {
-    font-size: 10px;
-    color: var(--theme-red);
+    font-size: 12px;
+    color: var(--theme-red-deep);
 }
 
-/* Response States */
-.state-layer {
-    height: 250px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.red-loader .dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: var(--theme-red);
-    border-radius: 50%;
-    margin: 0 2px;
-    animation: bounce 0.6s infinite alternate;
-}
-
-.red-loader .dot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.red-loader .dot:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes bounce {
-    to {
-        transform: translateY(-8px);
-        opacity: 0.5;
-    }
-}
-
-.manual-link {
-    color: var(--theme-red);
-    font-size: 0.8rem;
-    text-decoration: none;
-    border-bottom: 1px dotted currentColor;
-}
-
-@media (max-width: 600px) {
+@media (max-width: 900px) {
     .xhs-card {
         flex-direction: column;
+        padding: 1.5rem;
     }
 
     .media-area {
         flex: none;
         width: 100%;
-        aspect-ratio: 16/9;
+        box-shadow: 10px 10px 0 px var(--theme-red-deep);
+    }
+
+    .note-title {
+        font-size: 1.75rem;
     }
 }
 </style>
