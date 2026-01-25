@@ -87,6 +87,7 @@ import { parseMarkdownMetadata } from '@/utils';
 // 使用 Vite 的代码分割功能进行动态导入
 const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
 const BangumiBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BangumiBlock.vue'));
+const BilibiliVideoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BilibiliVideoBlock.vue'));
 
 // 定义 props
 const props = defineProps({
@@ -322,7 +323,8 @@ const parseMarkdown = async (url, decryptedText = null) => {
     const container = document.querySelector('.post-content.markdown');
     renderDynamicComponents(container, {
       'steamgameblock': SteamGameBlock,
-      'bangumiblock': BangumiBlock
+      'bangumiblock': BangumiBlock,
+      'bilibilivideoblock': BilibiliVideoBlock
       // 在这里添加其他组件映射
     });
 

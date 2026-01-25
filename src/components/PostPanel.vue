@@ -53,11 +53,18 @@ const totalPages = computed(() => {
 });
 
 const paginatedPosts = computed(() => {
+    // 先将所有文章转换为数组并按日期降序排序
+    const sortedPosts = Object.keys(posts.value)
+        .map(key => ({ key, ...posts.value[key] }))
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // 然后进行分页
     const start = (currentPage.value - 1) * config.PostsPerPage;
     const end = start + config.PostsPerPage;
-    const keys = Object.keys(posts.value).slice(start, end);
-    console.log(`Current Page: ${currentPage.value}, Start: ${start}, End: ${end}, Keys: ${keys}`);
-    return keys.map(key => ({ key, ...posts.value[key] }));
+    const paginatedResult = sortedPosts.slice(start, end);
+
+    console.log(`Current Page: ${currentPage.value}, Start: ${start}, End: ${end}`);
+    return paginatedResult;
 });
 
 const goToPage = (page) => {
