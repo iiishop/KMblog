@@ -219,6 +219,9 @@ md.use((md) => {
         if (info === 'github-repo') {
             return `<GithubRepoBlock :repoUrl="'${content}'" ></GithubRepoBlock>`;
         }
+        if (info === 'xiaohongshu-note' || info === 'xiaohongshu') {
+            return `<XiaohongshuNoteBlock :noteUrl="'${content}'" ></XiaohongshuNoteBlock>`;
+        }
         if (info === 'mermaid') {
             const uniqueId = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
             return `<div class="mermaid-wrapper"><div id="${uniqueId}" class="mermaid">${content}</div></div>`;

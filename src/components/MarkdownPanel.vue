@@ -89,6 +89,7 @@ const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/S
 const BangumiBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BangumiBlock.vue'));
 const BilibiliVideoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BilibiliVideoBlock.vue'));
 const GithubRepoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/GithubRepoBlock.vue'));
+const XiaohongshuNoteBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/XiaohongshuNoteBlock.vue'));
 
 // 定义 props
 const props = defineProps({
@@ -326,7 +327,8 @@ const parseMarkdown = async (url, decryptedText = null) => {
       'steamgameblock': SteamGameBlock,
       'bangumiblock': BangumiBlock,
       'bilibilivideoblock': BilibiliVideoBlock,
-      'githubrepoblock': GithubRepoBlock
+      'githubrepoblock': GithubRepoBlock,
+      'xiaohongshunoteblock': XiaohongshuNoteBlock
     });
 
     // 渲染 Mermaid 图表
