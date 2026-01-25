@@ -7,7 +7,8 @@
             <!-- Left: Cover & Actions -->
             <div class="cover-column">
                 <div class="cover-wrapper">
-                    <img :src="imageUrl || '/assets/loading.gif'" alt="Cover" class="cover-img" @load="onImageLoad" />
+                    <img :src="imageUrl || '/assets/loading.gif'" alt="Cover" class="cover-img" crossorigin="anonymous"
+                        @load="onImageLoad" />
                     <div class="cover-shadow" :style="{ backgroundImage: `url(${imageUrl})` }"></div>
                 </div>
                 <a :href="props.bangumiurl" target="_blank" class="action-btn">
@@ -132,6 +133,12 @@ const getSegmentColor = (index) => {
     return colors[index] || '#ccc';
 };
 
+const convertToWeserv = (url) => {
+    if (!url) return '';
+    const clean = url.replace(/^https?:\/\//, '');
+    return `https://images.weserv.nl/?url=${encodeURIComponent(clean)}&w=800&output=webp`;
+};
+
 const fetchSubjectDetails = async () => {
     try {
         const subjectIdMatch = props.bangumiurl.match(/\/subject\/(\d+)/);
@@ -145,9 +152,9 @@ const fetchSubjectDetails = async () => {
         const response = await axios.get(apiUrl);
         const data = response.data;
 
-        // Image
+        // Image - Use weserv proxy to avoid CORS
         if (data.images && data.images.large) {
-            imageUrl.value = data.images.large.replace('http:', 'https:');
+            imageUrl.value = convertToWeserv(data.images.large);
         }
 
         // Basic Info

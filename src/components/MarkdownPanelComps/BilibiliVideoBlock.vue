@@ -306,7 +306,8 @@ onMounted(() => fetchVideoDetails());
                             <div class="author-row">
                                 <span class="author-id">{{ videoData.owner.name }}</span>
                                 <div class="fans-badge" v-if="creatorStats">
-                                    <span class="fans-label" :style="{ background: lvBg, color: lvText }" :title="'Level ' + (creatorStats.level ?? 0)">LV.{{ creatorStats.level }}</span>
+                                    <span class="fans-label" :style="{ background: lvBg, color: lvText }"
+                                        :title="'Level ' + (creatorStats.level ?? 0)">LV.{{ creatorStats.level }}</span>
                                     <span class="fans-count">{{ formatStat(creatorStats.follower).display }} 粉丝</span>
                                 </div>
                             </div>

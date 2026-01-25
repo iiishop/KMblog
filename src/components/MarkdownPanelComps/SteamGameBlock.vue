@@ -40,7 +40,12 @@ const discount = computed(() => {
     return gameData.value.price_overview.discount_percent;
 });
 
-const headerImage = computed(() => gameData.value?.header_image || '');
+const headerImage = computed(() => {
+    const url = gameData.value?.header_image || '';
+    if (!url) return '';
+    const clean = url.replace(/^https?:\/\//, '');
+    return `https://images.weserv.nl/?url=${encodeURIComponent(clean)}&w=800&output=webp`;
+});
 
 const extractAppId = (url) => {
     const match = url.match(/\/app\/(\d+)/);
@@ -136,7 +141,7 @@ onMounted(() => {
 
             <div class="left-col">
                 <div class="img-wrapper">
-                    <img :src="headerImage" alt="Header" class="header-img" />
+                    <img :src="headerImage" alt="Header" class="header-img" crossorigin="anonymous" />
                     <div class="discount-badge" v-if="discount > 0">-{{ discount }}%</div>
                 </div>
             </div>
