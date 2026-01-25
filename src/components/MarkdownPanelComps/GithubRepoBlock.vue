@@ -55,6 +55,16 @@ const loadFromCache = (owner, repo) => {
     } catch (e) { return null; }
 };
 
+const getEtagKey = (owner, repo) => `gh_etag_${owner}_${repo}`;
+const loadEtag = (owner, repo) => localStorage.getItem(getEtagKey(owner, repo));
+const saveEtag = (owner, repo, etag) => {
+    if (!etag) return;
+    try { localStorage.setItem(getEtagKey(owner, repo), etag); } catch (e) { }
+};
+
+const rateLimited = ref(false);
+const rateReset = ref(null);
+
 const formatCount = (num) => {
     if (!num && num !== 0) return '0';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
@@ -132,25 +142,53 @@ const fetchRepoDetails = async () => {
     };
 
     try {
-        // 合并请求逻辑
-        const results = await Promise.allSettled([
-            axios.get(baseApi),
-            fetchStatsWithRetry(`${baseApi}/stats/commit_activity`),
-            axios.get(`${baseApi}/contributors`, { params: { per_page: 6 } })
-        ]);
+        // 合并请求逻辑，主请求使用 ETag 条件请求减少配额消耗
+        const etag = loadEtag(owner, repo);
+        const mainPromise = axios.get(baseApi, { headers: etag ? { 'If-None-Match': etag } : {} });
+        const contribPromise = axios.get(`${baseApi}/contributors`, { params: { per_page: 6 }, headers: etag ? { 'If-None-Match': etag } : {} });
+        const commitPromise = fetchStatsWithRetry(`${baseApi}/stats/commit_activity`);
 
+        const results = await Promise.allSettled([mainPromise, commitPromise, contribPromise]);
         const [mainResult, commitResult, contribResult] = results;
 
         // 处理主数据
         if (mainResult.status === 'fulfilled') {
-            repoData.value = mainResult.value.data;
-        } else if (!isFromCache.value) {
-            // 如果主数据失败且没缓存，才报错
-            if (mainResult.reason?.response?.status === 403) {
-                error.value = false; // 不直接报错显示 Error Slate
-                repoData.value.description = "API Rate Limit Exceeded. Using static data.";
+            const resp = mainResult.value;
+            // 处理 200 与 304
+            if (resp.status === 200 && resp.data) {
+                repoData.value = resp.data;
+                // 保存 ETag
+                saveEtag(owner, repo, resp.headers && (resp.headers.etag || resp.headers.Etag));
+            } else if (resp.status === 304) {
+                // 使用缓存（如果存在）
+                const c = loadFromCache(owner, repo);
+                if (c) {
+                    repoData.value = c.data.repoData;
+                    isFromCache.value = true;
+                    cacheTime.value = new Date(c.timestamp).toLocaleString();
+                }
+            }
+            // 记录 rate limit headers if present
+            if (resp.headers) {
+                const remaining = resp.headers['x-ratelimit-remaining'];
+                const reset = resp.headers['x-ratelimit-reset'];
+                if (remaining !== undefined && Number(remaining) <= 0) {
+                    rateLimited.value = true;
+                    rateReset.value = reset ? new Date(Number(reset) * 1000).toLocaleString() : null;
+                }
+            }
+        } else {
+            // 请求失败
+            const reason = mainResult.reason;
+            const status = reason?.response?.status;
+            if (status === 403) {
+                rateLimited.value = true;
+                const headers = reason.response.headers || {};
+                const reset = headers['x-ratelimit-reset'];
+                rateReset.value = reset ? new Date(Number(reset) * 1000).toLocaleString() : null;
+                if (!isFromCache.value) repoData.value.description = "API Rate Limit Exceeded. Using static data.";
             } else {
-                error.value = true;
+                if (!isFromCache.value) error.value = true;
             }
         }
 
@@ -163,8 +201,16 @@ const fetchRepoDetails = async () => {
         // 处理贡献者
         if (contribResult.status === 'fulfilled') {
             const contribResp = contribResult.value;
-            const contribList = Array.isArray(contribResp.data) ? contribResp.data : [];
-            contributors.value = contribList.slice(0, 6);
+            // 如果 contributors 返回 200 或 304
+            if (contribResp.status === 200) {
+                const contribList = Array.isArray(contribResp.data) ? contribResp.data : [];
+                contributors.value = contribList.slice(0, 6);
+                // 保存 contributors ETag if present
+                saveEtag(owner, repo, contribResp.headers && (contribResp.headers.etag || contribResp.headers.Etag));
+            } else if (contribResp.status === 304) {
+                const c = loadFromCache(owner, repo);
+                if (c) contributors.value = c.data.contributors || [];
+            }
 
             // 探测总数
             let totalContribs = null;
@@ -184,12 +230,12 @@ const fetchRepoDetails = async () => {
                 contributorsHasMore.value = totalContribs > contributors.value.length;
                 contributorsExtraCount.value = Math.max(0, totalContribs - contributors.value.length);
             } else {
-                contributorsHasMore.value = contribList.length >= 6;
+                contributorsHasMore.value = (contributors.value && contributors.value.length) >= 6;
             }
         }
 
-        // 如果获取成功，则更新缓存
-        if (mainResult.status === 'fulfilled') {
+        // 如果主请求成功且返回数据，则更新缓存
+        if (mainResult.status === 'fulfilled' && mainResult.value.status === 200) {
             isFromCache.value = false;
             saveToCache(owner, repo, {
                 repoData: repoData.value,
@@ -230,6 +276,11 @@ onMounted(() => fetchRepoDetails());
             <div v-if="isFromCache" class="cache-indicator" :title="'Last updated: ' + cacheTime">
                 <span class="cache-label">OFFLINE_CACHE</span>
                 <span class="cache-time">{{ cacheTime }}</span>
+            </div>
+            <div v-if="rateLimited" class="rate-indicator"
+                :title="rateReset ? ('Rate limit resets: ' + rateReset) : 'Rate limited'">
+                <span class="rate-label">RATE_LIMITED</span>
+                <span class="rate-time" v-if="rateReset">{{ rateReset }}</span>
             </div>
 
             <div class="flex-layout">
@@ -394,6 +445,34 @@ onMounted(() => fetchRepoDetails());
     color: var(--text-dim);
     opacity: 0.7;
     white-space: nowrap;
+}
+
+.rate-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+    align-items: flex-end;
+}
+
+.rate-label {
+    background: rgba(255, 99, 71, 0.95);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255, 99, 71, 0.15);
+}
+
+.rate-time {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    opacity: 0.8;
 }
 
 .card-accent-line {
