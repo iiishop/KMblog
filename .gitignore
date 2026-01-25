@@ -39,3 +39,4 @@ github_config.json
 public/assets/Crypto.json
 cryptoPosts/
 .github/skills/
+!public/Posts/Markdowns/About.md
