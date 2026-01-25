@@ -16,7 +16,7 @@
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 1.5rem auto;
+    /* margin: 1.5rem auto; */
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
     transition: transform 0.3s ease;

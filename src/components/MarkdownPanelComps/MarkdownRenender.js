@@ -196,6 +196,22 @@ md.use((md) => {
     };
 });
 
+// 自定义插件处理 bilibili-video 标记
+md.use((md) => {
+    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
+        return self.renderToken(tokens, idx, options);
+    };
+
+    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        if (token.info.trim() === 'bilibili-video') {
+            const url = token.content.trim();
+            return `<BilibiliVideoBlock :videoUrl="'${url}'" ></BilibiliVideoBlock>`;
+        }
+        return defaultFence(tokens, idx, options, env, self);
+    };
+});
+
 // 自定义插件处理 steam-game 标记
 md.use((md) => {
     const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
