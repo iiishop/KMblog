@@ -13,6 +13,8 @@ const contributorsHasMore = ref(false);
 const contributorsExtraCount = ref(0);
 const loading = ref(true);
 const error = ref(false);
+const isFromCache = ref(false);
+const cacheTime = ref(null);
 
 const extractRepoInfo = (url) => {
     try {
@@ -20,6 +22,37 @@ const extractRepoInfo = (url) => {
         if (path.length >= 2) return { owner: path[0], repo: path[1] };
     } catch (e) { return null; }
     return null;
+};
+
+// 立即尝试从 URL 预填充基本信息
+const info = extractRepoInfo(props.repourl);
+if (info) {
+    repoData.value = {
+        name: info.repo,
+        owner: { login: info.owner },
+        description: 'Syncing repository metadata...',
+        stargazers_count: 0,
+        forks_count: 0,
+        html_url: props.repourl,
+        created_at: new Date().toISOString()
+    };
+}
+
+const getCacheKey = (owner, repo) => `gh_cache_${owner}_${repo}`;
+
+const saveToCache = (owner, repo, data) => {
+    localStorage.setItem(getCacheKey(owner, repo), JSON.stringify({
+        timestamp: new Date().getTime(),
+        data
+    }));
+};
+
+const loadFromCache = (owner, repo) => {
+    const cached = localStorage.getItem(getCacheKey(owner, repo));
+    if (!cached) return null;
+    try {
+        return JSON.parse(cached);
+    } catch (e) { return null; }
 };
 
 const formatCount = (num) => {
@@ -68,11 +101,24 @@ const heartbeatPath = computed(() => {
 });
 
 const fetchRepoDetails = async () => {
-    const info = extractRepoInfo(props.repourl);
     if (!info) { error.value = true; loading.value = false; return; }
 
     const { owner, repo } = info;
     const baseApi = `https://api.github.com/repos/${owner}/${repo}`;
+
+    // 尝试加载缓存
+    const cached = loadFromCache(owner, repo);
+    if (cached) {
+        repoData.value = cached.data.repoData;
+        commitStats.value = cached.data.commitStats;
+        contributors.value = cached.data.contributors;
+        contributorsHasMore.value = cached.data.contributorsHasMore;
+        contributorsExtraCount.value = cached.data.contributorsExtraCount;
+        isFromCache.value = true;
+        cacheTime.value = new Date(cached.timestamp).toLocaleString();
+        // 如果有缓存，可以先结束 loading 让页面显示，后台慢慢刷
+        loading.value = false;
+    }
 
     const fetchStatsWithRetry = async (url, retries = 3) => {
         try {
@@ -82,58 +128,81 @@ const fetchRepoDetails = async () => {
                 return fetchStatsWithRetry(url, retries - 1);
             }
             return resp.data;
-        } catch (e) { return null; }
+        } catch (e) { throw e; }
     };
 
     try {
-        // fetch repo + commit stats + first 6 contributors
-        const contribReq = axios.get(`${baseApi}/contributors`, { params: { per_page: 6 } });
-
-        const [mainResp, commitData, contribResp] = await Promise.all([
+        // 合并请求逻辑
+        const results = await Promise.allSettled([
             axios.get(baseApi),
             fetchStatsWithRetry(`${baseApi}/stats/commit_activity`),
-            contribReq
+            axios.get(`${baseApi}/contributors`, { params: { per_page: 6 } })
         ]);
 
-        repoData.value = mainResp.data;
-        const recentWeeks = Array.isArray(commitData) ? commitData.slice(-12) : [];
-        commitStats.value = recentWeeks.flatMap(w => w.days);
+        const [mainResult, commitResult, contribResult] = results;
 
-        const contribList = Array.isArray(contribResp.data) ? contribResp.data : [];
-        contributors.value = contribList.slice(0, 6);
-
-        // If Link header exists, try to determine exact total contributors by probing per_page=1
-        let totalContribs = null;
-        const link = contribResp.headers && contribResp.headers.link;
-        if (link) {
-            try {
-                const probe = await axios.get(`${baseApi}/contributors`, { params: { per_page: 1 } });
-                const probeLink = probe.headers && probe.headers.link;
-                if (probeLink) {
-                    const m = probeLink.match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/);
-                    if (m) totalContribs = parseInt(m[1], 10);
-                }
-            } catch (e) {
-                // ignore
+        // 处理主数据
+        if (mainResult.status === 'fulfilled') {
+            repoData.value = mainResult.value.data;
+        } else if (!isFromCache.value) {
+            // 如果主数据失败且没缓存，才报错
+            if (mainResult.reason?.response?.status === 403) {
+                error.value = false; // 不直接报错显示 Error Slate
+                repoData.value.description = "API Rate Limit Exceeded. Using static data.";
+            } else {
+                error.value = true;
             }
         }
 
-        if (totalContribs !== null) {
-            contributorsHasMore.value = totalContribs > contributors.value.length;
-            contributorsExtraCount.value = Math.max(0, totalContribs - contributors.value.length);
-        } else {
-            // fallback: if we didn't detect total but got 6 items, assume there may be more
-            if (contribList.length < 6) {
-                contributorsHasMore.value = false;
-                contributorsExtraCount.value = 0;
-            } else {
-                contributorsHasMore.value = true;
-                contributorsExtraCount.value = 0; // unknown exact count
+        // 处理提交统计
+        if (commitResult.status === 'fulfilled') {
+            const recentWeeks = Array.isArray(commitResult.value) ? commitResult.value.slice(-12) : [];
+            commitStats.value = recentWeeks.flatMap(w => w.days);
+        }
+
+        // 处理贡献者
+        if (contribResult.status === 'fulfilled') {
+            const contribResp = contribResult.value;
+            const contribList = Array.isArray(contribResp.data) ? contribResp.data : [];
+            contributors.value = contribList.slice(0, 6);
+
+            // 探测总数
+            let totalContribs = null;
+            const link = contribResp.headers && contribResp.headers.link;
+            if (link) {
+                try {
+                    const probe = await axios.get(`${baseApi}/contributors`, { params: { per_page: 1 } });
+                    const probeLink = probe.headers && probe.headers.link;
+                    if (probeLink) {
+                        const m = probeLink.match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/);
+                        if (m) totalContribs = parseInt(m[1], 10);
+                    }
+                } catch (e) { }
             }
+
+            if (totalContribs !== null) {
+                contributorsHasMore.value = totalContribs > contributors.value.length;
+                contributorsExtraCount.value = Math.max(0, totalContribs - contributors.value.length);
+            } else {
+                contributorsHasMore.value = contribList.length >= 6;
+            }
+        }
+
+        // 如果获取成功，则更新缓存
+        if (mainResult.status === 'fulfilled') {
+            isFromCache.value = false;
+            saveToCache(owner, repo, {
+                repoData: repoData.value,
+                commitStats: commitStats.value,
+                contributors: contributors.value,
+                contributorsHasMore: contributorsHasMore.value,
+                contributorsExtraCount: contributorsExtraCount.value
+            });
         }
     } catch (err) {
         console.error('GitHub API Error:', err);
-        error.value = true;
+        // 如果出错但我们有预填充或缓存的数据，不显示全屏错误
+        if (!repoData.value) error.value = true;
     } finally {
         loading.value = false;
     }
@@ -157,6 +226,11 @@ onMounted(() => fetchRepoDetails());
 
         <div v-else class="repo-card">
             <div class="card-accent-line"></div>
+
+            <div v-if="isFromCache" class="cache-indicator" :title="'Last updated: ' + cacheTime">
+                <span class="cache-label">OFFLINE_CACHE</span>
+                <span class="cache-time">{{ cacheTime }}</span>
+            </div>
 
             <div class="flex-layout">
                 <div class="main-info">
@@ -291,6 +365,35 @@ onMounted(() => fetchRepoDetails());
     box-sizing: border-box;
     gap: 0.75rem;
     box-shadow: 0 8px 24px rgba(2, 8, 20, 0.55);
+}
+
+.cache-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.cache-label {
+    background: rgba(255, 193, 7, 0.9);
+    color: #000;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.2);
+}
+
+.cache-time {
+    font-size: 0.5rem;
+    color: var(--text-dim);
+    opacity: 0.7;
+    white-space: nowrap;
 }
 
 .card-accent-line {
