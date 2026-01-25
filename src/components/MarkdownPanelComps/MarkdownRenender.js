@@ -196,55 +196,7 @@ md.use((md) => {
     };
 });
 
-// 自定义插件处理 bilibili-video 标记
-md.use((md) => {
-    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
-        return self.renderToken(tokens, idx, options);
-    };
-
-    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-        const token = tokens[idx];
-        if (token.info.trim() === 'bilibili-video') {
-            const url = token.content.trim();
-            return `<BilibiliVideoBlock :videoUrl="'${url}'" ></BilibiliVideoBlock>`;
-        }
-        return defaultFence(tokens, idx, options, env, self);
-    };
-});
-
-// 自定义插件处理 steam-game 标记
-md.use((md) => {
-    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
-        return self.renderToken(tokens, idx, options);
-    };
-
-    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-        const token = tokens[idx];
-        if (token.info.trim() === 'steam-game') {
-            const url = token.content.trim();
-            return `<SteamGameBlock :gameUrl="'${url}'" ></SteamGameBlock>`;
-        }
-        return defaultFence(tokens, idx, options, env, self);
-    };
-});
-
-// 自定义插件处理 bangumi 标记
-md.use((md) => {
-    const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
-        return self.renderToken(tokens, idx, options);
-    };
-
-    md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-        const token = tokens[idx];
-        if (token.info.trim() === 'bangumi') {
-            const url = token.content.trim();
-            return `<BangumiBlock :bangumiUrl="'${url}'" ></BangumiBlock>`;
-        }
-        return defaultFence(tokens, idx, options, env, self);
-    };
-});
-
-// 自定义插件处理 mermaid 图表
+// 自定义插件处理所有嵌入式组件标记 (Bilibili, Steam, Bangumi, GitHub, Mermaid)
 md.use((md) => {
     const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
         return self.renderToken(tokens, idx, options);
@@ -253,23 +205,23 @@ md.use((md) => {
     md.renderer.rules.fence = function (tokens, idx, options, env, self) {
         const token = tokens[idx];
         const info = token.info.trim();
+        const content = token.content.trim();
 
-        // 检查是否为 mermaid 代码块
+        if (info === 'bilibili-video') {
+            return `<BilibiliVideoBlock :videoUrl="'${content}'" ></BilibiliVideoBlock>`;
+        }
+        if (info === 'steam-game') {
+            return `<SteamGameBlock :gameUrl="'${content}'" ></SteamGameBlock>`;
+        }
+        if (info === 'bangumi-card' || info === 'bangumi') {
+            return `<BangumiBlock :bangumiUrl="'${content}'" ></BangumiBlock>`;
+        }
+        if (info === 'github-repo') {
+            return `<GithubRepoBlock :repoUrl="'${content}'" ></GithubRepoBlock>`;
+        }
         if (info === 'mermaid') {
-            const content = token.content.trim();
-            // 生成唯一的 ID 用于 mermaid 渲染
             const uniqueId = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-
-            return `<div class="mermaid-wrapper">
-    <div id="${uniqueId}" class="mermaid">
-${content}
-    </div>
-</div>
-<script>
-    if (typeof mermaid !== 'undefined') {
-        mermaid.contentLoaded();
-    }
-</script>`;
+            return `<div class="mermaid-wrapper"><div id="${uniqueId}" class="mermaid">${content}</div></div>`;
         }
 
         return defaultFence(tokens, idx, options, env, self);
