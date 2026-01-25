@@ -12,7 +12,7 @@ const Post = defineAsyncComponent(() => import('@/components/PostPanelComps/Post
 const posts = ref({});
 const currentPage = ref(1);
 
-// 过滤掉带'公告'标签的文章
+// 过滤掉带'公告'标签和 title 为 'About' 的文章
 async function filterAnnouncements() {
     const allPosts = globalVar.markdowns;
     const filteredPosts = {};
@@ -26,8 +26,12 @@ async function filterAnnouncements() {
             // 解析元数据
             const { meta } = await parseMarkdownMetadata(content);
 
-            // 检查是否有'公告'标签，如果没有则加入列表
-            if (!meta.tags || !(Array.isArray(meta.tags) ? meta.tags.includes('公告') : meta.tags === '公告')) {
+            // 检查是否有'公告'标签或 title 为 'About'
+            const hasAnnouncementTag = meta.tags && (Array.isArray(meta.tags) ? meta.tags.includes('公告') : meta.tags === '公告');
+            const isAboutPage = meta.title && meta.title.toLowerCase() === 'about';
+
+            // 如果既没有'公告'标签也不是 About 页面，则加入列表
+            if (!hasAnnouncementTag && !isAboutPage) {
                 filteredPosts[key] = post;
             }
         } catch (error) {

@@ -6,6 +6,7 @@ const TagPage = () => import('../views/TagPage.vue');
 const PostPage = () => import('../views/PostPage.vue');
 const ArchivePage = () => import('../views/ArchivePage.vue');
 const CategoryPage = () => import('../views/CategoryPage.vue');
+const AboutPage = () => import('../views/AboutPage.vue');
 
 const getMarkdownUrls = (categoryPath) => {
     console.log('categoryPath', categoryPath);
@@ -102,6 +103,7 @@ const routes = [
     {
         path: '/about',
         name: 'AboutPage',
+        component: AboutPage
     },
     {
         path: '/category/:pathMatch(.*)*',

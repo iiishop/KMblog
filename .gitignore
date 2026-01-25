@@ -29,7 +29,10 @@ coverage
 
 *.tsbuildinfo
 mainTools/__pycache__/
-public/Posts/
+public/Posts/*
+!public/Posts/Markdowns/
+public/Posts/Markdowns/*
+!public/Posts/Markdowns/About.md
 public/assets/Tags.json
 public/assets/PostDirectory.json
 public/assets/Categories.json
@@ -39,4 +42,3 @@ github_config.json
 public/assets/Crypto.json
 cryptoPosts/
 .github/skills/
-!public/Posts/Markdowns/About.md

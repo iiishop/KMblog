@@ -6,7 +6,7 @@ import '../color.css';
 // 菜单项
 const menuItems = ref([
   { name: 'Home', link: '/', icon: '🏠' },
-  { name: 'About', link: '#', icon: '👤' },
+  { name: 'About', link: '/about', icon: '👤' },
   { name: 'Archive', link: '/archive', icon: '📚' },
   { name: 'Categories', link: '/category', icon: '📂' },
   { name: 'Tags', link: '/tags', icon: '🏷️' }
