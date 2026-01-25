@@ -2,7 +2,6 @@
     <div class="bangumi-card" :class="{ 'loaded': imageUrl }" :style="cardStyles">
         <!-- Background Blur Layer -->
         <div class="bg-blur" :style="{ backgroundImage: `url(${imageUrl})` }"></div>
-        <div class="bg-overlay"></div>
 
         <div class="card-content">
             <!-- Left: Cover & Actions -->
@@ -247,23 +246,8 @@ onMounted(() => {
     transition: opacity 1s ease;
 }
 
-.bg-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.95));
-    z-index: -1;
-    backdrop-filter: blur(20px);
-}
-
 /* Dark mode support check (if global var exists, otherwise default) */
 @media (prefers-color-scheme: dark) {
-    .bg-overlay {
-        background: linear-gradient(135deg, rgba(30, 30, 30, 0.85), rgba(20, 20, 20, 0.95));
-    }
-
     .bangumi-card {
         color: #f0f0f0;
     }
@@ -275,6 +259,7 @@ onMounted(() => {
     gap: 1.5rem;
     position: relative;
     z-index: 1;
+    border-radius: 1rem;
 }
 
 /* Left Column */
