@@ -5,11 +5,11 @@ import '../color.css';
 
 // 菜单项
 const menuItems = ref([
-  { name: 'Home', link: '/', icon: '🏠' },
-  { name: 'About', link: '/about', icon: '👤' },
-  { name: 'Archive', link: '/archive', icon: '📚' },
-  { name: 'Categories', link: '/category', icon: '📂' },
-  { name: 'Tags', link: '/tags', icon: '🏷️' }
+  { name: 'Home', link: '/', icon: '' },
+  { name: 'About', link: '/about', icon: '' },
+  { name: 'Archive', link: '/archive', icon: '' },
+  { name: 'Categories', link: '/category', icon: '' },
+  { name: 'Tags', link: '/tags', icon: '️' }
 ]);
 
 const BlogName = ref(config.BlogName);
@@ -343,7 +343,6 @@ onUnmounted(() => {
   padding: 0.9rem 2rem;
   border-radius: 60px;
   background: var(--header-bg-light);
-  border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow:
     0 10px 50px -10px rgba(102, 126, 234, 0.15),
     0 5px 20px rgba(0, 0, 0, 0.08),
