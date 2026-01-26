@@ -313,8 +313,34 @@ onMounted(() => fetchNote());
             <div class="red-wash"></div>
         </div>
 
-        <div v-if="loading" class="state-layer">
-            <div class="red-loader">
+        <div v-if="loading" class="state-layer skeleton">
+            <div class="skeleton-card" role="status" aria-label="loading">
+                <div class="skeleton-media" aria-hidden="true"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-header">
+                        <div class="skeleton-brand"></div>
+                        <div class="skeleton-id"></div>
+                    </div>
+                    <div class="skeleton-title"></div>
+                    <div class="skeleton-lines">
+                        <div class="line short"></div>
+                        <div class="line"></div>
+                        <div class="line long"></div>
+                    </div>
+                    <div class="skeleton-chips">
+                        <div class="chip"></div>
+                        <div class="chip small"></div>
+                        <div class="chip"></div>
+                    </div>
+                    <div class="skeleton-footer">
+                        <div class="avatar"></div>
+                        <div class="meta-lines">
+                            <div class="line tiny"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="red-loader small" aria-hidden="true">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>
         </div>
@@ -637,6 +663,168 @@ onMounted(() => fetchNote());
 .stat-pill .icon {
     font-size: 12px;
     color: var(--theme-red-deep);
+}
+
+/* Skeleton placeholders */
+.skeleton-card {
+    display: flex;
+    gap: 1.5rem;
+    width: 100%;
+    align-items: stretch;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.005));
+    border-radius: 4px;
+    padding: 18px;
+    box-sizing: border-box;
+}
+
+.skeleton-media {
+    width: 280px;
+    height: 200px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.skeleton-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.skeleton-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.skeleton-brand,
+.skeleton-id,
+.skeleton-title,
+.line,
+.chip,
+.avatar {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-brand {
+    width: 68px;
+    height: 18px;
+}
+
+.skeleton-id {
+    width: 48px;
+    height: 14px;
+    opacity: 0.6;
+}
+
+.skeleton-title {
+    width: 60%;
+    height: 34px;
+    border-radius: 6px;
+}
+
+.skeleton-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.line {
+    height: 12px;
+    width: 90%;
+    border-radius: 6px;
+}
+
+.line.short {
+    width: 40%;
+}
+
+.line.long {
+    width: 100%;
+}
+
+.line.tiny {
+    width: 36px;
+    height: 10px;
+}
+
+.skeleton-chips {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.chip {
+    width: 64px;
+    height: 26px;
+    border-radius: 999px;
+}
+
+.chip.small {
+    width: 44px;
+}
+
+.skeleton-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+}
+
+/* shimmer animation */
+.skeleton-card::before,
+.skeleton-media::before,
+.skeleton-brand::before,
+.skeleton-title::before,
+.line::before,
+.chip::before,
+.avatar::before,
+.skeleton-id::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+    animation: shimmer 1.6s infinite;
+    pointer-events: none;
+}
+
+.skeleton-media::before,
+.skeleton-brand::before,
+.skeleton-title::before,
+.line::before,
+.chip::before,
+.avatar::before,
+.skeleton-id::before {
+    position: absolute;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(200%);
+    }
+}
+
+.red-loader.small .dot {
+    width: 6px;
+    height: 6px;
 }
 
 @media (max-width: 900px) {
