@@ -643,7 +643,6 @@ onUnmounted(() => {
     overflow: hidden;
     border: 2px solid var(--theme-panel-border);
     box-shadow: 0 0 60px var(--theme-primary);
-    opacity: 0.3;
 }
 
 .avatar-image {

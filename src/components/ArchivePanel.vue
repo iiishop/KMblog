@@ -14,13 +14,13 @@ const props = defineProps({
 });
 
 const posts = ref({});
-const filteredPosts = ref({});
+const filteredPosts = ref([]);
 const router = useRouter();
 
 // 过滤掉带'公告'标签和 title 为 'About' 的文章
 async function filterPosts() {
     const allPosts = globalVar.markdowns;
-    const result = {};
+    const result = [];
 
     for (const [key, post] of Object.entries(allPosts)) {
         // 如果有 markdownUrls 限制，先检查是否在列表中
@@ -42,14 +42,21 @@ async function filterPosts() {
 
             // 如果既没有'公告'标签也不是 About 页面，则加入列表
             if (!hasAnnouncementTag && !isAboutPage) {
-                result[key] = post;
+                result.push({ url: key, ...post });
             }
         } catch (error) {
             console.error(`Failed to check tags for ${key}:`, error);
             // 如果解析失败，还是保留这篇文章
-            result[key] = post;
+            result.push({ url: key, ...post });
         }
     }
+
+    // 按日期排序：从新到旧
+    result.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB - dateA; // 降序排列
+    });
 
     return result;
 }
@@ -113,20 +120,20 @@ function navigateToPost(markdownUrl) {
         </div>
 
         <div class="timeline-container">
-            <div v-for="(post, url, index) in filteredPosts" :key="url" class="post-item-wrapper">
+            <div v-for="(post, index) in filteredPosts" :key="post.url" class="post-item-wrapper">
                 <!-- Timeline Marker logic remains same but styled differently -->
-                <div v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(Object.values(filteredPosts)[index - 1].date).getFullYear()"
+                <div v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(filteredPosts[index - 1].date).getFullYear()"
                     class="timeline-marker year-marker">
                     <span class="year-text">{{ new Date(post.date).getFullYear() }}</span>
                 </div>
 
-                <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(Object.values(filteredPosts)[index - 1].date).getMonth()"
+                <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(filteredPosts[index - 1].date).getMonth()"
                     class="timeline-marker month-marker">
                     <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
-                    }}</span>
+                        }}</span>
                 </div>
 
-                <div @click="navigateToPost(url)" class="post-content post-entry">
+                <div @click="navigateToPost(post.url)" class="post-content post-entry">
                     <div class="post-dot"></div>
                     <div class="post-info">
                         <h3>{{ post.title }}</h3>
