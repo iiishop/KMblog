@@ -1,77 +1,131 @@
 <template>
-    <div class="file-tree-node">
+    <div class="ethereal-node" :style="{ '--node-depth': depth }">
         <div class="node-content" :class="{
             'is-folder': node.type === 'folder',
             'is-file': node.type === 'file',
             'is-current': isCurrentFile,
-            'is-expanded': isExpanded
+            'is-expanded': isExpanded,
+            'is-dragging': isDragging,
+            'is-drag-over': isDragOver
         }" @click="handleClick" @contextmenu.prevent="handleContextMenu" :draggable="node.type === 'file'"
             @dragstart="handleDragStart" @dragend="handleDragEnd" @dragover="handleDragOver"
             @dragleave="handleDragLeave" @drop="handleDrop">
-            <!-- Folder icon or expand/collapse arrow -->
-            <span v-if="node.type === 'folder'" class="node-icon folder-icon">
-                <svg v-if="isExpanded" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 11L3 6h10z" />
-                </svg>
-                <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M6 3l5 5-5 5z" />
-                </svg>
-            </span>
 
-            <!-- File icon -->
-            <span v-else class="node-icon file-icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z" />
-                    <path d="M9 1v3h3" fill="none" stroke="currentColor" stroke-width="1" />
-                </svg>
-            </span>
+            <!-- 树状层级线 -->
+            <div class="tree-lines" v-if="depth > 0">
+                <div class="vertical-line"></div>
+                <div class="horizontal-line"></div>
+            </div>
 
-            <!-- Node name -->
+            <!-- 选中指示器 -->
+            <div class="selection-indicator"></div>
+
+            <!-- 文件夹图标/展开箭头 -->
+            <div v-if="node.type === 'folder'" class="node-icon folder-icon">
+                <svg class="expand-arrow" :class="{ 'expanded': isExpanded }" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 17l5-5-5-5v10z" />
+                </svg>
+                <svg class="folder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                </svg>
+            </div>
+
+            <!-- 文件图标 -->
+            <div v-else class="node-icon file-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                </svg>
+            </div>
+
+            <!-- 节点名称 -->
             <span class="node-name">{{ node.name }}</span>
+
+            <!-- 拖拽提示 -->
+            <div v-if="isDragOver" class="drop-hint">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+            </div>
         </div>
 
-        <!-- Children (recursive) -->
-        <div v-if="node.type === 'folder' && isExpanded && node.children" class="node-children">
-            <FileTreeNode v-for="child in node.children" :key="child.path" :node="child" :current-file="currentFile"
-                @select="$emit('select', $event)" @create="$emit('create', $event)" @delete="$emit('delete', $event)"
-                @move="$emit('move', $event)" @rename="$emit('rename', $event)"
-                @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)" />
-        </div>
+        <!-- 子节点（递归） -->
+        <transition name="expand">
+            <div v-if="node.type === 'folder' && isExpanded && node.children" class="node-children">
+                <FileTreeNode v-for="child in node.children" :key="child.path" :node="child" :current-file="currentFile"
+                    :depth="depth + 1" @select="$emit('select', $event)" @create="$emit('create', $event)"
+                    @delete="$emit('delete', $event)" @move="$emit('move', $event)" @rename="$emit('rename', $event)"
+                    @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)" />
+            </div>
+        </transition>
 
-        <!-- Context menu -->
-        <div v-if="showContextMenu" class="context-menu" :style="contextMenuStyle" @click.stop>
-            <!-- Folder options -->
-            <template v-if="node.type === 'folder'">
-                <div class="context-menu-item" @click="handleCreateFile">
-                    <span class="menu-icon">📄</span>
-                    <span>新建文件</span>
-                </div>
-                <div class="context-menu-item" @click="handleCreateFolder">
-                    <span class="menu-icon">📁</span>
-                    <span>新建文件夹</span>
-                </div>
-                <div class="context-menu-item" @click="handleRename">
-                    <span class="menu-icon">✏️</span>
-                    <span>重命名</span>
-                </div>
-                <div class="context-menu-item" @click="handleDeleteFolder">
-                    <span class="menu-icon">🗑️</span>
-                    <span>删除文件夹</span>
-                </div>
-            </template>
+        <!-- 右键菜单 -->
+        <teleport to="body">
+            <transition name="context-fade">
+                <div v-if="showContextMenu" class="ethereal-context-menu" :style="contextMenuStyle" @click.stop>
+                    <div class="context-backdrop"></div>
+                    <div class="context-content">
+                        <!-- 文件夹选项 -->
+                        <template v-if="node.type === 'folder'">
+                            <button class="context-item" @click="handleCreateFile">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>新建文件</span>
+                            </button>
+                            <button class="context-item" @click="handleCreateFolder">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                                </svg>
+                                <span>新建文件夹</span>
+                            </button>
+                            <div class="context-divider"></div>
+                            <button class="context-item" @click="handleRename">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>重命名</span>
+                            </button>
+                            <button class="context-item danger" @click="handleDeleteFolder">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path
+                                        d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                </svg>
+                                <span>删除文件夹</span>
+                            </button>
+                        </template>
 
-            <!-- File options -->
-            <template v-if="node.type === 'file'">
-                <div class="context-menu-item" @click="handleRename">
-                    <span class="menu-icon">✏️</span>
-                    <span>重命名</span>
+                        <!-- 文件选项 -->
+                        <template v-if="node.type === 'file'">
+                            <button class="context-item" @click="handleRename">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>重命名</span>
+                            </button>
+                            <button class="context-item danger" @click="handleDeleteFile">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path
+                                        d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                </svg>
+                                <span>删除文件</span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
-                <div class="context-menu-item" @click="handleDeleteFile">
-                    <span class="menu-icon">🗑️</span>
-                    <span>删除文件</span>
-                </div>
-            </template>
-        </div>
+            </transition>
+        </teleport>
     </div>
 </template>
 
@@ -86,6 +140,10 @@ const props = defineProps({
     currentFile: {
         type: Object,
         default: null
+    },
+    depth: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -95,6 +153,8 @@ const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folde
 const isExpanded = ref(false);
 const showContextMenu = ref(false);
 const contextMenuStyle = ref({});
+const isDragging = ref(false);
+const isDragOver = ref(false);
 
 // Computed
 const isCurrentFile = computed(() => {
@@ -104,10 +164,8 @@ const isCurrentFile = computed(() => {
 // Handle click
 const handleClick = () => {
     if (props.node.type === 'folder') {
-        // Toggle folder expansion
         isExpanded.value = !isExpanded.value;
     } else if (props.node.type === 'file') {
-        // Select file
         emit('select', props.node);
     }
 };
@@ -116,19 +174,17 @@ const handleClick = () => {
 const handleContextMenu = (e) => {
     showContextMenu.value = true;
 
-    // Position context menu at cursor
     contextMenuStyle.value = {
+        position: 'fixed',
         top: `${e.clientY}px`,
         left: `${e.clientX}px`
     };
 
-    // Close menu when clicking outside
     const closeMenu = () => {
         showContextMenu.value = false;
         document.removeEventListener('click', closeMenu);
     };
 
-    // Delay to prevent immediate close
     setTimeout(() => {
         document.addEventListener('click', closeMenu);
     }, 0);
@@ -158,7 +214,6 @@ const handleDeleteFile = () => {
 // Handle rename
 const handleRename = () => {
     const currentName = props.node.name;
-    // Remove .md extension for files when prompting
     const displayName = props.node.type === 'file' && currentName.endsWith('.md')
         ? currentName.slice(0, -3)
         : currentName;
@@ -202,10 +257,8 @@ const handleDeleteFolder = () => {
 
 // Drag and drop handlers
 const handleDragStart = (e) => {
-    console.log('[FileTreeNode] Drag start:', props.node.name, props.node.type);
-
     if (props.node.type === 'file') {
-        // Store node data in dataTransfer
+        isDragging.value = true;
         const dragData = JSON.stringify({
             path: props.node.path,
             name: props.node.name,
@@ -214,39 +267,26 @@ const handleDragStart = (e) => {
 
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('application/json', dragData);
-        e.dataTransfer.setData('text/plain', props.node.path); // Fallback
-
-        console.log('[FileTreeNode] Drag data set:', dragData);
-
-        // Add dragging class
-        e.currentTarget.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', props.node.path);
     }
 };
 
 const handleDragOver = (e) => {
     if (props.node.type === 'folder') {
-        e.preventDefault(); // Required to allow drop
+        e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-
-        // Add visual feedback
-        const target = e.currentTarget;
-        if (!target.classList.contains('drag-over')) {
-            target.classList.add('drag-over');
-            console.log('[FileTreeNode] Drag over folder:', props.node.name);
-        }
+        isDragOver.value = true;
     }
 };
 
 const handleDragLeave = (e) => {
-    // Only remove class if we're actually leaving the element
     const target = e.currentTarget;
     const rect = target.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
 
     if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-        target.classList.remove('drag-over');
-        console.log('[FileTreeNode] Drag leave folder:', props.node.name);
+        isDragOver.value = false;
     }
 };
 
@@ -254,48 +294,27 @@ const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    console.log('[FileTreeNode] Drop on:', props.node.name, props.node.type);
-
-    const target = e.currentTarget;
-    target.classList.remove('drag-over');
+    isDragOver.value = false;
 
     if (props.node.type === 'folder') {
         try {
-            // Try to get JSON data first
             const jsonData = e.dataTransfer.getData('application/json');
             let draggedNode;
 
             if (jsonData) {
                 draggedNode = JSON.parse(jsonData);
-                console.log('[FileTreeNode] Dropped file data:', draggedNode);
             } else {
-                // Fallback to text/plain
                 const path = e.dataTransfer.getData('text/plain');
-                console.log('[FileTreeNode] Fallback to text/plain:', path);
-
-                if (!path) {
-                    console.error('[FileTreeNode] No drag data available');
-                    return;
-                }
-
-                // Extract name from path
+                if (!path) return;
                 const name = path.split('/').pop();
                 draggedNode = { path, name, type: 'file' };
             }
 
-            // Don't move if dropping on the same folder
             const sourceFolderPath = draggedNode.path.substring(0, draggedNode.path.lastIndexOf('/'));
             if (sourceFolderPath === props.node.path) {
-                console.log('[FileTreeNode] Same folder, ignoring drop');
                 return;
             }
 
-            console.log('[FileTreeNode] Emitting move event:', {
-                file: draggedNode,
-                targetFolder: props.node
-            });
-
-            // Emit move event
             emit('move', {
                 file: draggedNode,
                 targetFolder: props.node
@@ -306,9 +325,8 @@ const handleDrop = (e) => {
     }
 };
 
-const handleDragEnd = (e) => {
-    console.log('[FileTreeNode] Drag end');
-    e.currentTarget.classList.remove('dragging');
+const handleDragEnd = () => {
+    isDragging.value = false;
 };
 
 // Auto-expand folders on mount if they contain the current file
@@ -339,121 +357,318 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.file-tree-node {
-    user-select: none;
-}
+/* === 文件树节点：精致的交互体验 === */
 
-.node-content {
-    display: flex;
-    align-items: center;
-    padding: 0.4rem 0.5rem;
-    padding-left: calc(0.5rem + var(--indent-level, 0) * 1rem);
-    cursor: pointer;
-    border-radius: 4px;
-    margin: 0 0.25rem;
-    transition: background-color 0.15s;
+.ethereal-node {
+    user-select: none;
     position: relative;
 }
 
+.node-content {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 13px;
+    padding-left: calc(13px + var(--node-depth, 0) * 20px);
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 2px 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+/* 树状层级线 */
+.tree-lines {
+    position: absolute;
+    left: calc((var(--node-depth, 0) - 1) * 20px + 13px);
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+}
+
+.vertical-line {
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.3) 0%, rgba(148, 163, 184, 0.15) 100%);
+}
+
+.horizontal-line {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background: rgba(148, 163, 184, 0.3);
+}
+
+/* 最后一个子节点的垂直线只到中间 */
+.ethereal-node:last-child>.node-content .vertical-line {
+    bottom: 50%;
+}
+
+/* 选中指示器 */
+.selection-indicator {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 0 2px 2px 0;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+}
+
+.node-content.is-current .selection-indicator {
+    height: 60%;
+}
+
+/* 悬停效果 */
 .node-content:hover {
-    background-color: var(--theme-hover-bg, #e8e8e8);
+    background: rgba(99, 102, 241, 0.06);
 }
 
 .node-content.is-current {
-    background-color: var(--theme-selected-bg, #d0e8ff);
-    font-weight: 500;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
+    font-weight: 600;
 }
 
 .node-content.is-current:hover {
-    background-color: var(--theme-selected-hover-bg, #c0d8ef);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.16) 100%);
 }
 
-.node-content.drag-over {
-    background-color: var(--theme-primary-light, #e3f2fd);
-    border: 2px dashed var(--theme-primary-color, #4a90e2);
+/* 拖拽状态 */
+.node-content.is-dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
 }
 
-.node-content.dragging {
-    opacity: 0.5;
+.node-content.is-drag-over {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(249, 115, 22, 0.12) 100%);
+    border: 2px dashed #f59e0b;
+    padding: 6px 11px;
 }
 
+/* 图标系统 */
 .node-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 0.5rem;
     flex-shrink: 0;
-    color: var(--theme-icon-color, #666666);
+    position: relative;
+    z-index: 1;
 }
 
 .folder-icon {
-    color: var(--theme-folder-color, #f59e0b);
+    gap: 4px;
 }
 
-.file-icon {
-    color: var(--theme-file-color, #6b7280);
+.expand-arrow {
+    width: 14px;
+    height: 14px;
+    color: #94a3b8;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.expand-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.folder-svg {
+    width: 18px;
+    height: 18px;
+    color: #f59e0b;
+    transition: all 0.2s;
+}
+
+.node-content:hover .folder-svg {
+    color: #ea580c;
+    transform: scale(1.1);
+}
+
+.node-content.is-expanded .folder-svg {
+    color: #f97316;
+}
+
+.file-icon svg {
+    width: 16px;
+    height: 16px;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.node-content:hover .file-icon svg {
+    color: #475569;
+    transform: scale(1.1);
+}
+
+.node-content.is-current .file-icon svg {
+    color: #6366f1;
+}
+
+/* 节点名称 */
 .node-name {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.875rem;
-    color: var(--theme-text-color, #333333);
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    letter-spacing: -0.01em;
+    transition: color 0.2s;
+    z-index: 1;
 }
 
-.node-children {
-    --indent-level: calc(var(--indent-level, 0) + 1);
+.node-content:hover .node-name {
+    color: #1e293b;
 }
 
-/* Context Menu */
-.context-menu {
-    position: fixed;
-    background-color: var(--theme-menu-bg, #ffffff);
-    border: 1px solid var(--theme-border-color, #e0e0e0);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 0.25rem 0;
-    min-width: 150px;
-    z-index: 1000;
+.node-content.is-current .node-name {
+    color: #1e293b;
+    font-weight: 600;
 }
 
-.context-menu-item {
+/* 拖拽提示 */
+.drop-hint {
+    position: absolute;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    padding: 0.5rem 1rem;
+    justify-content: center;
+    animation: bounce 0.6s ease-in-out infinite;
+    z-index: 1;
+}
+
+.drop-hint svg {
+    width: 12px;
+    height: 12px;
+    color: #ffffff;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* 子节点容器 */
+.node-children {
+    /* 子节点通过 depth prop 递增来实现缩进 */
+}
+
+/* 展开动画 */
+.expand-enter-active,
+.expand-leave-active {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+}
+
+.expand-enter-to,
+.expand-leave-from {
+    opacity: 1;
+    max-height: 1000px;
+    transform: translateY(0);
+}
+
+/* 右键菜单 */
+.ethereal-context-menu {
+    position: fixed;
+    z-index: 10000;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.15));
+}
+
+.context-backdrop {
+    position: absolute;
+    inset: -6px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 12px;
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.context-content {
+    position: relative;
+    padding: 6px;
+    min-width: 180px;
+}
+
+.context-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 13px;
+    border: none;
+    background: transparent;
+    color: #475569;
     cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--theme-text-color, #333333);
-    transition: background-color 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    text-align: left;
 }
 
-.context-menu-item:hover {
-    background-color: var(--theme-hover-bg, #f0f0f0);
+.context-item:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+    color: #1e293b;
+    transform: translateX(2px);
 }
 
-.menu-icon {
-    margin-right: 0.5rem;
-    font-size: 1rem;
-    font-weight: bold;
-    color: var(--theme-icon-color, #666666);
+.context-item.danger:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.08) 100%);
+    color: #dc2626;
 }
 
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+.item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
-.context-menu {
-    animation: fadeIn 0.15s ease-out;
+.context-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.2) 50%, transparent 100%);
+    margin: 4px 0;
+}
+
+/* 右键菜单动画 */
+.context-fade-enter-active,
+.context-fade-leave-active {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.context-fade-enter-from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+}
+
+.context-fade-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
 }
 </style>

@@ -1,10 +1,15 @@
 <template>
-    <div class="file-tree-sidebar" :class="{ 'collapsed': !visible }" :style="{ width: visible ? width + 'px' : '0' }">
+    <div class="ethereal-sidebar" :class="{ 'collapsed': !visible }" :style="{ width: visible ? width + 'px' : '0' }">
+        <!-- 侧边栏光晕背景 -->
+        <div class="sidebar-glow"></div>
+
         <div class="sidebar-header">
-            <h3>文件</h3>
-            <button @click="$emit('update:visible', false)" class="close-btn" title="隐藏文件树">
-                ×
-            </button>
+            <div class="header-content">
+                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <h3>文件浏览器</h3>
+            </div>
         </div>
 
         <div class="file-tree" @contextmenu.prevent="handleTreeContextMenu">
@@ -14,21 +19,46 @@
                 @rename="$emit('file-rename', $event)" @folder-create="$emit('folder-create', $event)"
                 @folder-delete="$emit('folder-delete', $event)" />
 
-            <!-- Context menu for empty space -->
-            <div v-if="showTreeContextMenu" class="tree-context-menu" :style="treeContextMenuStyle" @click.stop>
-                <div class="context-menu-item" @click="handleCreateFileInRoot">
-                    <span class="menu-icon">📄</span>
-                    <span>新建文件</span>
-                </div>
-                <div class="context-menu-item" @click="handleCreateFolderInRoot">
-                    <span class="menu-icon">📁</span>
-                    <span>新建文件夹</span>
-                </div>
+            <!-- 空状态提示 -->
+            <div v-if="files.length === 0" class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                </svg>
+                <p>暂无文件</p>
             </div>
+
+            <!-- 右键菜单 -->
+            <teleport to="body">
+                <transition name="context-fade">
+                    <div v-if="showTreeContextMenu" class="ethereal-context-menu" :style="treeContextMenuStyle"
+                        @click.stop>
+                        <div class="context-backdrop"></div>
+                        <div class="context-content">
+                            <button class="context-item" @click="handleCreateFileInRoot">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>新建文件</span>
+                            </button>
+                            <button class="context-item" @click="handleCreateFolderInRoot">
+                                <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                                </svg>
+                                <span>新建文件夹</span>
+                            </button>
+                        </div>
+                    </div>
+                </transition>
+            </teleport>
         </div>
 
-        <!-- Resize handle for dragging -->
-        <div v-if="visible" class="resize-handle" @mousedown="startResize" title="拖动调整宽度" />
+        <!-- 优雅的调整手柄 -->
+        <div v-if="visible" class="resize-handle" @mousedown="startResize" title="拖动调整宽度">
+            <div class="handle-indicator"></div>
+        </div>
     </div>
 </template>
 
@@ -166,71 +196,112 @@ const startResize = (e) => {
 </script>
 
 <style scoped>
-.file-tree-sidebar {
+/* === 侧边栏：优雅的文件导航 === */
+
+.ethereal-sidebar {
     position: relative;
-    border-right: 1px solid var(--theme-border-color, #e0e0e0);
-    background-color: var(--theme-sidebar-bg, #f5f5f5);
+    background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+    border-right: 1px solid rgba(148, 163, 184, 0.15);
     display: flex;
     flex-direction: column;
     min-width: 200px;
     max-width: 500px;
-    transition: width 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    isolation: isolate;
 }
 
-.file-tree-sidebar.collapsed {
+.ethereal-sidebar.collapsed {
     width: 0 !important;
     min-width: 0;
     border-right: none;
+    opacity: 0;
 }
 
+/* 侧边栏光晕 */
+.sidebar-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* 头部区域 */
 .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid var(--theme-border-color, #e0e0e0);
-    background-color: var(--theme-sidebar-header-bg, #fafafa);
+    padding: 16px 21px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
     flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-icon {
+    width: 20px;
+    height: 20px;
+    color: #6366f1;
+    stroke-width: 2;
 }
 
 .sidebar-header h3 {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--theme-text-color, #333333);
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.02em;
 }
 
 .close-btn {
     background: none;
     border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--theme-text-color, #333333);
-    padding: 0;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+}
+
+.close-btn svg {
+    width: 16px;
+    height: 16px;
 }
 
 .close-btn:hover {
-    background-color: var(--theme-hover-bg, #e0e0e0);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    transform: rotate(90deg);
 }
 
+/* 文件树区域 */
 .file-tree {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.5rem 0;
+    padding: 13px 8px;
+    position: relative;
 }
 
-/* Custom scrollbar */
+/* 优雅的滚动条 */
 .file-tree::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 
 .file-tree::-webkit-scrollbar-track {
@@ -238,82 +309,150 @@ const startResize = (e) => {
 }
 
 .file-tree::-webkit-scrollbar-thumb {
-    background: var(--theme-scrollbar-thumb, #c0c0c0);
-    border-radius: 4px;
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 3px;
+    transition: background 0.2s;
 }
 
 .file-tree::-webkit-scrollbar-thumb:hover {
-    background: var(--theme-scrollbar-thumb-hover, #a0a0a0);
+    background: rgba(148, 163, 184, 0.5);
 }
 
+/* 空状态 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* 调整手柄 */
 .resize-handle {
     position: absolute;
-    right: 0;
+    right: -3px;
     top: 0;
     bottom: 0;
-    width: 4px;
+    width: 6px;
     cursor: col-resize;
-    background-color: transparent;
-    transition: background-color 0.2s;
     z-index: 10;
-}
-
-.resize-handle:hover {
-    background-color: var(--theme-primary-color, #4a90e2);
-}
-
-.resize-handle:active {
-    background-color: var(--theme-primary-hover, #357abd);
-}
-
-/* Tree Context Menu */
-.tree-context-menu {
-    position: fixed;
-    background-color: var(--theme-menu-bg, #ffffff);
-    border: 1px solid var(--theme-border-color, #e0e0e0);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 0.25rem 0;
-    min-width: 150px;
-    z-index: 1000;
-    animation: fadeIn 0.15s ease-out;
-}
-
-.context-menu-item {
     display: flex;
     align-items: center;
-    padding: 0.5rem 1rem;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.handle-indicator {
+    width: 2px;
+    height: 40px;
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 1px;
+    transition: all 0.2s;
+}
+
+.resize-handle:hover .handle-indicator {
+    background: #6366f1;
+    height: 60px;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+}
+
+.resize-handle:active .handle-indicator {
+    background: #4f46e5;
+}
+
+/* 右键菜单 */
+.ethereal-context-menu {
+    position: fixed;
+    z-index: 10000;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.15));
+}
+
+.context-backdrop {
+    position: absolute;
+    inset: -6px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 12px;
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.context-content {
+    position: relative;
+    padding: 6px;
+    min-width: 180px;
+}
+
+.context-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 13px;
+    border: none;
+    background: transparent;
+    color: #475569;
     cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--theme-text-color, #333333);
-    transition: background-color 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    text-align: left;
 }
 
-.context-menu-item:hover {
-    background-color: var(--theme-hover-bg, #f0f0f0);
+.context-item:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+    color: #1e293b;
+    transform: translateX(2px);
 }
 
-.menu-icon {
-    margin-right: 0.5rem;
-    font-size: 1rem;
+.item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+/* 右键菜单动画 */
+.context-fade-enter-active,
+.context-fade-leave-active {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Responsive */
+.context-fade-enter-from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+}
+
+.context-fade-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+}
+
+/* 响应式 */
 @media (max-width: 768px) {
-    .file-tree-sidebar {
+    .ethereal-sidebar {
         max-width: 300px;
+    }
+
+    .sidebar-header {
+        padding: 13px 16px;
+    }
+
+    .file-tree {
+        padding: 10px 6px;
     }
 }
 </style>

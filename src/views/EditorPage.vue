@@ -687,37 +687,119 @@ const handleInsertFormat = (format) => {
 
     const selection = editor.getSelection();
     const selectedText = editor.getModel().getValueInRange(selection);
+    const position = editor.getPosition();
 
     let insertText = '';
     let cursorOffset = 0;
 
-    switch (format) {
-        case 'bold':
-            insertText = `**${selectedText || '粗体文本'}**`;
-            cursorOffset = selectedText ? 0 : -2;
-            break;
-        case 'italic':
-            insertText = `*${selectedText || '斜体文本'}*`;
-            cursorOffset = selectedText ? 0 : -1;
-            break;
-        case 'heading':
-            insertText = `## ${selectedText || '标题'}`;
-            cursorOffset = selectedText ? 0 : 0;
-            break;
-        case 'link':
-            insertText = `[${selectedText || '链接文本'}](url)`;
-            cursorOffset = selectedText ? -4 : -9;
-            break;
-        case 'image':
-            insertText = `![${selectedText || '图片描述'}](url)`;
-            cursorOffset = selectedText ? -4 : -10;
-            break;
-        case 'code':
-            insertText = '```\n' + (selectedText || '代码') + '\n```';
-            cursorOffset = selectedText ? 0 : -4;
-            break;
-        default:
-            return;
+    // 处理多级标题
+    if (format.startsWith('heading-')) {
+        const level = parseInt(format.split('-')[1]);
+        const hashes = '#'.repeat(level);
+        insertText = `${hashes} ${selectedText || '标题'}`;
+        cursorOffset = selectedText ? 0 : 0;
+    }
+    // 处理颜色
+    else if (format.startsWith('color:')) {
+        const color = format.split(':')[1];
+        insertText = `<span style="color: ${color}">${selectedText || '彩色文本'}</span>`;
+        cursorOffset = selectedText ? 0 : -7;
+    }
+    // 处理符号插入
+    else if (format.startsWith('symbol:')) {
+        const symbol = format.split(':')[1];
+        insertText = symbol;
+        cursorOffset = 0;
+    }
+    else {
+        switch (format) {
+            case 'bold':
+                insertText = `**${selectedText || '粗体文本'}**`;
+                cursorOffset = selectedText ? 0 : -2;
+                break;
+            case 'italic':
+                insertText = `*${selectedText || '斜体文本'}*`;
+                cursorOffset = selectedText ? 0 : -1;
+                break;
+            case 'strikethrough':
+                insertText = `~~${selectedText || '删除线文本'}~~`;
+                cursorOffset = selectedText ? 0 : -2;
+                break;
+            case 'underline':
+                insertText = `<u>${selectedText || '下划线文本'}</u>`;
+                cursorOffset = selectedText ? 0 : -4;
+                break;
+            case 'quote':
+                insertText = `> ${selectedText || '引用文本'}`;
+                cursorOffset = selectedText ? 0 : 0;
+                break;
+            case 'link':
+                insertText = `[${selectedText || '链接文本'}](url)`;
+                cursorOffset = selectedText ? -4 : -9;
+                break;
+            case 'image':
+                insertText = `![${selectedText || '图片描述'}](url)`;
+                cursorOffset = selectedText ? -4 : -10;
+                break;
+            case 'code':
+                insertText = '```\n' + (selectedText || '代码') + '\n```';
+                cursorOffset = selectedText ? 0 : -4;
+                break;
+            case 'inline-code':
+                insertText = `\`${selectedText || '代码'}\``;
+                cursorOffset = selectedText ? 0 : -1;
+                break;
+            case 'ul':
+                insertText = `- ${selectedText || '列表项'}`;
+                cursorOffset = selectedText ? 0 : 0;
+                break;
+            case 'ol':
+                insertText = `1. ${selectedText || '列表项'}`;
+                cursorOffset = selectedText ? 0 : 0;
+                break;
+            case 'task':
+                insertText = `- [ ] ${selectedText || '任务项'}`;
+                cursorOffset = selectedText ? 0 : 0;
+                break;
+            case 'table':
+                insertText = '| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |';
+                cursorOffset = 0;
+                break;
+            case 'hr':
+                insertText = '\n---\n';
+                cursorOffset = 0;
+                break;
+            case 'align-left':
+                insertText = `<div style="text-align: left">\n\n${selectedText || '左对齐文本'}\n\n</div>`;
+                cursorOffset = selectedText ? 0 : -7;
+                break;
+            case 'align-center':
+                insertText = `<center>\n\n${selectedText || '居中文本'}\n\n</center>`;
+                cursorOffset = selectedText ? 0 : -10;
+                break;
+            case 'align-right':
+                insertText = `<div style="text-align: right">\n\n${selectedText || '右对齐文本'}\n\n</div>`;
+                cursorOffset = selectedText ? 0 : -7;
+                break;
+            case 'align-justify':
+                insertText = `<div style="text-align: justify">\n\n${selectedText || '两端对齐文本'}\n\n</div>`;
+                cursorOffset = selectedText ? 0 : -7;
+                break;
+            case 'superscript':
+                insertText = `<sup>${selectedText || '上标'}</sup>`;
+                cursorOffset = selectedText ? 0 : -6;
+                break;
+            case 'subscript':
+                insertText = `<sub>${selectedText || '下标'}</sub>`;
+                cursorOffset = selectedText ? 0 : -6;
+                break;
+            case 'mark':
+                insertText = `<mark>${selectedText || '高亮文本'}</mark>`;
+                cursorOffset = selectedText ? 0 : -7;
+                break;
+            default:
+                return;
+        }
     }
 
     // Insert text
@@ -728,10 +810,10 @@ const handleInsertFormat = (format) => {
 
     // Adjust cursor position
     if (cursorOffset !== 0) {
-        const position = editor.getPosition();
+        const newPosition = editor.getPosition();
         editor.setPosition({
-            lineNumber: position.lineNumber,
-            column: position.column + cursorOffset
+            lineNumber: newPosition.lineNumber,
+            column: newPosition.column + cursorOffset
         });
     }
 
