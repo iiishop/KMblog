@@ -41,7 +41,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['update:modelValue', 'scroll', 'change']);
+const emit = defineEmits(['update:modelValue', 'scroll', 'change', 'format-request']);
 
 const editorContainer = ref(null);
 let editor = null;
@@ -170,6 +170,184 @@ onMounted(() => {
         lineHeight: 24,
         fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
         ...props.options
+    });
+
+    // 注册右键菜单
+    editor.addAction({
+        id: 'format-bold',
+        label: '粗体',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 1,
+        run: () => emit('format-request', 'bold')
+    });
+
+    editor.addAction({
+        id: 'format-italic',
+        label: '斜体',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 2,
+        run: () => emit('format-request', 'italic')
+    });
+
+    editor.addAction({
+        id: 'format-strikethrough',
+        label: '删除线',
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 3,
+        run: () => emit('format-request', 'strikethrough')
+    });
+
+    editor.addAction({
+        id: 'format-underline',
+        label: '下划线',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU],
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 4,
+        run: () => emit('format-request', 'underline')
+    });
+
+    editor.addAction({
+        id: 'format-code',
+        label: '代码块',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 5,
+        run: () => emit('format-request', 'code')
+    });
+
+    editor.addAction({
+        id: 'format-inline-code',
+        label: '行内代码',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backquote],
+        contextMenuGroupId: 'format',
+        contextMenuOrder: 6,
+        run: () => emit('format-request', 'inline-code')
+    });
+
+    editor.addAction({
+        id: 'insert-heading-1',
+        label: '一级标题',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit1],
+        contextMenuGroupId: 'heading',
+        contextMenuOrder: 1,
+        run: () => emit('format-request', 'heading-1')
+    });
+
+    editor.addAction({
+        id: 'insert-heading-2',
+        label: '二级标题',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit2],
+        contextMenuGroupId: 'heading',
+        contextMenuOrder: 2,
+        run: () => emit('format-request', 'heading-2')
+    });
+
+    editor.addAction({
+        id: 'insert-heading-3',
+        label: '三级标题',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit3],
+        contextMenuGroupId: 'heading',
+        contextMenuOrder: 3,
+        run: () => emit('format-request', 'heading-3')
+    });
+
+    editor.addAction({
+        id: 'insert-quote',
+        label: '引用',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyQ],
+        contextMenuGroupId: 'structure',
+        contextMenuOrder: 1,
+        run: () => emit('format-request', 'quote')
+    });
+
+    editor.addAction({
+        id: 'insert-link',
+        label: '插入链接',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL],
+        contextMenuGroupId: 'structure',
+        contextMenuOrder: 2,
+        run: () => emit('format-request', 'link')
+    });
+
+    editor.addAction({
+        id: 'insert-image',
+        label: '插入图片',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyI],
+        contextMenuGroupId: 'structure',
+        contextMenuOrder: 3,
+        run: () => emit('format-request', 'image')
+    });
+
+    editor.addAction({
+        id: 'insert-ul',
+        label: '无序列表',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyU],
+        contextMenuGroupId: 'list',
+        contextMenuOrder: 1,
+        run: () => emit('format-request', 'ul')
+    });
+
+    editor.addAction({
+        id: 'insert-ol',
+        label: '有序列表',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO],
+        contextMenuGroupId: 'list',
+        contextMenuOrder: 2,
+        run: () => emit('format-request', 'ol')
+    });
+
+    editor.addAction({
+        id: 'insert-task',
+        label: '任务列表',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyT],
+        contextMenuGroupId: 'list',
+        contextMenuOrder: 3,
+        run: () => emit('format-request', 'task')
+    });
+
+    editor.addAction({
+        id: 'insert-table',
+        label: '插入表格',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyB],
+        contextMenuGroupId: 'structure',
+        contextMenuOrder: 4,
+        run: () => emit('format-request', 'table')
+    });
+
+    editor.addAction({
+        id: 'insert-hr',
+        label: '分隔线',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH],
+        contextMenuGroupId: 'structure',
+        contextMenuOrder: 5,
+        run: () => emit('format-request', 'hr')
+    });
+
+    editor.addAction({
+        id: 'align-center',
+        label: '居中对齐',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
+        contextMenuGroupId: 'align',
+        contextMenuOrder: 1,
+        run: () => emit('format-request', 'align-center')
+    });
+
+    editor.addAction({
+        id: 'align-left',
+        label: '左对齐',
+        contextMenuGroupId: 'align',
+        contextMenuOrder: 2,
+        run: () => emit('format-request', 'align-left')
+    });
+
+    editor.addAction({
+        id: 'align-right',
+        label: '右对齐',
+        contextMenuGroupId: 'align',
+        contextMenuOrder: 3,
+        run: () => emit('format-request', 'align-right')
     });
 
     // Listen to content changes

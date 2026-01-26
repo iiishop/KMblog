@@ -19,7 +19,7 @@
                 <div class="edit-panel">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
                         :current-file-name="currentFileName" :api-base="API_BASE" @change="handleContentChange"
-                        @scroll="handleEditorScroll" ref="monacoEditorRef" />
+                        @scroll="handleEditorScroll" @format-request="handleInsertFormat" ref="monacoEditorRef" />
                 </div>
 
                 <!-- Preview Panel -->
