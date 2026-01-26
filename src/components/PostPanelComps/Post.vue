@@ -554,7 +554,6 @@ onUnmounted(() => {
         0 0 0 1px var(--theme-surface-hover),
         inset 0 0 0 1px var(--theme-border-light);
     background: var(--theme-gradient);
-    opacity: 0.1;
 }
 
 .image-border-frame::before {
@@ -565,6 +564,8 @@ onUnmounted(() => {
     padding: 2px;
     background: var(--theme-gradient);
     -webkit-mask: linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box,
         linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -847,6 +848,7 @@ onUnmounted(() => {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 4;
+    line-clamp: 4;
     overflow: hidden;
     position: relative;
     z-index: 1;
