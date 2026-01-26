@@ -50,9 +50,9 @@
 
                 <!-- Warning/Summary -->
                 <div class="summary-section" v-if="summary">
-                    <p class="summary-text" :class="{ collapsed: isSummaryCollapsed }" @click="toggleSummary">
+                    <div class="summary-text" :class="{ collapsed: isSummaryCollapsed }" @click="toggleSummary">
                         {{ summary }}
-                    </p>
+                    </div>
                 </div>
 
                 <!-- Info Grid -->
