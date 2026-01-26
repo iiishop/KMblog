@@ -63,7 +63,7 @@
                                     <circle cx="7" cy="7" r="1" fill="currentColor" />
                                 </svg>
                                 <span>{{ announcement.metadata.categories[announcement.metadata.categories.length - 1]
-                                }}</span>
+                                    }}</span>
                             </div>
                         </div>
 
@@ -242,12 +242,12 @@ function goToAnnouncement(index) {
 .header-icon {
     width: 2.5rem;
     height: 2.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--theme-gradient);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--theme-button-text);
     animation: pulse 2s ease-in-out infinite;
 }
 
@@ -273,7 +273,7 @@ function goToAnnouncement(index) {
     font-size: 1.8rem;
     font-weight: 700;
     margin: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--theme-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -290,21 +290,21 @@ function goToAnnouncement(index) {
     height: 8px;
     border-radius: 50%;
     border: none;
-    background: rgba(102, 126, 234, 0.3);
+    background: var(--theme-primary-disabled);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
 }
 
 .indicator:hover {
-    background: rgba(102, 126, 234, 0.6);
+    background: var(--theme-primary-hover);
     transform: scale(1.2);
 }
 
 .indicator.active {
     width: 24px;
     border-radius: 4px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--theme-gradient);
 }
 
 /* === 公告容器 === */
@@ -326,14 +326,12 @@ function goToAnnouncement(index) {
     position: absolute;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg,
-            rgba(255, 255, 255, 0.95) 0%,
-            rgba(255, 255, 255, 0.9) 100%);
+    background: var(--theme-panel-bg);
     backdrop-filter: blur(20px) saturate(180%);
     border-radius: 20px;
     box-shadow:
-        0 10px 40px rgba(102, 126, 234, 0.15),
-        0 0 0 1px rgba(102, 126, 234, 0.1);
+        0 10px 40px var(--theme-shadow-lg),
+        0 0 0 1px var(--theme-border-light);
     overflow: hidden;
     cursor: pointer;
     transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -372,8 +370,8 @@ function goToAnnouncement(index) {
 .announcement-card.is-active:hover {
     transform: translateY(-5px) scale(1.02);
     box-shadow:
-        0 20px 60px rgba(102, 126, 234, 0.25),
-        0 0 0 1px rgba(102, 126, 234, 0.2);
+        0 20px 60px var(--theme-shadow-xl),
+        0 0 0 1px var(--theme-border-medium);
 }
 
 /* === 卡片内容 === */
@@ -391,9 +389,8 @@ function goToAnnouncement(index) {
 .image-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg,
-            rgba(102, 126, 234, 0.4) 0%,
-            rgba(118, 75, 162, 0.4) 100%);
+    background: var(--theme-gradient);
+    opacity: 0.4;
 }
 
 .card-content {
@@ -410,14 +407,14 @@ function goToAnnouncement(index) {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--theme-gradient);
     border-radius: 20px;
-    color: white;
+    color: var(--theme-button-text);
     font-size: 0.85rem;
     font-weight: 600;
     align-self: flex-start;
     margin-bottom: 1.5rem;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .badge-text {
@@ -434,7 +431,7 @@ function goToAnnouncement(index) {
     font-weight: 700;
     line-height: 1.3;
     margin: 0 0 1rem 0;
-    color: #2c3e50;
+    color: var(--theme-heading-text);
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -455,7 +452,7 @@ function goToAnnouncement(index) {
     align-items: center;
     gap: 0.4rem;
     font-size: 0.9rem;
-    color: #666;
+    color: var(--theme-meta-text);
 }
 
 .meta-date svg,

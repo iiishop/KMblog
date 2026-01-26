@@ -417,12 +417,13 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   display: flex;
   flex-direction: column;
   width: 100%;
-  background-color: #ffffff;
+  background-color: var(--theme-content-bg);
   border-radius: 1rem;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px var(--theme-shadow-md);
   position: relative;
   animation: fadeIn 0.6s ease-out;
+  transition: var(--theme-transition-colors);
 }
 
 @keyframes fadeIn {
@@ -456,7 +457,8 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   overflow: hidden;
   min-height: 300px;
   max-height: 500px;
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 100%);
+  background: var(--theme-gradient);
+  transition: var(--theme-transition-colors);
 }
 
 .image-container {
@@ -489,12 +491,13 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   display: flex;
   align-items: flex-end;
   padding: 3rem;
+  transition: var(--theme-transition-colors);
 }
 
 .header-content {
   width: 100%;
   max-width: 900px;
-  color: white;
+  color: var(--theme-content-text);
 }
 
 .post-title {
@@ -542,7 +545,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .category-panel a,
 .date-panel a {
   text-decoration: none;
-  color: white;
+  color: var(--theme-content-text);
   font-weight: 600;
   transition: opacity 0.2s ease;
 }
@@ -558,8 +561,9 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: white;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--theme-content-bg);
+  border-bottom: 1px solid var(--theme-content-border);
+  transition: var(--theme-transition-colors);
 }
 
 .stat-item {
@@ -577,9 +581,10 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .stat-label {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--theme-meta-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  transition: var(--theme-transition-colors);
 }
 
 .stat-value {
@@ -594,8 +599,9 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   height: 40px;
   background: linear-gradient(to bottom,
       transparent,
-      rgba(0, 0, 0, 0.1),
+      var(--theme-border-light),
       transparent);
+  transition: var(--theme-transition-colors);
 }
 
 .stat-tags .stat-content {
@@ -611,8 +617,8 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
 .tag {
   padding: 0.4rem 1rem;
-  background: var(--gradient);
-  color: white;
+  background: var(--theme-gradient);
+  color: var(--theme-button-text);
   border-radius: 1.5rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -633,8 +639,9 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   margin: 0 auto;
   width: 100%;
   line-height: 1.8;
-  color: #1f2937;
+  color: var(--theme-content-text);
   font-size: 1.05rem;
+  transition: var(--theme-transition-colors);
 }
 
 /* === 回到顶部按钮 === */
@@ -646,20 +653,20 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   height: 52px;
   border-radius: 50%;
   border: none;
-  background: var(--gradient);
-  color: white;
+  background: var(--theme-gradient);
+  color: var(--theme-button-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px var(--primary-color);
+  box-shadow: 0 4px 16px var(--theme-primary);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
 }
 
 .back-to-top:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 8px 24px var(--primary-color);
+  box-shadow: 0 8px 24px var(--theme-primary);
 }
 
 .back-to-top:active {
@@ -709,7 +716,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
   .stat-item {
     padding: 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid var(--theme-content-border);
     padding-bottom: 1.5rem;
   }
 

@@ -145,15 +145,17 @@ function onLeave(el, done) {
     padding: 0.5rem 1rem;
     border-radius: 1rem;
     border: none;
-    box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+    background: var(--theme-panel-bg);
+    color: var(--theme-panel-text);
+    box-shadow: 1px 1px 5px var(--theme-shadow-sm);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .pagination button:hover {
-    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
-    background-color: #aaaaaa;
-    color: #f0f0f0;
+    box-shadow: 2px 2px 10px var(--theme-shadow-md);
+    background-color: var(--theme-nav-hover-bg);
+    color: var(--theme-link-color);
 }
 
 .pagination button:disabled {

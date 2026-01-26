@@ -415,9 +415,9 @@ onUnmounted(() => {
 .about-page {
     width: 100%;
     min-height: 100vh;
-    background: #ffffff;
+    background: var(--theme-body-bg);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    color: #0a0a0a;
+    color: var(--theme-body-text);
     overflow-x: hidden;
 }
 
@@ -429,7 +429,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+    background: var(--theme-panel-bg);
     overflow: hidden;
 }
 
@@ -453,7 +453,7 @@ onUnmounted(() => {
 }
 
 .grid-line {
-    border-right: 1px solid #ffffff;
+    border-right: 1px solid var(--theme-panel-text);
 }
 
 .hero-content {
@@ -472,7 +472,7 @@ onUnmounted(() => {
 }
 
 .hero-text {
-    color: #ffffff;
+    color: var(--theme-body-text);
 }
 
 .eyebrow {
@@ -500,10 +500,10 @@ onUnmounted(() => {
 .hero-description {
     font-size: 1.125rem;
     line-height: 1.8;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--theme-panel-text);
+    opacity: 0.7;
     max-width: 500px;
     margin-bottom: 3rem;
-    opacity: 0;
     animation: fadeSlideUp 0.8s ease-out 0.6s forwards;
 }
 
@@ -530,7 +530,7 @@ onUnmounted(() => {
     position: relative;
     display: inline-block;
     padding: 0.75rem 1.5rem;
-    color: #ffffff;
+    color: var(--theme-body-text);
     text-decoration: none;
     font-size: 0.875rem;
     font-weight: 500;
@@ -543,8 +543,9 @@ onUnmounted(() => {
 .link-bg {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--theme-panel-bg);
+    opacity: 0.5;
+    border: 1px solid var(--theme-panel-border);
     transition: all 0.3s ease;
 }
 
@@ -558,7 +559,7 @@ onUnmounted(() => {
     content: '';
     position: absolute;
     inset: 0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--theme-panel-border);
     transform: translateX(4px) translateY(4px);
     transition: all 0.3s ease;
 }
@@ -602,7 +603,7 @@ onUnmounted(() => {
 .ornament-ring {
     position: absolute;
     inset: 0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--theme-panel-border);
     border-radius: 50%;
     animation: rotate 20s linear infinite;
 }
@@ -640,8 +641,9 @@ onUnmounted(() => {
     height: 280px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 60px rgba(100, 150, 255, 0.3);
+    border: 2px solid var(--theme-panel-border);
+    box-shadow: 0 0 60px var(--theme-primary);
+    opacity: 0.3;
 }
 
 .avatar-image {
@@ -656,14 +658,15 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(100, 150, 255, 0.2), rgba(50, 100, 200, 0.2));
+    background: var(--theme-panel-bg);
     backdrop-filter: blur(20px);
 }
 
 .avatar-placeholder svg {
     width: 120px;
     height: 120px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--theme-panel-text);
+    opacity: 0.4;
 }
 
 /* === Scroll Indicator === */
@@ -676,9 +679,9 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--theme-panel-text);
+    opacity: 0.5;
     z-index: 3;
-    opacity: 0;
     animation: fadeIn 1s ease-out 1.5s forwards, float 2s ease-in-out 2s infinite;
 }
 
@@ -703,7 +706,8 @@ onUnmounted(() => {
 .scroll-line {
     width: 1px;
     height: 40px;
-    background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.5));
+    background: linear-gradient(to bottom, transparent, var(--theme-panel-text));
+    opacity: 0.5;
 }
 
 .scroll-text {
@@ -770,7 +774,7 @@ onUnmounted(() => {
 .prose-content {
     font-size: 1.125rem;
     line-height: 1.8;
-    color: #333333;
+    color: var(--theme-body-text);
 }
 
 .prose-content p {
@@ -787,8 +791,8 @@ onUnmounted(() => {
     overflow: hidden;
     padding: 2rem 0;
     margin-bottom: 3rem;
-    border-top: 1px solid #e5e5e5;
-    border-bottom: 1px solid #e5e5e5;
+    border-top: 1px solid var(--theme-panel-border);
+    border-bottom: 1px solid var(--theme-panel-border);
 }
 
 .marquee-content {
@@ -811,7 +815,8 @@ onUnmounted(() => {
     flex-shrink: 0;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #e5e5e5;
+    color: var(--theme-panel-text);
+    opacity: 0.3;
     white-space: nowrap;
     font-family: 'Playfair Display', serif;
 }
@@ -825,8 +830,8 @@ onUnmounted(() => {
 
 .skill-card {
     padding: 2rem;
-    background: #fafafa;
-    border: 1px solid #e5e5e5;
+    background: var(--theme-panel-bg);
+    border: 1px solid var(--theme-panel-border);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -852,22 +857,22 @@ onUnmounted(() => {
 }
 
 .skill-card:hover {
-    background: #ffffff;
-    border-color: var(--primary-color);
+    background: var(--theme-body-bg);
+    border-color: var(--theme-primary);
     transform: translateY(-4px);
 }
 
 .skill-number {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--theme-primary);
     margin-bottom: 1rem;
 }
 
 .skill-name {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #0a0a0a;
+    color: var(--theme-body-text);
 }
 
 /* === Timeline Modern === */
@@ -904,7 +909,7 @@ onUnmounted(() => {
 .entry-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #0a0a0a;
+    color: var(--theme-body-text);
     margin-bottom: 0.75rem;
     font-family: 'Playfair Display', serif;
 }
@@ -912,21 +917,23 @@ onUnmounted(() => {
 .entry-description {
     font-size: 1rem;
     line-height: 1.7;
-    color: #666666;
+    color: var(--theme-panel-text);
+    opacity: 0.7;
 }
 
 /* === Contact Card Modern === */
 .contact-card-modern {
     padding: 3rem;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: var(--theme-panel-bg);
+    color: var(--theme-body-text);
 }
 
 .contact-intro {
     font-size: 1.5rem;
     line-height: 1.6;
     margin-bottom: 2rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--theme-panel-text);
+    opacity: 0.8;
 }
 
 .contact-cta {
@@ -960,7 +967,8 @@ onUnmounted(() => {
 
 .contact-cta-placeholder {
     font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--theme-panel-text);
+    opacity: 0.5;
 }
 
 /* === Footer Spacer === */

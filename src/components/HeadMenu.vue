@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import config from '@/config';
+import { themeManager } from '@/composables/useTheme';
 import '../color.css';
 
 // 菜单项
@@ -20,7 +21,9 @@ const isScrolled = ref(false);
 const isSearchOpen = ref(false);
 const searchQuery = ref('');
 const scrollProgress = ref(0);
-const isDarkMode = ref(false);
+
+// Use theme manager from composable
+const isDarkMode = computed(() => themeManager.currentMode.value === 'dark');
 
 // 鼠标追踪
 const mouseX = ref(0);
@@ -120,11 +123,16 @@ function toggleSearch() {
 
 // 切换主题
 function toggleTheme() {
-  isDarkMode.value = !isDarkMode.value;
-  document.documentElement.classList.toggle('dark-mode', isDarkMode.value);
+  // Add visual feedback class
+  const themeBtn = document.querySelector('.theme-btn');
+  if (themeBtn) {
+    themeBtn.classList.add('theme-switching');
+    setTimeout(() => {
+      themeBtn.classList.remove('theme-switching');
+    }, 600);
+  }
 
-  // 保存到 localStorage
-  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light');
+  themeManager.toggleTheme();
 }
 
 // 处理滚动
@@ -173,12 +181,7 @@ watch(isDarkMode, () => {
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
 
-  // 加载保存的主题
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    isDarkMode.value = true;
-    document.documentElement.classList.add('dark-mode');
-  }
+  // Theme is already initialized by App.vue, no need to load here
 
   // 初始化粒子
   initParticles();
@@ -292,26 +295,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* === 全局变量 === */
-:root {
-  --header-bg-light: rgba(255, 255, 255, 0.85);
-  --header-bg-dark: rgba(20, 20, 30, 0.9);
-  --text-light: #2c3e50;
-  --text-dark: #e0e0e0;
-}
-
-/* === 滚动进度条 === */
-.scroll-progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  z-index: 10000;
-  transition: width 0.1s ease-out;
-  box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
-}
-
 /* === Header Container === */
 .header-menu {
   display: flex;
@@ -324,16 +307,29 @@ onUnmounted(() => {
   width: 100%;
   z-index: 9999;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  background: var(--header-bg-light);
-  backdrop-filter: blur(30px) saturate(180%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--theme-header-bg);
+  backdrop-filter: blur(3px) saturate(180%);
+  border-bottom: 1px solid var(--theme-header-border);
   overflow: visible;
+  color: var(--theme-nav-text);
+}
+
+/* === 滚动进度条 === */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--theme-gradient);
+  z-index: 10000;
+  transition: width 0.1s ease-out;
+  box-shadow: 0 0 10px var(--theme-primary);
 }
 
 .header-menu.dark {
-  background: var(--header-bg-dark);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dark);
+  background: var(--theme-header-bg);
+  border-bottom: 1px solid var(--theme-header-border);
+  color: var(--theme-nav-text);
 }
 
 .header-menu.scrolled {
@@ -342,19 +338,18 @@ onUnmounted(() => {
   top: 1rem;
   padding: 0.9rem 2rem;
   border-radius: 60px;
-  background: var(--header-bg-light);
+  background: var(--theme-header-bg-scrolled);
   box-shadow:
-    0 10px 50px -10px rgba(102, 126, 234, 0.15),
-    0 5px 20px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 10px 50px -10px var(--theme-shadow-lg),
+    0 5px 20px var(--theme-shadow-md);
 }
 
 .header-menu.scrolled.dark {
-  background: var(--header-bg-dark);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--theme-header-bg-scrolled);
+  border: 1px solid var(--theme-header-border);
   box-shadow:
-    0 10px 50px -10px rgba(0, 0, 0, 0.5),
-    0 5px 20px rgba(0, 0, 0, 0.3),
+    0 10px 50px -10px var(--theme-shadow-xl),
+    0 5px 20px var(--theme-shadow-lg),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -371,14 +366,15 @@ onUnmounted(() => {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--theme-primary) 0%, transparent 70%);
+  opacity: 0.12;
   pointer-events: none;
   left: calc(var(--mouse-x) * 100%);
   top: calc(var(--mouse-y) * 100%);
   transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
   opacity: 0;
-  filter: blur(40px);
+  filter: blur(4px);
 }
 
 .header-menu:hover .mouse-glow {
@@ -386,7 +382,8 @@ onUnmounted(() => {
 }
 
 .header-menu.dark .mouse-glow {
-  background: radial-gradient(circle, rgba(147, 112, 219, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--theme-secondary) 0%, transparent 70%);
+  opacity: 0.15;
 }
 
 .logo-container {
@@ -406,7 +403,7 @@ onUnmounted(() => {
 }
 
 .logo-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -417,21 +414,21 @@ onUnmounted(() => {
 }
 
 .dark .logo-text {
-  background: linear-gradient(135deg, #a78bfa 0%, #c084fc 100%);
+  background: var(--theme-gradient);
   -webkit-background-clip: text;
   background-clip: text;
 }
 
 .logo:hover .logo-text {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
+  filter: drop-shadow(0 0 10px var(--theme-primary));
 }
 
 .logo-ripple {
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  border: 2px solid #667eea;
+  border: 2px solid var(--theme-primary);
   opacity: 0;
   transform: scale(0.8);
 }
@@ -459,9 +456,9 @@ onUnmounted(() => {
   top: 8px;
   width: 8px;
   height: 8px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   border-radius: 50%;
-  box-shadow: 0 0 15px rgba(102, 126, 234, 0.8);
+  box-shadow: 0 0 15px var(--theme-primary);
   animation: logoPulse 3s infinite;
 }
 
@@ -490,8 +487,8 @@ onUnmounted(() => {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: var(--theme-nav-hover-bg);
+  color: var(--theme-link-color);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -505,7 +502,7 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   opacity: 0;
   transition: opacity 0.4s ease;
 }
@@ -525,23 +522,26 @@ onUnmounted(() => {
 
 .tool-btn:hover {
   transform: scale(1.1) rotate(5deg);
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 5px 20px var(--theme-primary);
 }
 
 .tool-btn:hover svg,
 .tool-btn.active svg {
-  color: white;
+  color: var(--theme-button-text);
 }
 
 .dark .tool-btn {
-  background: rgba(167, 139, 250, 0.15);
-  color: #a78bfa;
+  background: var(--theme-nav-hover-bg);
+  color: var(--theme-link-color);
 }
 
 .theme-icon {
   position: relative;
   width: 20px;
   height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sun-icon,
@@ -571,6 +571,136 @@ onUnmounted(() => {
   opacity: 1;
 }
 
+/* Enhanced theme button animations */
+.theme-btn {
+  position: relative;
+  overflow: visible;
+}
+
+.theme-btn::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--theme-link-color);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-btn:active::before {
+  opacity: 1;
+  transform: scale(1.3);
+  animation: themeRipple 0.6s ease-out;
+}
+
+/* Visual feedback during theme switching */
+.theme-btn.theme-switching {
+  animation: themeSwitchPulse 0.6s ease-out;
+}
+
+.theme-btn.theme-switching::before {
+  opacity: 1;
+  animation: themeRipple 0.6s ease-out;
+}
+
+@keyframes themeSwitchPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes themeRipple {
+  0% {
+    opacity: 1;
+    transform: scale(0.8);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* Add pulse effect on hover */
+.theme-btn:hover .theme-icon {
+  animation: themePulse 1s ease-in-out infinite;
+}
+
+@keyframes themePulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+
+  .sun-icon,
+  .moon-icon {
+    transition: opacity 0.2s ease;
+    transform: none !important;
+  }
+
+  .theme-btn:hover .theme-icon {
+    animation: none;
+  }
+
+  .theme-btn.theme-switching {
+    animation: none;
+  }
+
+  .theme-btn::after {
+    display: none;
+  }
+
+  @keyframes themeRipple {
+
+    0%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes themePulse {
+
+    0%,
+    100% {
+      transform: none;
+    }
+  }
+
+  @keyframes themeSwitchPulse {
+
+    0%,
+    100% {
+      transform: none;
+    }
+  }
+}
+
+@keyframes themePulse {
+
+  0%,
+  100% {
+    transform: none;
+  }
+}
+
 .hamburger {
   display: none;
   flex-direction: column;
@@ -582,20 +712,20 @@ onUnmounted(() => {
 }
 
 .hamburger:hover {
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--theme-nav-hover-bg);
   transform: scale(1.05);
 }
 
 .line {
   width: 28px;
   height: 3px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: var(--theme-gradient);
   border-radius: 3px;
   transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .dark .line {
-  background: linear-gradient(90deg, #a78bfa, #c084fc);
+  background: var(--theme-gradient);
 }
 
 .line1-animate {
@@ -644,7 +774,7 @@ onUnmounted(() => {
 
 .nav-link {
   padding: 0.7rem 1.2rem;
-  color: var(--text-light);
+  color: var(--theme-nav-text);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
@@ -659,7 +789,7 @@ onUnmounted(() => {
 }
 
 .dark .nav-link {
-  color: var(--text-dark);
+  color: var(--theme-nav-text);
 }
 
 .nav-icon {
@@ -675,7 +805,7 @@ onUnmounted(() => {
 .nav-magnetic {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: var(--theme-nav-hover-bg);
   border-radius: 16px;
   transform: scale(0);
   opacity: 0;
@@ -689,27 +819,27 @@ onUnmounted(() => {
 
 .nav-link:hover {
   transform: translateY(-3px);
-  color: #667eea;
-  text-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+  color: var(--theme-link-color);
+  text-shadow: 0 0 20px var(--theme-primary);
 }
 
 .nav-link:hover .nav-icon {
   transform: scale(1.2) rotate(10deg);
-  filter: drop-shadow(0 0 5px rgba(102, 126, 234, 0.5));
+  filter: drop-shadow(0 0 5px var(--theme-primary));
 }
 
 .dark .nav-link:hover {
-  color: #a78bfa;
+  color: var(--theme-link-color);
 }
 
 .router-link-active.nav-link {
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
+  color: var(--theme-link-color);
+  background: var(--theme-nav-active-bg);
 }
 
 .dark .router-link-active.nav-link {
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.12);
+  color: var(--theme-link-color);
+  background: var(--theme-nav-active-bg);
 }
 
 .router-link-active.nav-link::after {
@@ -729,22 +859,23 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 1rem);
   right: 3rem;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--theme-panel-bg);
   backdrop-filter: blur(30px);
   border-radius: 20px;
   padding: 1rem;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(102, 126, 234, 0.1);
+    0 20px 60px var(--theme-shadow-lg),
+    0 0 0 1px var(--theme-border-light);
   min-width: 350px;
   z-index: 100;
+  transition: var(--theme-transition-colors);
 }
 
 .dark .search-panel {
-  background: rgba(30, 30, 40, 0.98);
+  background: var(--theme-panel-bg);
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(167, 139, 250, 0.2);
+    0 20px 60px var(--theme-shadow-xl),
+    0 0 0 1px var(--theme-border-medium);
 }
 
 .search-container {
@@ -752,22 +883,22 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.8rem;
   padding: 0.6rem 1rem;
-  background: rgba(102, 126, 234, 0.05);
+  background: var(--theme-nav-hover-bg);
   border-radius: 12px;
   border: 2px solid transparent;
   transition: all 0.3s ease;
 }
 
 .search-container:focus-within {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: var(--theme-link-color);
+  background: var(--theme-nav-active-bg);
+  box-shadow: 0 0 0 4px var(--theme-shadow-sm);
 }
 
 .search-icon {
   width: 20px;
   height: 20px;
-  color: #667eea;
+  color: var(--theme-link-color);
   flex-shrink: 0;
 }
 
@@ -776,27 +907,27 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   font-size: 1rem;
-  color: var(--text-light);
+  color: var(--theme-nav-text);
   outline: none;
 }
 
 .dark .search-input {
-  color: var(--text-dark);
+  color: var(--theme-nav-text);
 }
 
 .search-input::placeholder {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--theme-meta-text);
 }
 
 .dark .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--theme-meta-text);
 }
 
 .search-clear {
   width: 24px;
   height: 24px;
   border: none;
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--theme-nav-hover-bg);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -809,16 +940,16 @@ onUnmounted(() => {
 .search-clear svg {
   width: 14px;
   height: 14px;
-  color: #667eea;
+  color: var(--theme-link-color);
 }
 
 .search-clear:hover {
-  background: #667eea;
+  background: var(--theme-link-color);
   transform: rotate(90deg);
 }
 
 .search-clear:hover svg {
-  color: white;
+  color: var(--theme-button-text);
 }
 
 .search-enter-active,
@@ -850,7 +981,7 @@ onUnmounted(() => {
     position: fixed;
     top: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--theme-nav-mobile-bg);
     backdrop-filter: blur(30px);
     height: 100vh;
     width: 100%;
@@ -858,13 +989,13 @@ onUnmounted(() => {
     flex-direction: column;
     transform: translateX(0);
     padding-top: 6rem;
-    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.2);
+    box-shadow: -20px 0 60px var(--theme-nav-mobile-shadow);
     z-index: 1000;
     animation: slideIn 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .dark .nav-links.active {
-    background: rgba(20, 20, 30, 0.98);
+    background: var(--theme-nav-mobile-bg);
   }
 
   @keyframes slideIn {

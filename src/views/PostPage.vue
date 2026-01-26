@@ -81,14 +81,14 @@ const displayUrl = computed(() => {
   justify-content: center;
   align-items: center;
   min-height: 60vh;
-  color: #666;
+  color: var(--theme-body-text);
 }
 
 .loading-spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
+  border: 4px solid var(--theme-panel-bg);
+  border-top: 4px solid var(--theme-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;

@@ -73,15 +73,15 @@ onMounted(async () => {
     gap: 1.5rem;
     box-shadow: 0 10px 30px -10px var(--tag-panel-box-shadow);
     background: var(--tag-panel-background-color);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--theme-border-light);
     backdrop-filter: blur(10px);
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, var(--theme-transition-colors);
 }
 
 .TagPanel:hover {
     transform: translateY(-2px);
     box-shadow: 0 15px 40px -12px var(--tag-panel-box-shadow);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--theme-border-medium);
 }
 
 .panel-header {
@@ -89,23 +89,24 @@ onMounted(async () => {
     align-items: center;
     gap: 1rem;
     padding-bottom: 0.8rem;
-    border-bottom: 2px solid rgba(128, 128, 128, 0.1);
+    border-bottom: 2px solid var(--theme-border-light);
+    transition: var(--theme-transition-colors);
 }
 
 .icon-wrapper {
-    background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
+    background: var(--theme-gradient);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
+    box-shadow: 0 4px 12px var(--theme-primary);
 }
 
 .header-icon {
     width: 22px;
     height: 22px;
-    color: white;
+    color: var(--theme-button-text);
 }
 
 .header-text {
@@ -119,10 +120,11 @@ onMounted(async () => {
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
-    background: linear-gradient(to right, var(--tag-panel-text-color), var(--text-color-light, #aaa));
+    background: var(--theme-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    transition: var(--theme-transition-colors);
 }
 
 .subtitle {

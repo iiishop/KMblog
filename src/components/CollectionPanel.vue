@@ -48,14 +48,14 @@ onMounted(() => {
     height: auto;
     gap: 1.5rem;
     color: var(--collectionpanel-text-color);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, var(--theme-transition-colors);
+    border: 1px solid var(--theme-border-light);
     backdrop-filter: blur(10px);
 }
 
 .CollectionPanel:hover {
     box-shadow: 0 20px 40px -12px var(--collectionpanel-shadow-color);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--theme-border-medium);
 }
 
 .panel-header {
@@ -63,24 +63,25 @@ onMounted(() => {
     align-items: center;
     gap: 1rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid rgba(128, 128, 128, 0.1);
+    border-bottom: 2px solid var(--theme-border-light);
     margin-bottom: 0.5rem;
+    transition: var(--theme-transition-colors);
 }
 
 .icon-wrapper {
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    background: var(--theme-gradient);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+    box-shadow: 0 4px 12px var(--theme-primary);
 }
 
 .header-icon {
     width: 24px;
     height: 24px;
-    color: white;
+    color: var(--theme-button-text);
 }
 
 .header-text {
@@ -94,10 +95,11 @@ h1 {
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
-    background: linear-gradient(to right, var(--collectionpanel-text-color), var(--text-color-light, #888));
+    background: var(--theme-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    transition: var(--theme-transition-colors);
 }
 
 .subtitle {

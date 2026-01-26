@@ -2,7 +2,8 @@
     <div>
         <HeadMenu />
         <div class="Scene">
-            <button v-if="showTipList && !isInfoLeftPosition" :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
+            <button v-if="showTipList && !isInfoLeftPosition"
+                :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && !isInfoLeftPosition" :class="['TipList', 'LeftList', { hidden: isTipListHidden }]"
                 ref="tipListRef">
                 <div class="context">
@@ -19,9 +20,10 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showInfoList && isInfoLeftPosition" :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
-            <div v-if="showInfoList && isInfoLeftPosition" :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]"
-                ref="infoListRef">
+            <button v-if="showInfoList && isInfoLeftPosition"
+                :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
+            <div v-if="showInfoList && isInfoLeftPosition"
+                :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]" ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
@@ -42,9 +44,10 @@
                 <slot name="main"></slot>
                 <component v-for="(componentName, index) in mainListDownComponents" :is="componentName" :key="index" />
             </div>
-            <button v-if="showInfoList && !isInfoLeftPosition" :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
-            <div v-if="showInfoList && !isInfoLeftPosition" :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]"
-                ref="infoListRef">
+            <button v-if="showInfoList && !isInfoLeftPosition"
+                :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
+            <div v-if="showInfoList && !isInfoLeftPosition"
+                :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]" ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
                         :key="index" />
@@ -60,7 +63,8 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showTipList && isInfoLeftPosition" :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
+            <button v-if="showTipList && isInfoLeftPosition"
+                :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && isInfoLeftPosition" :class="['TipList', 'RightList', { hidden: isTipListHidden }]"
                 ref="tipListRef">
                 <div class="context">
@@ -85,6 +89,7 @@
 import { ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { markRaw } from 'vue';
 import config from '@/config';
+import { themeManager } from '@/composables/useTheme';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const HeadMenu = defineAsyncComponent(() => import('@/components/HeadMenu.vue'));
@@ -193,6 +198,11 @@ const updateFloatListPosition = () => {
 
 
 onMounted(async () => {
+    // Ensure theme system is initialized before loading components
+    if (!themeManager.currentTheme.value) {
+        themeManager.initializeTheme();
+    }
+
     await loadComponents(config.TipListUp, tipListUpComponents);
     await loadComponents(config.TipListDown, tipListDownComponents);
     await loadComponents(config.MainListUp, mainListUpComponents);

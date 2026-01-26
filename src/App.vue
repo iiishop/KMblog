@@ -1,29 +1,39 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import globalVar from './globalVar';
 import config from './config';
-import './color.css'; // 导入 color.css
-
-// 数据数组，每个对象包含 imageUrl 和 markdownUrl
-
-// 设置主题
-const setTheme = (theme) => {
-  document.documentElement.setAttribute('data-theme', theme);
-};
+import { themeManager } from './composables/useTheme';
+import './color.css'; // Import comprehensive theme CSS
 
 onMounted(() => {
   document.title = config.BlogName + "|" + config.ShortDesc;
 
-  // 应用主题
-  setTheme(config.theme);
+  // Initialize the new theme system
+  themeManager.validateThemeConfig();
+  themeManager.initializeTheme();
 });
 </script>
 
 <template>
-<div id="app">
-  <router-view />
-</div>
+  <div id="app">
+    <router-view />
+  </div>
 </template>
 
 <style>
+/* Apply theme variables to the app root */
+#app {
+  background-color: var(--theme-body-bg);
+  color: var(--theme-body-text);
+  min-height: 100vh;
+  transition: var(--theme-transition-colors);
+}
+
+/* Ensure body uses theme variables */
+body {
+  background-color: var(--theme-body-bg);
+  color: var(--theme-body-text);
+  margin: 0;
+  padding: 0;
+}
 </style>

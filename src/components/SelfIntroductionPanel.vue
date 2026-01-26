@@ -67,13 +67,13 @@ onMounted(() => {
   width: 100%;
   /* 极致质感背景：保持原变量为基底，叠加细腻光泽 */
   background: var(--user-info-background-color);
-  background-image: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.05) 100%);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   /* 现代多层阴影 & 内发光边框 */
-  box-shadow: 
-    0 15px 35px -5px rgba(0,0,0,0.1), 
-    0 0 0 1px rgba(255,255,255,0.6) inset;
+  box-shadow:
+    0 15px 35px -5px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
   color: var(--user-info-text-color);
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
   box-sizing: border-box;
@@ -84,9 +84,9 @@ onMounted(() => {
 /* 悬停时的上浮与光影增强 */
 .user-info:hover {
   transform: translateY(-8px);
-  box-shadow: 
-    0 25px 50px -12px rgba(0,0,0,0.15),
-    0 0 0 1px rgba(255,255,255,0.9) inset;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
 }
 
 .user-info img {
@@ -95,16 +95,16 @@ onMounted(() => {
   object-fit: cover;
   border-radius: 50%;
   /* 双层立体边框 */
-  border: 4px solid rgba(255,255,255,0.95);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  background-color: #fff;
+  border: 4px solid var(--theme-panel-bg);
+  box-shadow: 0 8px 25px var(--theme-shadow-md);
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), var(--theme-transition-colors);
+  background-color: var(--theme-panel-bg);
 }
 
 .user-info img:hover {
   transform: rotate(360deg) scale(1.15);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.25);
-  border-color: #fff;
+  box-shadow: 0 15px 35px var(--theme-shadow-lg);
+  border-color: var(--theme-panel-bg);
 }
 
 .user-info h2 {
@@ -113,10 +113,12 @@ onMounted(() => {
   font-weight: 800;
   letter-spacing: -0.5px;
   /* 文字渐变增强层次（需背景色配合，若背景深色则回退到inherit） */
-  background: linear-gradient(120deg, var(--user-info-text-color) 0%, #888 100%);
+  background: var(--theme-gradient);
   -webkit-background-clip: text;
   background-clip: text;
-  color: var(--user-info-text-color); /* 回退颜色 */
+  color: var(--user-info-text-color);
+  /* 回退颜色 */
+  transition: var(--theme-transition-colors);
 }
 
 .user-info p {
@@ -135,12 +137,13 @@ onMounted(() => {
   padding: 1.25rem 0;
   margin-bottom: 1.5rem;
   /* 精致的分隔线 */
-  border-top: 1px solid rgba(0,0,0,0.06);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .stats div {
-  margin: 0 !important; /* 覆盖原有 inline-block 的 margin */
+  margin: 0 !important;
+  /* 覆盖原有 inline-block 的 margin */
 }
 
 .stat-link {
@@ -157,7 +160,7 @@ onMounted(() => {
 }
 
 /* 统计项内部布局 */
-.stat-link div.clickable, 
+.stat-link div.clickable,
 .stat-link div {
   display: flex !important;
   flex-direction: column;
@@ -210,7 +213,7 @@ onMounted(() => {
   color: #fff;
   background: var(--link-hover-color, #333);
   transform: translateY(-4px) scale(1.1);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 
@@ -218,7 +221,8 @@ onMounted(() => {
 /* 3. 标题底部动态装饰线 */
 .user-info h2 {
   position: relative;
-  display: inline-block; /* 收缩宽度以适应文字 */
+  display: inline-block;
+  /* 收缩宽度以适应文字 */
 }
 
 .user-info h2::after {
