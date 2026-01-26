@@ -112,6 +112,12 @@ const languageAliases = {
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
+    html: true, // 启用HTML标签解析
+    xhtmlOut: false,
+    breaks: false,
+    langPrefix: 'language-',
+    linkify: true,
+    typographer: true,
     highlight: function (str, lang) {
         const langLabel = lang || 'text';
         let highlightedCode = '';
