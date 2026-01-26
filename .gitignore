@@ -45,3 +45,5 @@ cryptoPosts/
 .kiro/specs/
 src/router/index.js
 __pycache__/
+src/views/EditorPage.vue
+.claude/
