@@ -23,7 +23,20 @@
 
                 <!-- Preview Panel -->
                 <div class="preview-panel" ref="previewPanelRef">
-                    <MarkdownPreview :content="content" :scroll-sync="editorScrollTop" @scroll="handlePreviewScroll" />
+                    <!-- Post组件预览 - 显示metadata效果 -->
+                    <div v-if="currentMetadata && currentFile" class="post-preview-section">
+                        <div class="preview-label">文章卡片预览</div>
+                        <Post :key="currentFile.path"
+                            :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
+                            :markdownUrl="virtualMarkdownUrl" />
+                    </div>
+
+                    <!-- Markdown内容预览 -->
+                    <div class="markdown-preview-section">
+                        <div v-if="currentMetadata" class="preview-label">Markdown渲染预览</div>
+                        <MarkdownPreview :content="content" :scroll-sync="editorScrollTop"
+                            @scroll="handlePreviewScroll" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -31,12 +44,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
+import fm from 'front-matter';
 import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
 import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
+import Post from '@/components/PostPanelComps/Post.vue';
 
 // Error handling utility
 const handleApiError = (error, context = '') => {
@@ -143,6 +158,25 @@ const editorTheme = ref('vs'); // 'vs', 'vs-dark', 'hc-black'
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
 let isScrollingFromPreview = false; // 标记是否来自预览的滚动
+
+// 解析当前文件的metadata用于Post组件显示
+const currentMetadata = computed(() => {
+    if (!content.value) return null;
+
+    try {
+        const parsed = fm(content.value);
+        return parsed.attributes || null;
+    } catch (error) {
+        console.error('[EditorPage] Failed to parse front-matter:', error);
+        return null;
+    }
+});
+
+// 为Post组件生成虚拟的markdownUrl
+const virtualMarkdownUrl = computed(() => {
+    if (!currentFile.value) return '';
+    return currentFile.value.path;
+});
 
 // Request cancellation and queue management
 let currentLoadRequest = null; // Track current file load request
@@ -829,6 +863,36 @@ onBeforeUnmount(() => {
 
 .preview-panel {
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Post预览区域 */
+.post-preview-section {
+    padding: 1.5rem;
+    background: var(--theme-surface-default, #f5f5f5);
+    border-bottom: 2px solid var(--theme-border-color, #e0e0e0);
+    flex-shrink: 0;
+}
+
+.preview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--theme-text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    background: var(--theme-surface-hover, #e8e8e8);
+    border-radius: 6px;
+    display: inline-block;
+}
+
+/* Markdown预览区域 */
+.markdown-preview-section {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 0;
 }
 
 /* Responsive */

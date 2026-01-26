@@ -3,6 +3,8 @@ import globalVar from '@/globalVar';
 import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { gsap } from 'gsap';
+import axios from 'axios';
+import { parseMarkdownMetadata } from "@/utils";
 
 const props = defineProps({
     markdownUrls: {
@@ -15,18 +17,46 @@ const posts = ref({});
 const filteredPosts = ref({});
 const router = useRouter();
 
+// 过滤掉带'公告'标签和 title 为 'About' 的文章
+async function filterPosts() {
+    const allPosts = globalVar.markdowns;
+    const result = {};
+
+    for (const [key, post] of Object.entries(allPosts)) {
+        // 如果有 markdownUrls 限制，先检查是否在列表中
+        if (props.markdownUrls.length > 0 && !props.markdownUrls.includes(key)) {
+            continue;
+        }
+
+        try {
+            // 获取文章内容
+            const response = await axios.get(key.startsWith('http') ? key : new URL(key, import.meta.url).href);
+            const content = response.data;
+
+            // 解析元数据
+            const { meta } = await parseMarkdownMetadata(content);
+
+            // 检查是否有'公告'标签或 title 为 'About'
+            const hasAnnouncementTag = meta.tags && (Array.isArray(meta.tags) ? meta.tags.includes('公告') : meta.tags === '公告');
+            const isAboutPage = meta.title && meta.title.toLowerCase() === 'about';
+
+            // 如果既没有'公告'标签也不是 About 页面，则加入列表
+            if (!hasAnnouncementTag && !isAboutPage) {
+                result[key] = post;
+            }
+        } catch (error) {
+            console.error(`Failed to check tags for ${key}:`, error);
+            // 如果解析失败，还是保留这篇文章
+            result[key] = post;
+        }
+    }
+
+    return result;
+}
+
 onMounted(async () => {
     posts.value = globalVar.markdowns;
-    if (props.markdownUrls.length === 0) {
-        filteredPosts.value = posts.value;
-    } else {
-        filteredPosts.value = Object.keys(posts.value)
-            .filter(url => props.markdownUrls.includes(url))
-            .reduce((acc, url) => {
-                acc[url] = posts.value[url];
-                return acc;
-            }, {});
-    }
+    filteredPosts.value = await filterPosts();
 
     // Panel Entry Animation
     gsap.from('.ArchivePanel', {
@@ -93,7 +123,7 @@ function navigateToPost(markdownUrl) {
                 <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(Object.values(filteredPosts)[index - 1].date).getMonth()"
                     class="timeline-marker month-marker">
                     <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <div @click="navigateToPost(url)" class="post-content post-entry">

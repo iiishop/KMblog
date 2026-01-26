@@ -48,12 +48,15 @@
                     <span class="arrow">▼</span>
                 </button>
 
-                <div v-if="dropdownVisible" class="dropdown-menu">
-                    <button v-for="(template, key) in blockTemplates" :key="key" @click="insertBlock(key)"
-                        class="dropdown-item">
-                        {{ getBlockDisplayName(key) }}
-                    </button>
-                </div>
+                <!-- 使用 Teleport 将下拉菜单渲染到 body，避免被父容器裁剪 -->
+                <teleport to="body">
+                    <div v-if="dropdownVisible" class="dropdown-menu" :style="dropdownStyle">
+                        <button v-for="(template, key) in blockTemplates" :key="key" @click="insertBlock(key)"
+                            class="dropdown-item">
+                            {{ getBlockDisplayName(key) }}
+                        </button>
+                    </div>
+                </teleport>
             </div>
         </div>
 
@@ -93,6 +96,7 @@ const emit = defineEmits(['save', 'insert-format', 'insert-block', 'toggle-file-
 // Dropdown state
 const dropdownVisible = ref(false);
 const dropdownRef = ref(null);
+const dropdownStyle = ref({});
 
 // Block templates
 const blockTemplates = {
@@ -149,13 +153,36 @@ const insertBlock = (blockType) => {
     dropdownVisible.value = false;
 };
 
+const updateDropdownPosition = () => {
+    if (!dropdownRef.value) return;
+
+    const button = dropdownRef.value.querySelector('.dropdown-btn');
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    dropdownStyle.value = {
+        position: 'fixed',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        minWidth: '200px'
+    };
+};
+
 const toggleDropdown = () => {
     dropdownVisible.value = !dropdownVisible.value;
+    if (dropdownVisible.value) {
+        updateDropdownPosition();
+    }
 };
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
     if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+        // 检查点击是否在下拉菜单内
+        const dropdownMenu = document.querySelector('.dropdown-menu');
+        if (dropdownMenu && dropdownMenu.contains(event.target)) {
+            return;
+        }
         dropdownVisible.value = false;
     }
 };
@@ -304,15 +331,13 @@ onBeforeUnmount(() => {
 }
 
 .dropdown-menu {
-    position: absolute;
-    top: calc(100% + 0.25rem);
-    left: 0;
+    /* position 和其他定位属性通过 style 绑定动态设置 */
     min-width: 200px;
     background-color: var(--theme-button-bg, #ffffff);
     border: 1px solid var(--theme-border-color, #e0e0e0);
     border-radius: 4px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+    z-index: 10000;
     max-height: 300px;
     overflow-y: auto;
 }
