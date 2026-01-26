@@ -1665,4 +1665,94 @@ class MigrateFromHexo(Command):
         return '\n'.join(lines)
 
 
+class StartEditor(Command):
+    """启动本地Markdown编辑器"""
+    description = "Starts the local Markdown editor with FastAPI backend and opens it in browser"
+
+    def execute(self):
+        """
+        启动编辑器的主要逻辑:
+        1. 创建临时文件存储服务器信息
+        2. 启动FastAPI服务器进程
+        3. 读取端口和token信息
+        4. 在浏览器中打开编辑器URL
+        """
+        import subprocess
+        import webbrowser
+        import time
+        import tempfile
+
+        # 获取editor_server.py的路径
+        server_script = os.path.join(
+            os.path.dirname(__file__),
+            'editor_server.py'
+        )
+
+        if not os.path.exists(server_script):
+            return f"Error: editor_server.py not found at {server_script}"
+
+        # 创建临时文件存储服务器信息
+        info_file = tempfile.NamedTemporaryFile(
+            mode='w',
+            delete=False,
+            suffix='.json'
+        )
+        info_path = info_file.name
+        info_file.close()
+
+        try:
+            # 启动FastAPI服务器,传递信息文件路径
+            print("Starting Markdown Editor server...")
+            server_process = subprocess.Popen(
+                ["python", server_script, "--info-file", info_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+            )
+
+            # 等待服务器启动并写入信息
+            max_wait = 10
+            server_info = None
+
+            for i in range(max_wait):
+                time.sleep(0.5)
+                if os.path.exists(info_path) and os.path.getsize(info_path) > 0:
+                    try:
+                        with open(info_path, 'r') as f:
+                            server_info = json.load(f)
+                        break
+                    except json.JSONDecodeError:
+                        # 文件可能还在写入中
+                        continue
+
+            if not server_info:
+                server_process.terminate()
+                return "Error: Failed to start server - timeout waiting for server info"
+
+            port = server_info['port']
+            token = server_info['token']
+
+            # 打开浏览器,URL中包含token和端口
+            editor_url = f"http://localhost:5173/#/editor?token={token}&api_port={port}"
+            print(f"\nOpening editor in browser: {editor_url}")
+            print(f"Server running on port: {port}")
+            print(f"Auth token: {token[:16]}...")
+            print("\nNote: The editor server is running in a separate console window.")
+            print("Close that window or press Ctrl+C there to stop the server.")
+
+            webbrowser.open(editor_url)
+
+            return f"Editor started successfully!\nServer: http://127.0.0.1:{port}\nEditor: {editor_url}\n\nThe server is running in a separate console window."
+
+        except Exception as e:
+            return f"Error starting editor: {str(e)}"
+        finally:
+            # 清理临时文件
+            try:
+                if os.path.exists(info_path):
+                    os.unlink(info_path)
+            except:
+                pass
+
+
 # 导入 GitHub 相关命令

@@ -43,3 +43,5 @@ public/assets/Crypto.json
 cryptoPosts/
 .github/skills/
 .kiro/specs/
+src/router/index.js
+__pycache__/

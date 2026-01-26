@@ -117,6 +117,15 @@ const routes = [
     }
 ];
 
+// Add editor route only in development environment
+if (import.meta.env.DEV) {
+    routes.push({
+        path: '/editor',
+        name: 'Editor',
+        component: () => import('../views/EditorPage.vue')
+    });
+}
+
 const router = createRouter({
     history: createWebHashHistory(),
     routes

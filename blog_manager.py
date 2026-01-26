@@ -351,6 +351,8 @@ class BlogManagerGUI:
                             self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
             self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
                             self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
+            self.action_btn('启动编辑器', ft.Icons.EDIT,
+                            self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器'),
         ]
 
         if not self.is_blog_initialized():
@@ -1434,6 +1436,321 @@ class BlogManagerGUI:
         import threading
         threading.Thread(target=lambda: self.page.run_thread(
             build_task), daemon=True).start()
+
+    def start_editor(self, e):
+        """启动编辑器"""
+        import subprocess
+        import webbrowser
+        import time
+        import json
+        import tempfile
+        import socket
+        
+        try:
+            # 检查前端开发服务器是否运行
+            def is_port_open(port):
+                """检查端口是否开放"""
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(1)
+                    try:
+                        s.connect(('127.0.0.1', port))
+                        return True
+                    except:
+                        return False
+            
+            frontend_running = is_port_open(5173)
+            
+            if not frontend_running:
+                self.snack("⚠️ 前端开发服务器未运行！\n\n请在另一个终端运行: npm run dev", True)
+                
+                # 询问用户是否要自动启动
+                confirm_dlg = ft.AlertDialog(
+                    title=ft.Text("前端服务器未运行"),
+                    content=ft.Text(
+                        "编辑器需要前端开发服务器运行。\n\n"
+                        "请在项目根目录的终端中运行:\n"
+                        "npm run dev\n\n"
+                        "然后再次点击'启动编辑器'按钮。"
+                    ),
+                    actions=[
+                        ft.TextButton("知道了", on_click=lambda e: self.close_dlg(confirm_dlg)),
+                    ],
+                )
+                self.page.overlay.append(confirm_dlg)
+                confirm_dlg.open = True
+                self.page.update()
+                return
+            
+            # 创建临时文件存储服务器信息
+            info_file = tempfile.NamedTemporaryFile(
+                mode='w', 
+                delete=False, 
+                suffix='.json'
+            )
+            info_path = info_file.name
+            info_file.close()
+            
+            # 启动FastAPI服务器
+            server_script = os.path.join(
+                os.path.dirname(__file__), 
+                'mainTools', 
+                'editor_server.py'
+            )
+            
+            # 使用当前Python解释器
+            import sys
+            python_exe = sys.executable
+            
+            print(f"[Editor] Starting server with Python: {python_exe}")
+            print(f"[Editor] Server script: {server_script}")
+            print(f"[Editor] Info file: {info_path}")
+            
+            # 启动FastAPI服务器，实时输出日志
+            self.editor_server = subprocess.Popen(
+                [python_exe, server_script, "--info-file", info_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # 合并stderr到stdout
+                text=True,  # 使用文本模式
+                bufsize=1,  # 行缓冲
+                universal_newlines=True
+            )
+            
+            print(f"[Editor] Server process started with PID: {self.editor_server.pid}")
+            
+            # 启动日志输出线程
+            import threading
+            def output_server_logs():
+                """实时输出服务器日志"""
+                print("[Editor] Starting log output thread...")
+                try:
+                    for line in iter(self.editor_server.stdout.readline, ''):
+                        if line:
+                            print(f"[SERVER] {line.rstrip()}")
+                except Exception as e:
+                    print(f"[Editor] Log thread error: {e}")
+                finally:
+                    print("[Editor] Log output thread ended")
+            
+            log_thread = threading.Thread(target=output_server_logs, daemon=True)
+            log_thread.start()
+            print("[Editor] Log thread started")
+            
+            # 等待服务器启动并写入信息
+            max_wait = 20
+            server_info = None
+            
+            for i in range(max_wait):
+                time.sleep(0.5)
+                
+                # 检查进程是否还在运行
+                if self.editor_server.poll() is not None:
+                    # 进程已退出
+                    stderr_output = self.editor_server.stderr.read().decode('utf-8', errors='ignore')
+                    stdout_output = self.editor_server.stdout.read().decode('utf-8', errors='ignore')
+                    error_msg = f"服务器进程意外退出 (退出码: {self.editor_server.returncode})"
+                    if stderr_output:
+                        error_msg += f"\n错误输出:\n{stderr_output}"
+                    if stdout_output:
+                        error_msg += f"\n标准输出:\n{stdout_output}"
+                    raise Exception(error_msg)
+                
+                if os.path.exists(info_path) and os.path.getsize(info_path) > 0:
+                    try:
+                        # 尝试读取并解析JSON
+                        with open(info_path, 'r') as f:
+                            server_info = json.load(f)
+                        # 成功读取,跳出循环
+                        print(f"[Editor] Server info loaded: port={server_info['port']}")
+                        break
+                    except json.JSONDecodeError:
+                        # 文件可能还在写入中,继续等待
+                        if i < max_wait - 1:
+                            continue
+                        else:
+                            raise Exception("服务器信息文件格式错误")
+                    except Exception as e:
+                        # 其他错误,继续等待
+                        if i < max_wait - 1:
+                            continue
+                        else:
+                            raise
+            
+            # 检查是否成功获取服务器信息
+            if server_info is None:
+                # 尝试读取服务器的错误输出
+                stderr_output = ""
+                if hasattr(self, 'editor_server'):
+                    try:
+                        stderr_output = self.editor_server.stderr.read().decode('utf-8', errors='ignore')
+                    except:
+                        pass
+                
+                error_msg = "等待服务器启动超时"
+                if stderr_output:
+                    error_msg += f"\n服务器错误输出:\n{stderr_output[:500]}"
+                
+                raise Exception(error_msg)
+            
+            self.editor_port = server_info['port']
+            self.editor_token = server_info['token']
+            
+            # 打开浏览器
+            editor_url = f"http://localhost:5173/#/editor?token={self.editor_token}&api_port={self.editor_port}"
+            print(f"[Editor] Opening browser: {editor_url}")
+            webbrowser.open(editor_url)
+            
+            # 启动监控线程
+            import threading
+            monitor_thread = threading.Thread(
+                target=self.monitor_editor_page,
+                daemon=True
+            )
+            monitor_thread.start()
+            
+            self.snack("✅ 编辑器已启动！浏览器将自动打开。", False)
+            
+        except Exception as ex:
+            self.snack(f"启动编辑器失败: {ex}", True)
+            import traceback
+            traceback.print_exc()
+            
+            # 尝试清理服务器进程
+            if hasattr(self, 'editor_server'):
+                try:
+                    self.editor_server.terminate()
+                    self.editor_server.wait(timeout=5)
+                except:
+                    try:
+                        self.editor_server.kill()
+                    except:
+                        pass
+
+    def monitor_editor_page(self):
+        """监控编辑器页面状态"""
+        import time
+        import requests
+        
+        consecutive_failures = 0
+        max_failures = 5  # 连续失败5次后关闭服务器（增加容错）
+        
+        # 等待服务器启动（最多等待10秒）
+        print("[Editor Monitor] Waiting for server to start...")
+        print(f"[Editor Monitor] Target URL: http://127.0.0.1:{self.editor_port}/api/health")
+        print(f"[Editor Monitor] Auth Token: {self.editor_token[:10]}...")
+        
+        startup_wait = 0
+        while startup_wait < 10:
+            try:
+                print(f"[Editor Monitor] Startup attempt {startup_wait + 1}/10")
+                response = requests.get(
+                    f"http://127.0.0.1:{self.editor_port}/api/health",
+                    headers={"X-Auth-Token": self.editor_token},
+                    timeout=5
+                )
+                print(f"[Editor Monitor] Startup response: status={response.status_code}, body={response.text[:100]}")
+                if response.status_code == 200:
+                    print("[Editor Monitor] Server started successfully")
+                    break
+            except requests.exceptions.Timeout as e:
+                print(f"[Editor Monitor] Startup timeout: {e}")
+            except requests.exceptions.ConnectionError as e:
+                print(f"[Editor Monitor] Startup connection error: {e}")
+            except Exception as e:
+                print(f"[Editor Monitor] Startup error: {type(e).__name__}: {e}")
+            time.sleep(1)
+            startup_wait += 1
+        
+        if startup_wait >= 10:
+            print("[Editor Monitor] Server failed to start within 10 seconds")
+            if hasattr(self, 'editor_server'):
+                try:
+                    self.editor_server.terminate()
+                except:
+                    pass
+            return
+        
+        print("[Editor Monitor] Starting health check loop...")
+        check_count = 0
+        
+        while True:
+            check_count += 1
+            try:
+                print(f"[Editor Monitor] Health check #{check_count} at {time.strftime('%H:%M:%S')}")
+                
+                # 检查进程是否还活着
+                if hasattr(self, 'editor_server'):
+                    poll_result = self.editor_server.poll()
+                    if poll_result is not None:
+                        print(f"[Editor Monitor] Server process died! Exit code: {poll_result}")
+                        break
+                    else:
+                        print(f"[Editor Monitor] Server process is alive (PID: {self.editor_server.pid})")
+                
+                # 发送健康检查请求
+                print(f"[Editor Monitor] Sending GET request to http://127.0.0.1:{self.editor_port}/api/health")
+                start_time = time.time()
+                
+                response = requests.get(
+                    f"http://127.0.0.1:{self.editor_port}/api/health",
+                    headers={"X-Auth-Token": self.editor_token},
+                    timeout=10  # 增加到10秒超时
+                )
+                
+                elapsed = time.time() - start_time
+                print(f"[Editor Monitor] Response received in {elapsed:.2f}s: status={response.status_code}")
+                
+                if response.status_code == 200:
+                    # 服务器正常响应，重置失败计数
+                    print(f"[Editor Monitor] Health check OK (consecutive_failures reset from {consecutive_failures} to 0)")
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    print(f"[Editor Monitor] Health check failed with status {response.status_code} (consecutive_failures: {consecutive_failures}/{max_failures})")
+                    print(f"[Editor Monitor] Response body: {response.text[:200]}")
+                
+                print(f"[Editor Monitor] Sleeping for 10 seconds...")
+                time.sleep(10)  # 减少检查频率到每10秒
+                
+            except requests.exceptions.Timeout as e:
+                consecutive_failures += 1
+                print(f"[Editor Monitor] Health check timeout (consecutive_failures: {consecutive_failures}/{max_failures})")
+                print(f"[Editor Monitor] Timeout details: {e}")
+                time.sleep(10)
+            except requests.exceptions.ConnectionError as e:
+                consecutive_failures += 1
+                print(f"[Editor Monitor] Health check connection error (consecutive_failures: {consecutive_failures}/{max_failures})")
+                print(f"[Editor Monitor] Connection error details: {e}")
+                time.sleep(10)
+            except requests.exceptions.RequestException as e:
+                consecutive_failures += 1
+                print(f"[Editor Monitor] Health check request exception (consecutive_failures: {consecutive_failures}/{max_failures})")
+                print(f"[Editor Monitor] Exception type: {type(e).__name__}")
+                print(f"[Editor Monitor] Exception details: {e}")
+                time.sleep(10)
+            except Exception as e:
+                print(f"[Editor Monitor] Unexpected error: {type(e).__name__}: {e}")
+                consecutive_failures += 1
+                import traceback
+                traceback.print_exc()
+                time.sleep(10)
+            
+            # 如果连续失败达到阈值，停止服务器
+            if consecutive_failures >= max_failures:
+                print(f"[Editor Monitor] Max failures reached ({consecutive_failures}/{max_failures}), stopping server...")
+                if hasattr(self, 'editor_server'):
+                    try:
+                        print("[Editor Monitor] Terminating server process...")
+                        self.editor_server.terminate()
+                        self.editor_server.wait(timeout=5)
+                        print("[Editor Monitor] Server stopped successfully")
+                    except Exception as e:
+                        print(f"[Editor Monitor] Error stopping server: {e}")
+                        try:
+                            print("[Editor Monitor] Killing server process...")
+                            self.editor_server.kill()
+                        except:
+                            pass
+                break
 
     def show_migrate_dialog(self, e):
         """显示迁移对话框"""
