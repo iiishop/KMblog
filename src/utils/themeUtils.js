@@ -366,14 +366,19 @@ export function validateThemePalette(palette) {
 
 /**
  * Validate all theme palettes in configuration
- * @param {Object} themePalettes - Theme palettes object from config
+ * Note: Themes are now defined in color.css, this is for backward compatibility
+ * @param {Array} availableThemes - Array of available theme names
  * @returns {Object} Validation results for all palettes
  */
-export function validateAllThemePalettes(themePalettes) {
+export function validateAllThemePalettes(availableThemes = []) {
     const results = {};
 
-    for (const [themeName, palette] of Object.entries(themePalettes)) {
-        results[themeName] = validateThemePalette(palette);
+    for (const themeName of availableThemes) {
+        results[themeName] = {
+            valid: true,
+            themeName,
+            message: `Theme '${themeName}' is defined in color.css`
+        };
     }
 
     return results;
@@ -384,7 +389,7 @@ export function validateAllThemePalettes(themePalettes) {
  * @returns {string[]} Array of theme palette names
  */
 export function getAvailableThemes() {
-    return Object.keys(config.themePalettes || {});
+    return config.availableThemes || ['day', 'dark', 'night', 'bright'];
 }
 
 /**
@@ -393,34 +398,28 @@ export function getAvailableThemes() {
  * @returns {boolean} Whether the theme exists
  */
 export function themeExists(themeName) {
-    return !!(config.themePalettes && config.themePalettes[themeName]);
+    const availableThemes = getAvailableThemes();
+    return availableThemes.includes(themeName);
 }
 
 /**
  * Get theme palette with fallback
  * @param {string} themeName - Name of the theme palette
  * @param {string} fallback - Fallback theme name (default: 'day')
- * @returns {Object} Theme palette object
+ * @returns {string} Theme name (either requested or fallback)
  */
 export function getThemeWithFallback(themeName, fallback = 'day') {
     if (themeExists(themeName)) {
-        return config.themePalettes[themeName];
+        return themeName;
     }
 
     if (themeExists(fallback)) {
         console.warn(`Theme '${themeName}' not found, using fallback '${fallback}'`);
-        return config.themePalettes[fallback];
+        return fallback;
     }
 
     console.error(`Neither theme '${themeName}' nor fallback '${fallback}' found`);
-    return {
-        name: 'default',
-        displayName: 'Default',
-        colors: {
-            bodyBackground: '#ffffff',
-            bodyText: '#000000'
-        }
-    };
+    return 'day';
 }
 
 /**

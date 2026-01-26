@@ -219,21 +219,21 @@ watch(() => props.categoryPath, () => {
 .CategoryPanel {
     display: flex;
     flex-direction: column;
-    color: var(--category-panel-text-color, #333);
+    color: var(--theme-panel-text);
     width: 100%;
-    background: var(--category-panel-background-color, rgba(255, 255, 255, 0.8));
+    background: var(--theme-panel-bg);
     border-radius: 20px;
-    box-shadow: 0 10px 30px -10px var(--category-panel-shadow-color, rgba(0, 0, 0, 0.1));
+    box-shadow: 0 10px 30px -10px var(--theme-shadow-md);
     padding: 1.5rem;
     box-sizing: border-box;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--theme-panel-border);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .CategoryPanel:hover {
     transform: translateY(-2px);
-    box-shadow: 0 15px 40px -12px var(--category-panel-shadow-color, rgba(0, 0, 0, 0.15));
+    box-shadow: 0 15px 40px -12px var(--theme-shadow-lg);
 }
 
 .panel-header {
@@ -242,7 +242,7 @@ watch(() => props.categoryPath, () => {
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid rgba(128, 128, 128, 0.1);
+    border-bottom: 2px solid var(--theme-border-light);
 }
 
 .header-left {
@@ -252,19 +252,19 @@ watch(() => props.categoryPath, () => {
 }
 
 .icon-wrapper {
-    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    background: linear-gradient(135deg, var(--theme-info) 0%, var(--theme-info-hover) 100%);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .header-icon {
     width: 24px;
     height: 24px;
-    color: white;
+    color: var(--theme-button-text);
 }
 
 .header-content {
@@ -277,7 +277,7 @@ watch(() => props.categoryPath, () => {
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
-    background: linear-gradient(to right, var(--category-panel-text-color, #333), #666);
+    background: linear-gradient(to right, var(--theme-panel-text), var(--theme-meta-text));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -290,22 +290,22 @@ watch(() => props.categoryPath, () => {
 }
 
 .back-button {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--theme-surface-hover);
     border: none;
     cursor: pointer;
     padding: 8px;
     border-radius: 50%;
     transition: all 0.2s ease;
-    color: var(--category-panel-text-color, #333);
+    color: var(--theme-panel-text);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .back-button:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--theme-surface-active);
     transform: translateX(-2px);
-    color: #3b82f6;
+    color: var(--theme-info);
 }
 
 .back-button:disabled {
@@ -343,17 +343,16 @@ watch(() => props.categoryPath, () => {
     align-items: center;
     padding: 0.8rem 1rem;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.3);
-    /* Slightly clearer than folders */
-    border: 1px solid rgba(0, 0, 0, 0.03);
+    background: var(--theme-surface-hover);
+    border: 1px solid var(--theme-border-light);
     transition: all 0.2s ease;
     cursor: pointer;
 }
 
 .file-node:hover {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--theme-surface-default);
     transform: translateX(5px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px var(--theme-shadow-sm);
 }
 
 .node-content {
@@ -366,14 +365,13 @@ watch(() => props.categoryPath, () => {
 .file-icon {
     width: 20px;
     height: 20px;
-    color: #8b5cf6;
-    /* Violet for files */
+    color: var(--theme-accent);
     flex-shrink: 0;
 }
 
 .file-name {
     font-size: 0.95rem;
-    color: var(--text-color, #444);
+    color: var(--theme-content-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -381,7 +379,7 @@ watch(() => props.categoryPath, () => {
 
 .file-date {
     font-size: 0.8rem;
-    color: #999;
+    color: var(--theme-meta-text);
     flex-shrink: 0;
     margin-left: 1rem;
 }

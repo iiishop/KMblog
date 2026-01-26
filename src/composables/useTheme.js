@@ -3,12 +3,9 @@ import { ref, computed, watch } from 'vue';
 import config from '@/config';
 import {
     prefersHighContrast,
-    applyHighContrastMode,
     onHighContrastChange,
     prefersReducedMotion,
-    sanitizeThemePalette,
     sanitizeThemeMode,
-    sanitizeThemeName,
     isValidThemeMode
 } from '@/utils/themeUtils';
 
@@ -18,9 +15,6 @@ const currentTheme = ref('day'); // Current theme palette name
 const isSystemTheme = ref(true); // Whether using system preference
 const transitionsEnabled = ref(true); // Whether transitions are enabled
 const highContrastMode = ref(false); // Whether high contrast mode is active
-
-// Performance optimization: debounce timer for rapid theme changes
-let themeChangeTimer = null;
 
 /**
  * Theme Management Composable
@@ -32,7 +26,52 @@ export function useTheme() {
     const themeIcon = computed(() => isDarkMode.value ? 'moon' : 'sun');
 
     /**
+     * Apply a theme palette by setting the data-theme attribute
+     * All theme colors are defined in color.css using [data-theme] selectors
+     * @param {string} themeName - Name of the theme palette to apply
+     */
+    function applyThemePalette(themeName) {
+        try {
+            // Validate theme name
+            const availableThemes = config.availableThemes || ['day', 'dark', 'night', 'bright'];
+            if (!availableThemes.includes(themeName)) {
+                console.warn(`Theme '${themeName}' not found, falling back to 'day'`);
+                themeName = 'day';
+            }
+
+            const root = document.documentElement;
+            if (!root) {
+                console.error('Document root element not available');
+                return;
+            }
+
+            // Apply theme data attribute - this triggers CSS variable changes in color.css
+            root.setAttribute('data-theme', themeName);
+
+            // Apply high contrast mode if needed
+            if (highContrastMode.value) {
+                if (root.setAttribute) {
+                    root.setAttribute('data-high-contrast', 'true');
+                }
+            } else {
+                if (root.removeAttribute) {
+                    root.removeAttribute('data-high-contrast');
+                }
+            }
+
+            // Update current theme state
+            currentTheme.value = themeName;
+
+            // Log theme change for debugging
+            console.log(`Theme applied: ${themeName}`);
+        } catch (error) {
+            console.error('Failed to apply theme palette:', error);
+        }
+    }
+
+    /**
      * Get the theme palette configuration for a given theme name
+     * Note: This is kept for backward compatibility but colors are now in color.css
      * @param {string} themeName - Name of the theme palette
      * @returns {Object} Theme palette configuration
      */
@@ -43,35 +82,17 @@ export function useTheme() {
             themeName = 'day';
         }
 
-        // Check if theme palettes exist
-        if (!config.themePalettes || typeof config.themePalettes !== 'object') {
-            console.error('Theme palettes configuration is missing or invalid');
-            return getDefaultThemePalette();
-        }
-
-        const palette = config.themePalettes[themeName];
-        if (!palette) {
+        const availableThemes = config.availableThemes || ['day', 'dark', 'night', 'bright'];
+        if (!availableThemes.includes(themeName)) {
             console.warn(`Theme palette '${themeName}' not found, falling back to 'day'`);
-
-            // Try fallback to 'day' theme
-            if (config.themePalettes.day) {
-                const sanitized = sanitizeThemePalette(config.themePalettes.day);
-                return sanitized || config.themePalettes.day;
-            }
-
-            // If 'day' theme doesn't exist, return minimal default
-            console.error('Default theme palette not found, using minimal fallback');
-            return getDefaultThemePalette();
+            themeName = 'day';
         }
 
-        // Sanitize the palette before returning
-        const sanitized = sanitizeThemePalette(palette);
-        if (!sanitized) {
-            console.error(`Failed to sanitize theme palette '${themeName}', using fallback`);
-            return getDefaultThemePalette();
-        }
-
-        return sanitized;
+        // Return minimal palette info - actual colors are in color.css
+        return {
+            name: themeName,
+            displayName: themeName.charAt(0).toUpperCase() + themeName.slice(1) + ' Theme'
+        };
     }
 
     /**
@@ -80,206 +101,9 @@ export function useTheme() {
      */
     function getDefaultThemePalette() {
         return {
-            name: 'default',
-            displayName: 'Default',
-            colors: {
-                bodyBackground: '#ffffff',
-                bodyText: '#000000',
-                panelBackground: '#f9f9f9',
-                panelText: '#000000',
-                panelShadow: 'rgba(0, 0, 0, 0.1)',
-                panelBorder: 'rgba(0, 0, 0, 0.05)',
-                headerBackground: 'rgba(255, 255, 255, 0.9)',
-                headerBackgroundScrolled: 'rgba(255, 255, 255, 0.95)',
-                headerShadow: 'rgba(0, 0, 0, 0.1)',
-                linkColor: '#667eea',
-                linkHover: '#764ba2',
-                buttonBackground: '#667eea',
-                buttonText: '#ffffff',
-                primary: '#667eea',
-                secondary: '#764ba2',
-                accent: '#f093fb',
-                success: '#10b981',
-                warning: '#f59e0b',
-                error: '#ef4444',
-                info: '#3b82f6'
-            }
+            name: 'day',
+            displayName: 'Day Theme'
         };
-    }
-
-    /**
-     * Apply a theme palette to CSS variables
-     * @param {string} themeName - Name of the theme palette to apply
-     */
-    function applyThemePalette(themeName) {
-        try {
-            const palette = getThemePalette(themeName);
-
-            // Validate palette structure
-            if (!palette || typeof palette !== 'object') {
-                console.error('Invalid palette structure, cannot apply theme');
-                return;
-            }
-
-            const root = document.documentElement;
-            if (!root) {
-                console.error('Document root element not available');
-                return;
-            }
-
-            // Apply theme data attribute for CSS selectors
-            try {
-                root.setAttribute('data-theme', themeName);
-            } catch (error) {
-                console.warn('Failed to set data-theme attribute:', error);
-            }
-
-            // Apply high contrast mode if needed
-            let colors = palette.colors;
-            if (!colors || typeof colors !== 'object') {
-                console.error('Theme palette missing colors object');
-                return;
-            }
-
-            if (highContrastMode.value && colors) {
-                try {
-                    colors = applyHighContrastMode(colors);
-                    if (root.setAttribute) {
-                        root.setAttribute('data-high-contrast', 'true');
-                    }
-                } catch (error) {
-                    console.warn('Failed to apply high contrast mode:', error);
-                }
-            } else {
-                try {
-                    if (root.removeAttribute) {
-                        root.removeAttribute('data-high-contrast');
-                    }
-                } catch (error) {
-                    console.warn('Failed to remove high contrast attribute:', error);
-                }
-            }
-
-            // Apply palette colors to CSS variables if palette has colors
-            if (colors) {
-                // Map palette colors to CSS variables
-                const colorMappings = {
-                    // Core colors
-                    bodyBackground: '--theme-body-bg',
-                    bodyText: '--theme-body-text',
-
-                    // Panel colors
-                    panelBackground: '--theme-panel-bg',
-                    panelShadow: '--theme-panel-shadow',
-                    panelText: '--theme-panel-text',
-                    panelBorder: '--theme-panel-border',
-
-                    // Header colors
-                    headerBackground: '--theme-header-bg',
-                    headerBackgroundScrolled: '--theme-header-bg-scrolled',
-                    headerShadow: '--theme-header-shadow',
-
-                    // Interactive colors
-                    linkColor: '--theme-link-color',
-                    linkHover: '--theme-link-hover',
-                    buttonBackground: '--theme-button-bg',
-                    buttonText: '--theme-button-text',
-                    buttonHover: '--theme-button-hover',
-                    buttonActive: '--theme-button-active',
-
-                    // Semantic accent colors
-                    primary: '--theme-primary',
-                    primaryHover: '--theme-primary-hover',
-                    primaryActive: '--theme-primary-active',
-                    primaryDisabled: '--theme-primary-disabled',
-
-                    secondary: '--theme-secondary',
-                    secondaryHover: '--theme-secondary-hover',
-                    secondaryActive: '--theme-secondary-active',
-                    secondaryDisabled: '--theme-secondary-disabled',
-
-                    accent: '--theme-accent',
-                    accentHover: '--theme-accent-hover',
-                    accentActive: '--theme-accent-active',
-                    accentDisabled: '--theme-accent-disabled',
-
-                    // State colors
-                    success: '--theme-success',
-                    successHover: '--theme-success-hover',
-                    successActive: '--theme-success-active',
-                    successDisabled: '--theme-success-disabled',
-
-                    warning: '--theme-warning',
-                    warningHover: '--theme-warning-hover',
-                    warningActive: '--theme-warning-active',
-                    warningDisabled: '--theme-warning-disabled',
-
-                    error: '--theme-error',
-                    errorHover: '--theme-error-hover',
-                    errorActive: '--theme-error-active',
-                    errorDisabled: '--theme-error-disabled',
-
-                    info: '--theme-info',
-                    infoHover: '--theme-info-hover',
-                    infoActive: '--theme-info-active',
-                    infoDisabled: '--theme-info-disabled',
-
-                    // Input and form states
-                    inputBackground: '--theme-input-bg',
-                    inputBorder: '--theme-input-border',
-                    inputBorderHover: '--theme-input-border-hover',
-                    inputBorderFocus: '--theme-input-border-focus',
-                    inputText: '--theme-input-text',
-                    inputPlaceholder: '--theme-input-placeholder',
-                    inputDisabled: '--theme-input-disabled',
-
-                    // Surface colors
-                    surfaceDefault: '--theme-surface-default',
-                    surfaceHover: '--theme-surface-hover',
-                    surfaceActive: '--theme-surface-active',
-                    surfaceDisabled: '--theme-surface-disabled'
-                };
-
-                // Apply each color from the palette to its corresponding CSS variable
-                // Batch updates for better performance
-                Object.entries(colorMappings).forEach(([paletteKey, cssVar]) => {
-                    if (colors[paletteKey]) {
-                        try {
-                            root.style.setProperty(cssVar, colors[paletteKey]);
-                        } catch (error) {
-                            console.warn(`Failed to set CSS variable ${cssVar}:`, error);
-                        }
-                    }
-                });
-            }
-
-            // Update current theme
-            currentTheme.value = themeName;
-
-            console.log(`Applied theme palette: ${themeName}${highContrastMode.value ? ' (high contrast)' : ''}`);
-        } catch (error) {
-            console.error('Failed to apply theme palette:', error);
-            // Attempt to apply default theme as fallback
-            if (themeName !== 'day') {
-                console.log('Attempting to apply default theme as fallback');
-                try {
-                    const defaultPalette = getDefaultThemePalette();
-                    const root = document.documentElement;
-                    if (root && defaultPalette.colors) {
-                        Object.entries(defaultPalette.colors).forEach(([key, value]) => {
-                            const cssVar = `--theme-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-                            try {
-                                root.style.setProperty(cssVar, value);
-                            } catch (e) {
-                                // Silently fail for individual properties
-                            }
-                        });
-                    }
-                } catch (fallbackError) {
-                    console.error('Failed to apply fallback theme:', fallbackError);
-                }
-            }
-        }
     }
 
     /**
@@ -312,7 +136,8 @@ export function useTheme() {
         const themePalette = getCurrentThemePalette();
 
         // Validate theme palette name
-        const sanitizedPalette = sanitizeThemeName(themePalette, config.themePalettes, 'day');
+        const availableThemes = config.availableThemes || ['day', 'dark', 'night', 'bright'];
+        const sanitizedPalette = availableThemes.includes(themePalette) ? themePalette : 'day';
 
         applyThemePalette(sanitizedPalette);
 
@@ -669,23 +494,24 @@ export function useTheme() {
      */
     function validateThemeConfig() {
         const warnings = [];
+        const availableThemes = config.availableThemes || ['day', 'dark', 'night', 'bright'];
 
         // Check if required theme palettes exist
-        if (!config.themePalettes.day) {
-            warnings.push("Missing 'day' theme palette");
+        if (!availableThemes.includes('day')) {
+            warnings.push("Missing 'day' theme in availableThemes");
         }
 
-        if (!config.themePalettes.dark) {
-            warnings.push("Missing 'dark' theme palette");
+        if (!availableThemes.includes('dark')) {
+            warnings.push("Missing 'dark' theme in availableThemes");
         }
 
         // Check if configured themes exist
-        if (config.LightTheme && !config.themePalettes[config.LightTheme]) {
-            warnings.push(`LightTheme '${config.LightTheme}' palette not found`);
+        if (config.LightTheme && !availableThemes.includes(config.LightTheme)) {
+            warnings.push(`LightTheme '${config.LightTheme}' not found in availableThemes`);
         }
 
-        if (config.DarkTheme && !config.themePalettes[config.DarkTheme]) {
-            warnings.push(`DarkTheme '${config.DarkTheme}' palette not found`);
+        if (config.DarkTheme && !availableThemes.includes(config.DarkTheme)) {
+            warnings.push(`DarkTheme '${config.DarkTheme}' not found in availableThemes`);
         }
 
         if (warnings.length > 0) {
@@ -712,11 +538,11 @@ export function useTheme() {
 
     return {
         // State
-        currentMode: readonly(currentMode),
-        currentTheme: readonly(currentTheme),
-        isSystemTheme: readonly(isSystemTheme),
-        transitionsEnabled: readonly(transitionsEnabled),
-        highContrastMode: readonly(highContrastMode),
+        currentMode: computed(() => currentMode.value),
+        currentTheme: computed(() => currentTheme.value),
+        isSystemTheme: computed(() => isSystemTheme.value),
+        transitionsEnabled: computed(() => transitionsEnabled.value),
+        highContrastMode: computed(() => highContrastMode.value),
 
         // Computed
         isDarkMode,
@@ -736,11 +562,6 @@ export function useTheme() {
         loadThemePreference,
         saveThemePreference
     };
-}
-
-// Create a readonly wrapper for reactive refs
-function readonly(ref) {
-    return computed(() => ref.value);
 }
 
 // Export a singleton instance for global use

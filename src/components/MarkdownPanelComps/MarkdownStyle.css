@@ -2,7 +2,7 @@
 .markdown p {
     margin: 1.2rem 0;
     line-height: 1.8;
-    color: #333;
+    color: var(--theme-content-text);
     font-size: 1rem;
 }
 
@@ -18,16 +18,16 @@
     display: block;
     /* margin: 1.5rem auto; */
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 8px var(--theme-shadow-md);
     transition: transform 0.3s ease;
 }
 
 .markdown h1 {
     font-size: 2.5rem;
-    color: #1a1a1a;
+    color: var(--theme-heading-text);
     font-weight: 700;
     border-bottom: 3px solid transparent;
-    border-image: linear-gradient(90deg, #007bff, #00d4ff) 1;
+    border-image: var(--theme-gradient) 1;
     padding-bottom: 0.75rem;
     margin: 2rem 0 1.5rem 0;
     letter-spacing: -0.5px;
@@ -36,40 +36,40 @@
 
 .markdown h2 {
     font-size: 2rem;
-    color: #2c2c2c;
+    color: var(--theme-heading-text);
     margin: 1.75rem 0 1rem 0;
     font-weight: 600;
     padding-left: 1rem;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--theme-primary);
     letter-spacing: -0.3px;
 }
 
 .markdown h3 {
     font-size: 1.75rem;
-    color: #3a3a3a;
+    color: var(--theme-heading-text);
     margin: 1.5rem 0 1rem 0;
     font-weight: 600;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 2px solid var(--theme-border-light);
 }
 
 .markdown h4 {
     font-size: 1.5rem;
-    color: #4a4a4a;
+    color: var(--theme-heading-text);
     margin: 1.5rem 0 0.75rem 0;
     font-weight: 500;
 }
 
 .markdown h5 {
     font-size: 1.25rem;
-    color: #5a5a5a;
+    color: var(--theme-heading-text);
     margin: 1.25rem 0 0.75rem 0;
     font-weight: 500;
 }
 
 .markdown h6 {
     font-size: 1rem;
-    color: #6a6a6a;
+    color: var(--theme-meta-text);
     margin: 1rem 0 0.5rem 0;
     font-weight: 500;
     text-transform: uppercase;
@@ -86,7 +86,7 @@
 .markdown em {
     font-style: italic;
     font-family: "Brush Script MT", "Lucida Calligraphy", "KaiTi", "STKaiti", "楷体", cursive;
-    color: #555;
+    color: var(--theme-meta-text);
     position: relative;
     padding: 0 0.2rem;
     letter-spacing: 0.5px;
@@ -115,7 +115,7 @@
 /* 删除线样式 */
 .markdown del {
     text-decoration: line-through;
-    color: #e74c3c;
+    color: var(--theme-error);
     font-weight: 500;
     opacity: 0.8;
     position: relative;
@@ -123,12 +123,12 @@
 
 /* 引用样式 */
 .markdown blockquote {
-    border-left: 5px solid #007bff;
+    border-left: 5px solid var(--theme-primary);
     padding: 1.25rem 1.5rem;
-    color: #555;
+    color: var(--theme-meta-text);
     margin: 2rem 0;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+    background: var(--theme-surface-hover);
+    box-shadow: 0 6px 12px var(--theme-shadow-sm);
     border-radius: 10px;
     position: relative;
     font-style: italic;
@@ -137,7 +137,8 @@
 .markdown blockquote::before {
     content: '"';
     font-size: 4rem;
-    color: rgba(0, 123, 255, 0.2);
+    color: var(--theme-primary);
+    opacity: 0.2;
     position: absolute;
     top: -10px;
     left: 10px;
@@ -175,8 +176,8 @@
     margin: 1.5rem 0;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    background-color: #1e1e1e;
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
+    background-color: var(--theme-code-block-bg);
 }
 
 /* 语言标签 */
@@ -185,8 +186,9 @@
     top: 0;
     left: 0;
     padding: 0.4rem 0.9rem;
-    background: rgba(255, 255, 255, 0.08);
-    color: #9cdcfe;
+    background: var(--theme-code-block-bg);
+    opacity: 0.9;
+    color: var(--theme-info);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -199,7 +201,7 @@
 
 /* 代码块样式 - 适配 Prism.js */
 .markdown .code-block-wrapper pre {
-    background-color: #2d2d2d !important;
+    background-color: var(--theme-code-block-bg) !important;
     padding: 2.5rem 1.5rem 1.5rem 1.5rem;
     margin: 0;
     border-radius: 0;
@@ -222,7 +224,7 @@
 .markdown .code-block-wrapper code[class*="language-"] {
     background-color: transparent !important;
     text-shadow: none;
-    color: #ccc;
+    color: var(--theme-code-block-text);
 }
 
 /* 代码行样式 */
@@ -232,7 +234,8 @@
 }
 
 .markdown .code-line:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--theme-surface-hover);
+    opacity: 0.5;
 }
 
 /* 行号样式 */
@@ -241,10 +244,10 @@
     min-width: 3em;
     padding-right: 1em;
     text-align: right;
-    color: #858585;
+    color: var(--theme-meta-text);
     font-size: 0.85em;
     user-select: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid var(--theme-border-light);
     margin-right: 1em;
 }
 
@@ -257,11 +260,12 @@
     position: absolute;
     top: 0.5rem;
     right: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    color: #9cdcfe;
+    background: var(--theme-code-block-bg);
+    opacity: 0.9;
+    color: var(--theme-info);
     padding: 0.4rem 0.9rem;
     font-size: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--theme-border-light);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -278,14 +282,14 @@
 }
 
 .markdown .markdown-it-code-copy:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: var(--theme-surface-active);
+    border-color: var(--theme-border-medium);
     transform: translateY(-1px);
 }
 
 .markdown .markdown-it-code-copy:active {
     transform: translateY(0);
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--theme-code-block-bg);
 }
 
 .markdown .markdown-it-code-copy.copied::before {
@@ -294,30 +298,32 @@
 
 /* 内联代码样式（与代码块区分）*/
 .markdown :not(pre) > code {
-    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    background: var(--theme-code-bg);
     padding: 0.15rem 0.5rem;
     border-radius: 4px;
     font-family: "Fira Code", "JetBrains Mono", "Consolas", monospace;
     font-size: 0.88em;
-    color: #d63384;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--theme-accent);
+    border: 1px solid var(--theme-code-border);
     font-weight: 500;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px var(--theme-shadow-sm);
 }
 
 /* 链接样式 */
 .markdown a {
-    color: #007bff;
+    color: var(--theme-link-color);
     text-decoration: none;
     font-weight: 500;
-    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.5);
+    box-shadow: 0 0 0 0 var(--theme-primary);
+    opacity: 0.5;
     border-radius: 5px;
     transition: all 0.1s ease-in-out;
 }
 
 .markdown a:hover {
     padding: 0.5px;
-    box-shadow: 0 0 10px 2px rgba(0, 123, 255, 0.3);
+    box-shadow: 0 0 10px 2px var(--theme-primary);
+    opacity: 0.3;
 }
 
 /* 表格样式 */
@@ -327,22 +333,22 @@
     border-radius: 8px;
     font-family: "Arial", sans-serif;
     font-size: 1rem;
-    color: #333;
+    color: var(--theme-content-text);
 }
 
 .markdown table th,
 .markdown table td {
     border-radius: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--theme-border-light);
     padding: 1rem;
     text-align: left;
-    box-shadow: 1px 1px 4px 1px rgba(0, 0, 0, 0.1);
+    box-shadow: 1px 1px 4px 1px var(--theme-shadow-sm);
 }
 
 .markdown table th {
-    background-color: #d4d4d4;
+    background-color: var(--theme-surface-active);
     font-weight: 600;
-    color: #444;
+    color: var(--theme-heading-text);
 }
 
 .markdown table tr {
@@ -350,11 +356,11 @@
 }
 
 .markdown table tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: var(--theme-surface-hover);
 }
 
 .markdown table tr:hover {
-    background-color: #a1a1a1;
+    background-color: var(--theme-surface-active);
 }
 
 /* 待办事项列表样式 */
@@ -365,7 +371,7 @@
     margin-bottom: 0.75rem;
     font-family: "Arial", sans-serif;
     font-size: 1rem;
-    color: #333;
+    color: var(--theme-content-text);
 }
 
 .markdown .task-list-item input[type="checkbox"] {
@@ -373,16 +379,16 @@
     pointer-events: none;
     width: 1.5rem;
     height: 1.5rem;
-    border: 2px solid #ccc;
+    border: 2px solid var(--theme-border-medium);
     border-radius: 4px;
     appearance: none;
-    background-color: #fff;
+    background-color: var(--theme-surface-default);
     transition: background-color 0.3s ease;
 }
 
 .markdown .task-list-item input[type="checkbox"]:checked {
-    background-color: #28a745;
-    border-color: #28a745;
+    background-color: var(--theme-success);
+    border-color: var(--theme-success);
     background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3e%3cpath fill='%23fff' d='M2.3 4.3L4.1 6.1 6.7 3.5'/%3e%3c/svg%3e");
     background-size: 100%;
     background-repeat: no-repeat;
@@ -392,11 +398,11 @@
 .markdown .contains-task-list {
     padding-left: 1.5rem;
     margin: 1.5rem 0;
-    border-left: 4px solid #007bff;
-    background-color: #f8f8f8;
+    border-left: 4px solid var(--theme-primary);
+    background-color: var(--theme-surface-hover);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--theme-shadow-sm);
     position: relative;
 }
 
@@ -405,8 +411,8 @@
     position: absolute;
     top: -10px;
     left: -20px;
-    background-color: #007bff;
-    color: white;
+    background-color: var(--theme-primary);
+    color: var(--theme-button-text);
     padding: 0.2rem 0.5rem;
     border-radius: 0 0 0.5rem 0;
     font-size: 0.75rem;
@@ -423,13 +429,13 @@
     align-items: center;
     margin: 2.5rem 0;
     overflow: hidden; /* 防止任何内容超出容器 */
-    background: linear-gradient(to bottom right, #ffffff, #f8fafc); /* 极浅的渐变背景 */
-    border: 1px solid #e2e8f0;
+    background: var(--theme-surface-hover);
+    border: 1px solid var(--theme-border-light);
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 
-        0 4px 6px -1px rgba(0, 0, 0, 0.05), 
-        0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        0 4px 6px -1px var(--theme-shadow-sm), 
+        0 2px 4px -1px var(--theme-shadow-sm);
     transition: all 0.3s ease;
     width: 100%; /* 确保容器填满父元素 */
     box-sizing: border-box;
@@ -438,9 +444,9 @@
 
 .markdown .mermaid-wrapper:hover {
     box-shadow: 
-        0 10px 15px -3px rgba(0, 0, 0, 0.08), 
-        0 4px 6px -2px rgba(0, 0, 0, 0.04);
-    border-color: #cbd5e1;
+        0 10px 15px -3px var(--theme-shadow-md), 
+        0 4px 6px -2px var(--theme-shadow-sm);
+    border-color: var(--theme-border-medium);
 }
 
 /* 滚动条美化 */
@@ -453,12 +459,12 @@
 }
 
 .markdown .mermaid-wrapper::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
+    background-color: var(--theme-border-medium);
     border-radius: 3px;
 }
 
 .markdown .mermaid-wrapper::-webkit-scrollbar-thumb:hover {
-    background-color: #94a3b8;
+    background-color: var(--theme-divider);
 }
 
 .markdown .mermaid {
@@ -484,7 +490,7 @@
     text-rendering: optimizeLegibility;
 }
 .markdown {
-    /* 保持原有的变量作为后备，但主要依赖 JS 配置 */
-    --primary: #007bff;
-    --background: #fff;
+    /* 使用主题变量 */
+    --primary: var(--theme-primary);
+    --background: var(--theme-body-bg);
 }

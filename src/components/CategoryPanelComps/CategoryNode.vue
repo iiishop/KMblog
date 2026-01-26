@@ -75,8 +75,8 @@ const totalFileCount = computed(() => {
     align-items: center;
     padding: 0.8rem 1rem;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: var(--theme-surface-hover);
+    border: 1px solid var(--theme-border-light);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
@@ -90,15 +90,15 @@ const totalFileCount = computed(() => {
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, #3b82f6, #06b6d4);
+    background: var(--theme-gradient);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .category-node:hover {
     transform: translateX(5px);
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background: var(--theme-surface-default);
+    box-shadow: 0 4px 12px var(--theme-shadow-sm);
 }
 
 .category-node:hover::before {

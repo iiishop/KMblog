@@ -308,7 +308,8 @@ onUnmounted(() => {
   z-index: 9999;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--theme-header-bg);
-  backdrop-filter: blur(3px) saturate(180%);
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
   border-bottom: 1px solid var(--theme-header-border);
   overflow: visible;
   color: var(--theme-nav-text);
@@ -339,18 +340,23 @@ onUnmounted(() => {
   padding: 0.9rem 2rem;
   border-radius: 60px;
   background: var(--theme-header-bg-scrolled);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   box-shadow:
     0 10px 50px -10px var(--theme-shadow-lg),
     0 5px 20px var(--theme-shadow-md);
+  border: 1px solid var(--theme-header-border);
 }
 
 .header-menu.scrolled.dark {
   background: var(--theme-header-bg-scrolled);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--theme-header-border);
   box-shadow:
     0 10px 50px -10px var(--theme-shadow-xl),
     0 5px 20px var(--theme-shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .particle-canvas {
@@ -367,21 +373,20 @@ onUnmounted(() => {
   height: 300px;
   border-radius: 50%;
   background: radial-gradient(circle, var(--theme-primary) 0%, transparent 70%);
-  opacity: 0.12;
+  opacity: 0;
   pointer-events: none;
   left: calc(var(--mouse-x) * 100%);
   top: calc(var(--mouse-y) * 100%);
   transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
-  opacity: 0;
   filter: blur(4px);
 }
 
 .header-menu:hover .mouse-glow {
-  opacity: 1;
+  opacity: 0.12;
 }
 
-.header-menu.dark .mouse-glow {
+.header-menu.dark:hover .mouse-glow {
   background: radial-gradient(circle, var(--theme-secondary) 0%, transparent 70%);
   opacity: 0.15;
 }

@@ -67,13 +67,13 @@ onMounted(() => {
   width: 100%;
   /* 极致质感背景：保持原变量为基底，叠加细腻光泽 */
   background: var(--user-info-background-color);
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 100%);
+  background-image: linear-gradient(135deg, var(--theme-surface-hover) 0%, transparent 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   /* 现代多层阴影 & 内发光边框 */
   box-shadow:
-    0 15px 35px -5px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    0 15px 35px -5px var(--theme-shadow-md),
+    0 0 0 1px var(--theme-border-light) inset;
   color: var(--user-info-text-color);
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
   box-sizing: border-box;
@@ -85,8 +85,8 @@ onMounted(() => {
 .user-info:hover {
   transform: translateY(-8px);
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+    0 25px 50px -12px var(--theme-shadow-lg),
+    0 0 0 1px var(--theme-border-medium) inset;
 }
 
 .user-info img {
@@ -137,8 +137,8 @@ onMounted(() => {
   padding: 1.25rem 0;
   margin-bottom: 1.5rem;
   /* 精致的分隔线 */
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid var(--theme-border-light);
+  border-bottom: 1px solid var(--theme-border-light);
 }
 
 .stats div {
@@ -203,17 +203,17 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgb(228, 226, 226);
-  color: var(--user-info-text-color);
+  background: var(--theme-surface-active);
+  color: var(--theme-content-text);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
 }
 
 .link:hover {
-  color: #fff;
-  background: var(--link-hover-color, #333);
+  color: var(--theme-button-text);
+  background: var(--link-hover-color, var(--theme-primary));
   transform: translateY(-4px) scale(1.1);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 20px var(--theme-shadow-md);
 }
 
 

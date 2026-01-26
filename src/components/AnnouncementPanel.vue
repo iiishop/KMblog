@@ -466,7 +466,7 @@ function goToAnnouncement(index) {
     flex: 1;
     font-size: 1rem;
     line-height: 1.7;
-    color: #555;
+    color: var(--theme-content-text);
     margin: 0 0 1.5rem 0;
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -494,14 +494,14 @@ function goToAnnouncement(index) {
 }
 
 .action-btn.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    background: var(--theme-gradient);
+    color: var(--theme-button-text);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .action-btn.primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 20px var(--theme-shadow-lg);
 }
 
 .action-btn svg {
@@ -516,9 +516,8 @@ function goToAnnouncement(index) {
     right: 0;
     width: 150px;
     height: 150px;
-    background: linear-gradient(135deg,
-            transparent 0%,
-            rgba(102, 126, 234, 0.05) 100%);
+    background: var(--theme-gradient);
+    opacity: 0.05;
     border-radius: 0 20px 0 100%;
     pointer-events: none;
 }
@@ -542,10 +541,10 @@ function goToAnnouncement(index) {
     height: 48px;
     border-radius: 50%;
     border: none;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--theme-surface-default);
     backdrop-filter: blur(10px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    color: #667eea;
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
+    color: var(--theme-primary);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -555,10 +554,10 @@ function goToAnnouncement(index) {
 }
 
 .nav-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--theme-gradient);
+    color: var(--theme-button-text);
     transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 6px 20px var(--theme-shadow-lg);
 }
 
 .nav-btn:disabled {

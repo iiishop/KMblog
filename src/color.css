@@ -28,8 +28,8 @@
   --theme-panel-border: rgba(0, 0, 0, 0.05);
   
   /* === Header Variables === */
-  --theme-header-bg: rgba(255, 215, 231, 0.616);
-  --theme-header-bg-scrolled: rgba(200, 255, 255, 0.7);
+  --theme-header-bg: rgba(255, 255, 255, 0.7);
+  --theme-header-bg-scrolled: rgba(255, 255, 255, 0.7);
   --theme-header-shadow: rgba(0, 0, 0, 0.1);
   --theme-header-border: rgba(0, 0, 0, 0.05);
   
@@ -70,6 +70,8 @@
   --theme-code-text: #333333;
   --theme-code-border: #e9ecef;
   --theme-pre-hover: #e8e7e7;
+  --theme-code-block-bg: #2d2d2d;
+  --theme-code-block-text: #ccc;
   
   /* === Accent Variables === */
   --theme-primary: #667eea;
@@ -177,8 +179,8 @@
   --theme-panel-border: rgba(255, 255, 255, 0.1);
   
   /* === Header Variables === */
-  --theme-header-bg: rgba(20, 20, 30, 0.9);
-  --theme-header-bg-scrolled: rgba(30, 30, 40, 0.95);
+  --theme-header-bg: rgba(0, 0, 0, 0.75);
+  --theme-header-bg-scrolled: rgba(0, 0, 0, 0.7);
   --theme-header-shadow: rgba(0, 0, 0, 0.5);
   --theme-header-border: rgba(255, 255, 255, 0.1);
   
@@ -217,6 +219,8 @@
   --theme-code-text: #e0e0e0;
   --theme-code-border: #404040;
   --theme-pre-hover: #3a3a3a;
+  --theme-code-block-bg: #1e1e1e;
+  --theme-code-block-text: #ccc;
   
   /* === Accent Variables === */
   --theme-primary: #a78bfa;
@@ -229,6 +233,21 @@
   --theme-warning: #fbbf24;
   --theme-error: #f87171;
   --theme-info: #60a5fa;
+
+  /* === Input and Form State Variables === */
+  --theme-input-bg: #2a2a2a;
+  --theme-input-border: #404040;
+  --theme-input-border-hover: #525252;
+  --theme-input-border-focus: #a78bfa;
+  --theme-input-text: #e0e0e0;
+  --theme-input-placeholder: #6b7280;
+  --theme-input-disabled: #1a1a1a;
+
+  /* === Surface Variables === */
+  --theme-surface-default: #1e1e1e;
+  --theme-surface-hover: #2a2a2a;
+  --theme-surface-active: #333333;
+  --theme-surface-disabled: #1a1a1a;
   
   /* === Border and Divider Variables === */
   --theme-border-light: rgba(255, 255, 255, 0.1);
@@ -276,8 +295,8 @@
   --theme-panel-border: rgba(100, 120, 180, 0.15);
   
   /* === Header Variables === */
-  --theme-header-bg: rgba(10, 14, 26, 0.95);
-  --theme-header-bg-scrolled: rgba(15, 20, 35, 0.98);
+  --theme-header-bg: rgba(0, 0, 0, 0.8);
+  --theme-header-bg-scrolled: rgba(0, 0, 0, 0.75);
   --theme-header-shadow: rgba(0, 0, 0, 0.7);
   --theme-header-border: rgba(100, 120, 180, 0.15);
   
@@ -316,6 +335,8 @@
   --theme-code-text: #d4d9e8;
   --theme-code-border: #2a3550;
   --theme-pre-hover: #243045;
+  --theme-code-block-bg: #0f1729;
+  --theme-code-block-text: #d4d9e8;
   
   /* === Accent Variables === */
   --theme-primary: #7c9fff;
@@ -328,6 +349,21 @@
   --theme-warning: #fcd34d;
   --theme-error: #fb7185;
   --theme-info: #7dd3fc;
+
+  /* === Input and Form State Variables === */
+  --theme-input-bg: #1a2035;
+  --theme-input-border: #2a3550;
+  --theme-input-border-hover: #3a4560;
+  --theme-input-border-focus: #7c9fff;
+  --theme-input-text: #d4d9e8;
+  --theme-input-placeholder: #6b7894;
+  --theme-input-disabled: #0f1729;
+
+  /* === Surface Variables === */
+  --theme-surface-default: #151b2e;
+  --theme-surface-hover: #1a2035;
+  --theme-surface-active: #243045;
+  --theme-surface-disabled: #0f1729;
   
   /* === Border and Divider Variables === */
   --theme-border-light: rgba(100, 120, 180, 0.15);
@@ -375,8 +411,8 @@
   --theme-panel-border: rgba(0, 0, 0, 0.08);
   
   /* === Header Variables === */
-  --theme-header-bg: rgba(255, 240, 245, 0.9);
-  --theme-header-bg-scrolled: rgba(240, 248, 255, 0.95);
+  --theme-header-bg: rgba(255, 255, 255, 0.8);
+  --theme-header-bg-scrolled: rgba(255, 255, 255, 0.75);
   --theme-header-shadow: rgba(0, 0, 0, 0.08);
   --theme-header-border: rgba(0, 0, 0, 0.08);
   
@@ -415,6 +451,8 @@
   --theme-code-text: #1a1a1a;
   --theme-code-border: #e9ecef;
   --theme-pre-hover: #f0f1f3;
+  --theme-code-block-bg: #f5f5f5;
+  --theme-code-block-text: #1a1a1a;
   
   /* === Accent Variables === */
   --theme-primary: #8b5cf6;
@@ -427,6 +465,21 @@
   --theme-warning: #f59e0b;
   --theme-error: #ef4444;
   --theme-info: #3b82f6;
+
+  /* === Input and Form State Variables === */
+  --theme-input-bg: #ffffff;
+  --theme-input-border: #e5e7eb;
+  --theme-input-border-hover: #d1d5db;
+  --theme-input-border-focus: #8b5cf6;
+  --theme-input-text: #1a1a1a;
+  --theme-input-placeholder: #9ca3af;
+  --theme-input-disabled: #f9fafb;
+
+  /* === Surface Variables === */
+  --theme-surface-default: #ffffff;
+  --theme-surface-hover: #fafafa;
+  --theme-surface-active: #f5f5f5;
+  --theme-surface-disabled: #f0f0f0;
   
   /* === Border and Divider Variables === */
   --theme-border-light: rgba(0, 0, 0, 0.08);

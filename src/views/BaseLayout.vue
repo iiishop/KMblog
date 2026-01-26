@@ -232,10 +232,12 @@ body {
     font-family: 'Noto Sans SC', sans-serif;
     background: var(--body-background-color);
     color: var(--body-text-color);
-    overflow: auto;
+    overflow: hidden;
 }
 
 .Scene {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
     display: flex;
     flex-direction: row;
     justify-content: center;

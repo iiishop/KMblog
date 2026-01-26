@@ -10,12 +10,12 @@ import config from './config';
 const app = createApp(App);
 
 async function initGlobalVars() {
-    globalVar.markdowns = await loadMarkdownLinks();
-    globalVar.tags = await loadTags();
-    globalVar.categories = await loadCategories();
-    globalVar.collections = await loadCollections();
+  globalVar.markdowns = await loadMarkdownLinks();
+  globalVar.tags = await loadTags();
+  globalVar.categories = await loadCategories();
+  globalVar.collections = await loadCollections();
 
-    console.log(globalVar);
+  console.log(globalVar);
 }
 
 // 设置全局背景样式
@@ -41,13 +41,16 @@ backgroundStyle.innerHTML = `
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, ${config.BackgroundImgOpacity});
+    /* 修改后的代码 */
+    background: color-mix(in srgb, var(--theme-body-bg), transparent 30%);
     backdrop-filter: blur(${config.BackgroundImgBlur}px);
     z-index: -1;
+    transition: background var(--theme-transition-duration) var(--theme-transition-easing),
+                opacity var(--theme-transition-duration) var(--theme-transition-easing);
   }
 `;
 document.head.appendChild(backgroundStyle);
 
 initGlobalVars().then(() => {
-    app.use(router).mount('#app');
+  app.use(router).mount('#app');
 });

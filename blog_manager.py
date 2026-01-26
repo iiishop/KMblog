@@ -1809,10 +1809,56 @@ class BlogManagerGUI:
             ('BackgroundImgBlur', self.t('bg_blur'), 'number'),
             ('HeadImg', self.t('head_img'), 'text'),
             ('PostsPerPage', self.t('posts_per_page'), 'number'),
-            ('theme', self.t('theme'), 'text'),
             ('ChangeInfoAndTipPosition', self.t('change_info_tip_pos'), 'bool'),
         ]
 
+        # 主题配置部分
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text('主题配置', size=20, weight=ft.FontWeight.BOLD))
+
+        theme_items = [
+            ('LightTheme', '浅色主题', 'dropdown', ['day', 'bright']),
+            ('DarkTheme', '深色主题', 'dropdown', ['dark', 'night']),
+            ('defaultMode', '默认模式', 'dropdown', ['system', 'light', 'dark']),
+            ('transitionDuration', '过渡时长(ms)', 'number'),
+            ('enableTransitions', '启用过渡动画', 'bool'),
+            ('enableSystemDetection', '启用系统主题检测', 'bool'),
+        ]
+
+        # 添加主题配置字段
+        for item in theme_items:
+            if len(item) == 4:
+                key, label, field_type, options = item
+            else:
+                key, label, field_type = item
+                options = None
+
+            value = current_config.get(key, '')
+
+            if field_type == 'dropdown':
+                field = ft.Dropdown(
+                    label=label,
+                    value=str(value) if value else options[0],
+                    options=[ft.dropdown.Option(opt) for opt in options],
+                    width=300,
+                )
+            elif field_type == 'number':
+                field = ft.TextField(
+                    label=label,
+                    value=str(value) if value else '300',
+                    width=200,
+                    keyboard_type=ft.KeyboardType.NUMBER,
+                )
+            elif field_type == 'bool':
+                field = ft.Checkbox(
+                    label=label,
+                    value=bool(value) if value != '' else True,
+                )
+
+            config_fields[key] = field
+            form_rows.append(ft.Container(content=field, padding=5))
+
+        # 基本配置字段
         for key, label, field_type in config_items:
             value = current_config.get(key, '')
 
@@ -1967,13 +2013,15 @@ class BlogManagerGUI:
                 for key, field in config_fields.items():
                     if isinstance(field, ft.Checkbox):
                         config_updates[key] = field.value
+                    elif isinstance(field, ft.Dropdown):
+                        config_updates[key] = field.value
                     else:
                         value = field.value
                         # 尝试转换为正确的类型
                         if key in ['BackgroundImgOpacity', 'BackgroundImgBlur']:
                             value = float(value) if value else 0.0
-                        elif key in ['PostsPerPage']:
-                            value = int(value) if value else 10
+                        elif key in ['PostsPerPage', 'transitionDuration']:
+                            value = int(value) if value else (10 if key == 'PostsPerPage' else 300)
                         config_updates[key] = value
 
                 # 收集列表配置

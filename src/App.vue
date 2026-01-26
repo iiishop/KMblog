@@ -23,7 +23,6 @@ onMounted(() => {
 <style>
 /* Apply theme variables to the app root */
 #app {
-  background-color: var(--theme-body-bg);
   color: var(--theme-body-text);
   min-height: 100vh;
   transition: var(--theme-transition-colors);
