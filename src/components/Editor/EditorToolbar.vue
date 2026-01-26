@@ -127,6 +127,63 @@
                         </teleport>
                     </div>
 
+                    <!-- 背景颜色选择 -->
+                    <div class="dropdown" ref="bgColorDropdownRef">
+                        <button @click="toggleBgColorDropdown" class="tool-btn format-btn"
+                            :class="{ 'active': bgColorDropdownVisible }" title="背景颜色">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <path d="M3 3l18 18" stroke-width="1" />
+                            </svg>
+                            <div class="color-indicator" :style="{ background: selectedBgColor }"></div>
+                        </button>
+                        <teleport to="body">
+                            <transition name="dropdown-fade">
+                                <div v-if="bgColorDropdownVisible" class="ethereal-dropdown color-dropdown"
+                                    :style="bgColorDropdownStyle">
+                                    <div class="dropdown-backdrop"></div>
+                                    <div class="dropdown-content">
+                                        <div class="color-grid">
+                                            <button v-for="color in bgColorPalette" :key="color.value"
+                                                @click="insertBgColor(color.value)" class="color-swatch"
+                                                :style="{ background: color.value }" :title="color.name">
+                                                <span v-if="selectedBgColor === color.value" class="check-mark">✓</span>
+                                            </button>
+                                        </div>
+                                        <div class="custom-color-section">
+                                            <input type="color" v-model="customBgColor"
+                                                @change="insertBgColor(customBgColor)" class="custom-color-input" />
+                                            <span class="custom-color-label">自定义背景色</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </transition>
+                        </teleport>
+                    </div>
+
+                    <!-- 字体大小 -->
+                    <div class="dropdown" ref="fontSizeDropdownRef">
+                        <button @click="toggleFontSizeDropdown" class="tool-btn format-btn"
+                            :class="{ 'active': fontSizeDropdownVisible }" title="字体大小">
+                            <span class="text-icon">A</span>
+                        </button>
+                        <teleport to="body">
+                            <transition name="dropdown-fade">
+                                <div v-if="fontSizeDropdownVisible" class="ethereal-dropdown compact-dropdown"
+                                    :style="fontSizeDropdownStyle">
+                                    <div class="dropdown-backdrop"></div>
+                                    <div class="dropdown-content">
+                                        <button v-for="size in fontSizes" :key="size.value"
+                                            @click="insertFontSize(size.value)" class="dropdown-item compact-item">
+                                            <span class="font-size-preview" :style="{ fontSize: size.value }">A</span>
+                                            <span class="item-label">{{ size.name }} ({{ size.value }})</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </transition>
+                        </teleport>
+                    </div>
+
                     <button @click="insertFormat('code')" class="tool-btn format-btn" title="代码块">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="16 18 22 12 16 6" />
@@ -346,6 +403,10 @@ const props = defineProps({
     fileName: {
         type: String,
         default: ''
+    },
+    lastSaveTime: {
+        type: Number,
+        default: null
     }
 });
 
@@ -366,6 +427,16 @@ const colorDropdownStyle = ref({});
 const selectedColor = ref('#000000');
 const customColor = ref('#000000');
 
+const bgColorDropdownVisible = ref(false);
+const bgColorDropdownRef = ref(null);
+const bgColorDropdownStyle = ref({});
+const selectedBgColor = ref('#FFFF00');
+const customBgColor = ref('#FFFF00');
+
+const fontSizeDropdownVisible = ref(false);
+const fontSizeDropdownRef = ref(null);
+const fontSizeDropdownStyle = ref({});
+
 const symbolDropdownVisible = ref(false);
 const symbolDropdownRef = ref(null);
 const symbolDropdownStyle = ref({});
@@ -384,6 +455,33 @@ const colorPalette = [
     { name: '靛蓝', value: '#6366F1' },
     { name: '紫色', value: '#8B5CF6' },
     { name: '粉色', value: '#EC4899' }
+];
+
+// Background color palette
+const bgColorPalette = [
+    { name: '黄色高亮', value: '#FFFF00' },
+    { name: '绿色高亮', value: '#90EE90' },
+    { name: '蓝色高亮', value: '#ADD8E6' },
+    { name: '粉色高亮', value: '#FFB6C1' },
+    { name: '橙色高亮', value: '#FFD700' },
+    { name: '紫色高亮', value: '#DDA0DD' },
+    { name: '浅灰', value: '#F0F0F0' },
+    { name: '浅红', value: '#FFE4E1' },
+    { name: '浅绿', value: '#F0FFF0' },
+    { name: '浅蓝', value: '#F0F8FF' },
+    { name: '浅黄', value: '#FFFACD' },
+    { name: '浅紫', value: '#F8F0FF' }
+];
+
+// Font sizes
+const fontSizes = [
+    { name: '极小', value: '12px', html: '<span style="font-size: 12px">' },
+    { name: '小', value: '14px', html: '<span style="font-size: 14px">' },
+    { name: '正常', value: '16px', html: '<span style="font-size: 16px">' },
+    { name: '中', value: '18px', html: '<span style="font-size: 18px">' },
+    { name: '大', value: '20px', html: '<span style="font-size: 20px">' },
+    { name: '特大', value: '24px', html: '<span style="font-size: 24px">' },
+    { name: '超大', value: '28px', html: '<span style="font-size: 28px">' }
 ];
 
 // Common symbols
@@ -452,6 +550,29 @@ const saveStatusClass = computed(() => {
 });
 
 const saveStatusText = computed(() => {
+    if (props.lastSaveTime && props.saveStatus === 'saved') {
+        const now = Date.now();
+        const diff = now - props.lastSaveTime;
+
+        if (diff < 60000) { // 小于1分钟
+            return '刚刚保存';
+        } else if (diff < 3600000) { // 小于1小时
+            const minutes = Math.floor(diff / 60000);
+            return `${minutes}分钟前`;
+        } else if (diff < 86400000) { // 小于1天
+            const hours = Math.floor(diff / 3600000);
+            return `${hours}小时前`;
+        } else {
+            const date = new Date(props.lastSaveTime);
+            return date.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    }
+
     switch (props.saveStatus) {
         case 'saved':
             return '已保存';
@@ -483,6 +604,17 @@ const insertColor = (color) => {
     selectedColor.value = color;
     emit('insert-format', `color:${color}`);
     colorDropdownVisible.value = false;
+};
+
+const insertBgColor = (color) => {
+    selectedBgColor.value = color;
+    emit('insert-format', `bgcolor:${color}`);
+    bgColorDropdownVisible.value = false;
+};
+
+const insertFontSize = (size) => {
+    emit('insert-format', `fontsize:${size}`);
+    fontSizeDropdownVisible.value = false;
 };
 
 const insertSymbol = (symbol) => {
@@ -526,6 +658,20 @@ const toggleColorDropdown = () => {
     }
 };
 
+const toggleBgColorDropdown = () => {
+    bgColorDropdownVisible.value = !bgColorDropdownVisible.value;
+    if (bgColorDropdownVisible.value) {
+        updateDropdownPosition(bgColorDropdownRef, bgColorDropdownStyle, '240px');
+    }
+};
+
+const toggleFontSizeDropdown = () => {
+    fontSizeDropdownVisible.value = !fontSizeDropdownVisible.value;
+    if (fontSizeDropdownVisible.value) {
+        updateDropdownPosition(fontSizeDropdownRef, fontSizeDropdownStyle, '180px');
+    }
+};
+
 const toggleSymbolDropdown = () => {
     symbolDropdownVisible.value = !symbolDropdownVisible.value;
     if (symbolDropdownVisible.value) {
@@ -548,6 +694,12 @@ const handleClickOutside = (event) => {
     }
     if (colorDropdownRef.value && !colorDropdownRef.value.contains(event.target)) {
         colorDropdownVisible.value = false;
+    }
+    if (bgColorDropdownRef.value && !bgColorDropdownRef.value.contains(event.target)) {
+        bgColorDropdownVisible.value = false;
+    }
+    if (fontSizeDropdownRef.value && !fontSizeDropdownRef.value.contains(event.target)) {
+        fontSizeDropdownVisible.value = false;
     }
     if (symbolDropdownRef.value && !symbolDropdownRef.value.contains(event.target)) {
         symbolDropdownVisible.value = false;
@@ -950,6 +1102,14 @@ onBeforeUnmount(() => {
     color: #6366f1;
     min-width: 32px;
     text-align: center;
+}
+
+.font-size-preview {
+    font-weight: 700;
+    color: #6366f1;
+    min-width: 32px;
+    text-align: center;
+    line-height: 1;
 }
 
 /* Color dropdown */

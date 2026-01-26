@@ -983,6 +983,143 @@ async def delete_folder(path: str, authorized: bool = Depends(verify_token)):
         )
 
 
+@app.post("/api/images/upload")
+async def upload_image(authorized: bool = Depends(verify_token)):
+    """
+    上传图片到Images目录
+    
+    接收multipart/form-data格式的图片文件
+    自动按文章名分类存储，并按数字递增命名
+    
+    Form Data:
+        image: 图片文件
+        article_name: 文章名（不含.md扩展名）
+        
+    Returns:
+        dict: 包含图片相对路径的结果
+    """
+    from fastapi import File, UploadFile, Form
+    from fastapi.requests import Request
+    
+    # 需要重新定义函数签名以接收文件
+    pass
+
+
+# 重新定义upload_image以正确接收文件
+from fastapi import File, UploadFile, Form
+
+@app.post("/api/images/upload")
+async def upload_image_handler(
+    image: UploadFile = File(...),
+    article_name: str = Form(...),
+    authorized: bool = Depends(verify_token)
+):
+    """
+    上传图片到Images目录
+    
+    接收multipart/form-data格式的图片文件
+    自动按文章名分类存储，并按数字递增命名
+    
+    Args:
+        image: 图片文件
+        article_name: 文章名（不含.md扩展名）
+        
+    Returns:
+        dict: 包含图片相对路径的结果
+    """
+    try:
+        print(f"[API] IMAGE UPLOAD - Request received")
+        print(f"[API] IMAGE UPLOAD - Article name: {article_name}")
+        print(f"[API] IMAGE UPLOAD - File name: {image.filename}")
+        print(f"[API] IMAGE UPLOAD - Content type: {image.content_type}")
+        
+        # 验证文件类型
+        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']
+        if image.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid image type: {image.content_type}. Allowed types: {', '.join(allowed_types)}"
+            )
+        
+        # 获取文件扩展名
+        file_ext = os.path.splitext(image.filename)[1].lower()
+        if not file_ext:
+            # 根据content_type推断扩展名
+            ext_map = {
+                'image/png': '.png',
+                'image/jpeg': '.jpg',
+                'image/jpg': '.jpg',
+                'image/gif': '.gif',
+                'image/webp': '.webp'
+            }
+            file_ext = ext_map.get(image.content_type, '.png')
+        
+        # 构建目标目录路径
+        posts_path = get_posts_path()
+        images_base = os.path.join(posts_path, 'Images')
+        article_images_dir = os.path.join(images_base, article_name)
+        
+        # 确保目录存在
+        os.makedirs(article_images_dir, exist_ok=True)
+        print(f"[API] IMAGE UPLOAD - Target directory: {article_images_dir}")
+        
+        # 查找下一个可用的数字
+        existing_files = []
+        if os.path.exists(article_images_dir):
+            existing_files = [f for f in os.listdir(article_images_dir) 
+                            if os.path.isfile(os.path.join(article_images_dir, f))]
+        
+        # 提取现有文件的数字
+        existing_numbers = []
+        for filename in existing_files:
+            name_without_ext = os.path.splitext(filename)[0]
+            if name_without_ext.isdigit():
+                existing_numbers.append(int(name_without_ext))
+        
+        # 确定新文件的数字
+        next_number = 1
+        if existing_numbers:
+            next_number = max(existing_numbers) + 1
+        
+        # 构建新文件名
+        new_filename = f"{next_number}{file_ext}"
+        target_path = os.path.join(article_images_dir, new_filename)
+        
+        print(f"[API] IMAGE UPLOAD - New filename: {new_filename}")
+        print(f"[API] IMAGE UPLOAD - Target path: {target_path}")
+        
+        # 保存文件
+        content = await image.read()
+        with open(target_path, 'wb') as f:
+            f.write(content)
+        
+        print(f"[API] IMAGE UPLOAD - File saved successfully")
+        print(f"[API] IMAGE UPLOAD - File size: {len(content)} bytes")
+        
+        # 返回相对路径（相对于Images目录）
+        relative_path = f"{article_name}/{new_filename}"
+        
+        print(f"[API] IMAGE UPLOAD - Relative path: {relative_path}")
+        
+        return {
+            "success": True,
+            "message": "Image uploaded successfully",
+            "path": relative_path,
+            "filename": new_filename
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[API] IMAGE UPLOAD - Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload image: {str(e)}"
+        )
+
+
 # ==================== 服务器启动 ====================
 
 def main():

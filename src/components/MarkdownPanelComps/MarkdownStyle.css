@@ -229,8 +229,9 @@
 
 /* 代码行样式 */
 .markdown .code-line {
-    display: flex;
+    display: block;
     min-height: 1.6em;
+    line-height: 1.6em;
 }
 
 .markdown .code-line:hover {
@@ -244,17 +245,19 @@
     min-width: 3em;
     padding-right: 1em;
     text-align: right;
-    color: var(--theme-meta-text);
+    color: var(--theme-code-line-number);
     font-size: 0.85em;
     user-select: none;
-    border-right: 1px solid var(--theme-border-light);
+    border-right: 1px solid var(--theme-code-line-number-border);
     margin-right: 1em;
+    vertical-align: top;
 }
 
 /* 代码内容样式 */
 .markdown .line-content {
-    flex: 1;
-    white-space: pre;
+    display: inline;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 .markdown .markdown-it-code-copy {
     position: absolute;

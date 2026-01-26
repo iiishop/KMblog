@@ -9,8 +9,8 @@
         <!-- Main Editor Area -->
         <div class="main-editor">
             <!-- Toolbar -->
-            <EditorToolbar :save-status="saveStatus" :file-name="currentFileName" @save="handleSave"
-                @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
+            <EditorToolbar :save-status="saveStatus" :file-name="currentFileName" :last-save-time="lastSaveTime"
+                @save="handleSave" @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
                 @toggle-file-tree="fileTreeVisible = !fileTreeVisible" />
 
             <!-- Editor and Preview Panels -->
@@ -18,7 +18,8 @@
                 <!-- Edit Panel -->
                 <div class="edit-panel">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
-                        @change="handleContentChange" @scroll="handleEditorScroll" ref="monacoEditorRef" />
+                        :current-file-name="currentFileName" :api-base="API_BASE" @change="handleContentChange"
+                        @scroll="handleEditorScroll" ref="monacoEditorRef" />
                 </div>
 
                 <!-- Preview Panel -->
@@ -152,6 +153,7 @@ const currentFile = ref(null);
 const currentFileName = ref(null);
 const content = ref('');
 const saveStatus = ref('saved'); // 'saved', 'saving', 'unsaved'
+const lastSaveTime = ref(null); // 上次保存时间戳
 const editorScrollTop = ref(0);
 const monacoEditorRef = ref(null);
 const editorTheme = ref('vs'); // 'vs', 'vs-dark', 'hc-black'
@@ -247,6 +249,7 @@ const handleSave = async () => {
 
         saveStatus.value = 'saved';
         currentFileVersion.value = response.data.version;
+        lastSaveTime.value = Date.now(); // 记录保存时间
         console.log('[EditorPage] File saved successfully');
     } catch (error) {
         const errorMessage = handleApiError(error, 'Save');
@@ -703,6 +706,18 @@ const handleInsertFormat = (format) => {
     else if (format.startsWith('color:')) {
         const color = format.split(':')[1];
         insertText = `<span style="color: ${color}">${selectedText || '彩色文本'}</span>`;
+        cursorOffset = selectedText ? 0 : -7;
+    }
+    // 处理背景颜色
+    else if (format.startsWith('bgcolor:')) {
+        const color = format.split(':')[1];
+        insertText = `<span style="background-color: ${color}">${selectedText || '高亮文本'}</span>`;
+        cursorOffset = selectedText ? 0 : -7;
+    }
+    // 处理字体大小
+    else if (format.startsWith('fontsize:')) {
+        const size = format.split(':')[1];
+        insertText = `<span style="font-size: ${size}">${selectedText || '文本'}</span>`;
         cursorOffset = selectedText ? 0 : -7;
     }
     // 处理符号插入
