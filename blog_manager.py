@@ -1799,6 +1799,11 @@ class BlogManagerGUI:
         
         startup_wait = 0
         while startup_wait < 10:
+            # 检查编辑器是否已被关闭
+            if not self.editor_running:
+                print("[Editor Monitor] Editor stopped, exiting monitor")
+                return
+            
             try:
                 print(f"[Editor Monitor] Startup attempt {startup_wait + 1}/10")
                 response = requests.get(
@@ -1821,7 +1826,7 @@ class BlogManagerGUI:
         
         if startup_wait >= 10:
             print("[Editor Monitor] Server failed to start within 10 seconds")
-            if hasattr(self, 'editor_server'):
+            if self.editor_server:
                 try:
                     self.editor_server.terminate()
                 except:
@@ -1832,18 +1837,26 @@ class BlogManagerGUI:
         check_count = 0
         
         while True:
+            # 检查编辑器是否已被关闭
+            if not self.editor_running:
+                print("[Editor Monitor] Editor stopped, exiting monitor")
+                return
+            
             check_count += 1
             try:
                 print(f"[Editor Monitor] Health check #{check_count} at {time.strftime('%H:%M:%S')}")
                 
-                # 检查进程是否还活着
-                if hasattr(self, 'editor_server'):
+                # 检查进程是否还活着（只在进程存在时检查）
+                if self.editor_server:
                     poll_result = self.editor_server.poll()
                     if poll_result is not None:
                         print(f"[Editor Monitor] Server process died! Exit code: {poll_result}")
                         break
                     else:
                         print(f"[Editor Monitor] Server process is alive (PID: {self.editor_server.pid})")
+                else:
+                    print("[Editor Monitor] Server process is None, exiting monitor")
+                    return
                 
                 # 发送健康检查请求
                 print(f"[Editor Monitor] Sending GET request to http://127.0.0.1:{self.editor_port}/api/health")
@@ -1896,7 +1909,7 @@ class BlogManagerGUI:
             # 如果连续失败达到阈值，停止服务器
             if consecutive_failures >= max_failures:
                 print(f"[Editor Monitor] Max failures reached ({consecutive_failures}/{max_failures}), stopping server...")
-                if hasattr(self, 'editor_server'):
+                if self.editor_server:
                     try:
                         print("[Editor Monitor] Terminating server process...")
                         self.editor_server.terminate()
