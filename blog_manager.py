@@ -689,6 +689,146 @@ class BlogManagerGUI:
         print(f"[性能] 获取文章数据耗时: {elapsed:.3f}秒")
         return grouped_posts
 
+    def build_image_upload_widget(self, label, current_path, on_upload_callback, width=200, height=150):
+        """可复用的图片上传组件
+        
+        Args:
+            label: 标签文字
+            current_path: 当前图片路径（完整路径）
+            on_upload_callback: 上传回调函数 callback(file_path)
+            width: 图片宽度
+            height: 图片高度
+        """
+        # 检查图片是否存在
+        has_image = current_path and os.path.exists(current_path)
+        
+        # 调试输出
+        print(f"[ImageWidget] Label: {label}, Path: {current_path}, Exists: {has_image}")
+        
+        def pick_image(e):
+            """打开文件选择器"""
+            import tkinter as tk
+            from tkinter import filedialog
+            
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            
+            file_path = filedialog.askopenfilename(
+                title=f"选择{label}",
+                filetypes=[
+                    ("图片文件", "*.png *.jpg *.jpeg *.webp *.gif"),
+                    ("PNG", "*.png"),
+                    ("JPEG", "*.jpg *.jpeg"),
+                    ("WebP", "*.webp"),
+                    ("GIF", "*.gif"),
+                    ("所有文件", "*.*")
+                ]
+            )
+            
+            root.destroy()
+            
+            if file_path:
+                on_upload_callback(file_path)
+        
+        # 构建图片显示内容
+        if has_image:
+            image_content = ft.Image(
+                src=current_path,
+                width=width,
+                height=height,
+                fit="cover",
+                border_radius=8,
+            )
+            overlay = ft.Container(
+                content=ft.Icon(ft.Icons.EDIT, size=24, color="#FFFFFF"),
+                width=width,
+                height=height,
+                bgcolor=ft.Colors.with_opacity(0.7, "#000000"),
+                border_radius=8,
+                alignment=ft.Alignment(0, 0),
+                visible=False,
+            )
+        else:
+            image_content = ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE, size=36, color="#718096"),
+                    ft.Text("点击上传", size=12, color="#A0AEC0"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
+                width=width,
+                height=height,
+                bgcolor=ft.Colors.with_opacity(0.05, "#FFFFFF"),
+                border_radius=8,
+                alignment=ft.Alignment(0, 0),
+            )
+            overlay = ft.Container()
+        
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(label, size=14, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+                ft.Container(height=8),
+                ft.Container(
+                    content=ft.Stack([image_content, overlay]),
+                    on_click=pick_image,
+                    ink=True,
+                    border=ft.Border.all(1, ft.Colors.with_opacity(0.2, "#FFFFFF")),
+                    border_radius=8,
+                ),
+            ], spacing=0),
+            padding=10,
+        )
+
+    def process_config_image(self, source_path, target_field_name):
+        """处理配置图片上传
+        
+        Args:
+            source_path: 源图片路径
+            target_field_name: 目标字段名 ('BackgroundImg' 或 'HeadImg')
+        """
+        try:
+            from PIL import Image
+            
+            # 目标目录
+            base_path = os.path.dirname(__file__)
+            assets_path = os.path.join(base_path, 'public', 'assets')
+            os.makedirs(assets_path, exist_ok=True)
+            
+            # 根据字段名确定目标文件名
+            if target_field_name == 'BackgroundImg':
+                target_filename = 'background.png'
+            elif target_field_name == 'HeadImg':
+                target_filename = 'head.png'
+            else:
+                raise ValueError(f"Unknown field: {target_field_name}")
+            
+            target_path = os.path.join(assets_path, target_filename)
+            
+            # 打开并转换图片
+            img = Image.open(source_path)
+            
+            # 检查是否是 GIF
+            ext = os.path.splitext(source_path)[1].lower()
+            if ext == '.gif':
+                img.seek(0)
+                img.convert('RGBA').save(target_path, 'PNG')
+            else:
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                img.save(target_path, 'PNG')
+            
+            print(f"[Image] Saved config image: {target_path}")
+            
+            # 返回相对路径（用于配置文件，格式：/assets/xxx.png）
+            relative_path = f"/assets/{target_filename}"
+            return relative_path
+            
+        except Exception as ex:
+            print(f"[Image] Error processing config image: {ex}")
+            import traceback
+            traceback.print_exc()
+            self.snack(f"处理图片失败: {ex}", True)
+            return None
+
     def build_collection_group(self, display_name, collection_name, posts, is_default=False):
         """构建单个合集组"""
         is_expanded = collection_name in self.expanded_collections
@@ -2416,10 +2556,9 @@ class BlogManagerGUI:
             ('Name', self.t('author_name'), 'text'),
             ('Description', self.t('author_desc'), 'text'),
             ('ProjectUrl', self.t('project_url'), 'text'),
-            ('BackgroundImg', self.t('background_img'), 'text'),
+            # BackgroundImg 和 HeadImg 将使用图片上传组件，不在这里处理
             ('BackgroundImgOpacity', self.t('bg_opacity'), 'number'),
             ('BackgroundImgBlur', self.t('bg_blur'), 'number'),
-            ('HeadImg', self.t('head_img'), 'text'),
             ('PostsPerPage', self.t('posts_per_page'), 'number'),
             ('ChangeInfoAndTipPosition', self.t('change_info_tip_pos'), 'bool'),
         ]
@@ -2469,6 +2608,122 @@ class BlogManagerGUI:
 
             config_fields[key] = field
             form_rows.append(ft.Container(content=field, padding=5))
+
+        # 图片上传区域
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text('图片配置', size=20, weight=ft.FontWeight.BOLD, color="#FFFFFF"))
+        
+        # 获取项目根目录
+        base_path = os.path.dirname(__file__)
+        
+        # 获取配置中的图片路径（相对路径，如 /assets/background.png）
+        bg_img_filename = current_config.get('BackgroundImg', '/assets/background.png')
+        head_img_filename = current_config.get('HeadImg', '/assets/head.png')
+        
+        # 转换为绝对路径
+        # 配置文件中是 /assets/xxx.png，实际文件在 /public/assets/xxx.png
+        if bg_img_filename.startswith('/assets/'):
+            bg_img_relative = 'public' + bg_img_filename  # /assets/xxx.png -> public/assets/xxx.png
+        elif bg_img_filename.startswith('/'):
+            bg_img_relative = bg_img_filename[1:]
+        else:
+            bg_img_relative = bg_img_filename
+            
+        if head_img_filename.startswith('/assets/'):
+            head_img_relative = 'public' + head_img_filename  # /assets/xxx.png -> public/assets/xxx.png
+        elif head_img_filename.startswith('/'):
+            head_img_relative = head_img_filename[1:]
+        else:
+            head_img_relative = head_img_filename
+        
+        bg_img_path = os.path.join(base_path, bg_img_relative)
+        head_img_path = os.path.join(base_path, head_img_relative)
+        
+        # 调试输出
+        print(f"[Config] Base path: {base_path}")
+        print(f"[Config] Background config value: {bg_img_filename}")
+        print(f"[Config] Background absolute path: {bg_img_path}")
+        print(f"[Config] Background exists: {os.path.exists(bg_img_path)}")
+        print(f"[Config] Head config value: {head_img_filename}")
+        print(f"[Config] Head absolute path: {head_img_path}")
+        print(f"[Config] Head exists: {os.path.exists(head_img_path)}")
+        
+        # 背景图片上传状态（保存相对路径）
+        bg_img_uploaded = [bg_img_filename]
+        head_img_uploaded = [head_img_filename]
+        
+        def on_bg_upload(file_path):
+            """背景图片上传回调"""
+            result = self.process_config_image(file_path, 'BackgroundImg')
+            if result:
+                bg_img_uploaded[0] = result
+                self.snack(f"✅ 背景图片已上传", False)
+                self.build_ui()  # 刷新界面以显示新图片
+        
+        def on_head_upload(file_path):
+            """头像图片上传回调"""
+            result = self.process_config_image(file_path, 'HeadImg')
+            if result:
+                head_img_uploaded[0] = result
+                self.snack(f"✅ 头像图片已上传", False)
+                self.build_ui()  # 刷新界面以显示新图片
+        
+        # 图片上传组件
+        images_section = ft.Column([
+            # 背景图片
+            ft.Column([
+                ft.Text(
+                    self.t('background_img'), 
+                    size=16, 
+                    weight=ft.FontWeight.BOLD,
+                    color="#FFFFFF"
+                ),
+                ft.Text(
+                    "用于博客主页的背景图片，建议尺寸：1920x1080px" if self.current_lang == 'zh' else "Background image for blog homepage, recommended size: 1920x1080px",
+                    size=12,
+                    color="#718096"
+                ),
+                ft.Container(height=8),
+                self.build_image_upload_widget(
+                    "",  # 标签已在上面显示
+                    bg_img_path,
+                    on_bg_upload,
+                    width=400,
+                    height=250
+                ),
+            ], spacing=0),
+            
+            ft.Container(height=24),
+            
+            # 头像图片
+            ft.Column([
+                ft.Text(
+                    self.t('head_img'), 
+                    size=16, 
+                    weight=ft.FontWeight.BOLD,
+                    color="#FFFFFF"
+                ),
+                ft.Text(
+                    "用于个人信息面板的头像，建议尺寸：200x200px" if self.current_lang == 'zh' else "Avatar for personal info panel, recommended size: 200x200px",
+                    size=12,
+                    color="#718096"
+                ),
+                ft.Container(height=8),
+                self.build_image_upload_widget(
+                    "",  # 标签已在上面显示
+                    head_img_path,
+                    on_head_upload,
+                    width=200,
+                    height=200
+                ),
+            ], spacing=0),
+        ], spacing=0)
+        
+        form_rows.append(ft.Container(content=images_section, padding=10))
+        
+        # 保存上传的图片文件名到配置字段
+        config_fields['BackgroundImg'] = type('obj', (object,), {'value': bg_img_uploaded[0]})()
+        config_fields['HeadImg'] = type('obj', (object,), {'value': head_img_uploaded[0]})()
 
         # 基本配置字段
         for key, label, field_type in config_items:
@@ -2608,7 +2863,7 @@ class BlogManagerGUI:
                 {'name': '', 'url': ''}, len(links) - 1))
             self.page.update()
 
-        add_link_btn = ft.ElevatedButton(
+        add_link_btn = ft.Button(
             self.t('add_link'),
             icon=ft.Icons.ADD,
             on_click=add_link,
@@ -2676,7 +2931,7 @@ class BlogManagerGUI:
                 import traceback
                 traceback.print_exc()
 
-        save_btn = ft.ElevatedButton(
+        save_btn = ft.Button(
             self.t('save_config'),
             icon=ft.Icons.SAVE,
             on_click=save_config,
