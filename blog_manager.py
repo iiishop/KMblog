@@ -38,6 +38,12 @@ class BlogManagerGUI:
         self.ui_refresh_timer = None  # UI刷新定时器
         self.pending_refresh = False  # 标记是否有待处理的UI刷新
 
+        # 编辑器状态
+        self.editor_running = False  # 编辑器是否正在运行
+        self.editor_url = None  # 编辑器URL
+        self.dev_server_process = None  # 开发服务器进程
+        self.editor_server = None  # 后端服务器进程
+
         self.build_ui()
 
     def setup_page(self):
@@ -351,9 +357,23 @@ class BlogManagerGUI:
                             self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
             self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
                             self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
-            self.action_btn('启动编辑器', ft.Icons.EDIT,
-                            self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器'),
         ]
+
+        # 编辑器按钮 - 根据状态显示不同的按钮
+        if self.editor_running:
+            action_buttons.append(
+                self.action_btn('打开编辑器', ft.Icons.OPEN_IN_BROWSER,
+                                self.open_editor_window, ft.Colors.PURPLE_600, '打开已运行的编辑器')
+            )
+            action_buttons.append(
+                self.action_btn('关闭编辑器', ft.Icons.STOP_CIRCLE,
+                                self.stop_editor, ft.Colors.RED_600, '停止编辑器服务')
+            )
+        else:
+            action_buttons.append(
+                self.action_btn('启动编辑器', ft.Icons.EDIT,
+                                self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器')
+            )
 
         if not self.is_blog_initialized():
             action_buttons.append(
@@ -1438,192 +1458,331 @@ class BlogManagerGUI:
             build_task), daemon=True).start()
 
     def start_editor(self, e):
-        """启动编辑器"""
-        import subprocess
-        import webbrowser
-        import time
-        import json
-        import tempfile
-        import socket
-        
-        try:
-            # 检查前端开发服务器是否运行
-            def is_port_open(port):
-                """检查端口是否开放"""
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.settimeout(1)
-                    try:
-                        s.connect(('127.0.0.1', port))
-                        return True
-                    except:
-                        return False
+        """启动编辑器 - 带进度条"""
+        # 如果已经在运行，直接打开窗口
+        if self.editor_running and self.editor_url:
+            self.open_editor_window(e)
+            return
+
+        # 创建进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text("准备启动编辑器...", size=14)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text("启动编辑器"),
+            content=ft.Column([
+                progress_bar,
+                ft.Container(height=10),
+                status_text,
+                detail_text,
+            ], tight=True, spacing=5),
+            modal=True,
+        )
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        def editor_task():
+            """在后台线程执行启动"""
+            import subprocess
+            import webbrowser
+            import time
+            import json
+            import tempfile
+            import re
             
-            frontend_running = is_port_open(5173)
-            
-            if not frontend_running:
-                self.snack("⚠️ 前端开发服务器未运行！\n\n请在另一个终端运行: npm run dev", True)
-                
-                # 询问用户是否要自动启动
-                confirm_dlg = ft.AlertDialog(
-                    title=ft.Text("前端服务器未运行"),
-                    content=ft.Text(
-                        "编辑器需要前端开发服务器运行。\n\n"
-                        "请在项目根目录的终端中运行:\n"
-                        "npm run dev\n\n"
-                        "然后再次点击'启动编辑器'按钮。"
-                    ),
-                    actions=[
-                        ft.TextButton("知道了", on_click=lambda e: self.close_dlg(confirm_dlg)),
-                    ],
-                )
-                self.page.overlay.append(confirm_dlg)
-                confirm_dlg.open = True
+            try:
+                # 阶段1: 启动开发服务器
+                progress_bar.value = 0.1
+                status_text.value = "启动开发服务器..."
+                detail_text.value = "npm run dev"
                 self.page.update()
-                return
-            
-            # 创建临时文件存储服务器信息
-            info_file = tempfile.NamedTemporaryFile(
-                mode='w', 
-                delete=False, 
-                suffix='.json'
-            )
-            info_path = info_file.name
-            info_file.close()
-            
-            # 启动FastAPI服务器
-            server_script = os.path.join(
-                os.path.dirname(__file__), 
-                'mainTools', 
-                'editor_server.py'
-            )
-            
-            # 使用当前Python解释器
-            import sys
-            python_exe = sys.executable
-            
-            print(f"[Editor] Starting server with Python: {python_exe}")
-            print(f"[Editor] Server script: {server_script}")
-            print(f"[Editor] Info file: {info_path}")
-            
-            # 启动FastAPI服务器，实时输出日志
-            self.editor_server = subprocess.Popen(
-                [python_exe, server_script, "--info-file", info_path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # 合并stderr到stdout
-                text=True,  # 使用文本模式
-                bufsize=1,  # 行缓冲
-                universal_newlines=True
-            )
-            
-            print(f"[Editor] Server process started with PID: {self.editor_server.pid}")
-            
-            # 启动日志输出线程
-            import threading
-            def output_server_logs():
-                """实时输出服务器日志"""
-                print("[Editor] Starting log output thread...")
-                try:
-                    for line in iter(self.editor_server.stdout.readline, ''):
-                        if line:
-                            print(f"[SERVER] {line.rstrip()}")
-                except Exception as e:
-                    print(f"[Editor] Log thread error: {e}")
-                finally:
-                    print("[Editor] Log output thread ended")
-            
-            log_thread = threading.Thread(target=output_server_logs, daemon=True)
-            log_thread.start()
-            print("[Editor] Log thread started")
-            
-            # 等待服务器启动并写入信息
-            max_wait = 20
-            server_info = None
-            
-            for i in range(max_wait):
+                
+                base_path = os.path.dirname(os.path.abspath(__file__))
+                
+                # 启动开发服务器
+                if os.name == 'nt':
+                    self.dev_server_process = subprocess.Popen(
+                        'npm run dev',
+                        cwd=base_path,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True,
+                        shell=True,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
+                else:
+                    self.dev_server_process = subprocess.Popen(
+                        ['npm', 'run', 'dev'],
+                        cwd=base_path,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
+                
+                print(f"[Editor] Dev server process started with PID: {self.dev_server_process.pid}")
+                
+                # 阶段2: 解析端口号
+                progress_bar.value = 0.3
+                status_text.value = "等待开发服务器就绪..."
+                detail_text.value = "解析端口号"
+                self.page.update()
+                
+                port_pattern = re.compile(r'Local:\s+https?://(?:localhost|127\.0\.0\.1):(\d+)')
+                max_wait = 30
+                start_time = time.time()
+                frontend_port = None
+                
+                while time.time() - start_time < max_wait:
+                    line = self.dev_server_process.stdout.readline()
+                    if line:
+                        line_stripped = line.rstrip()
+                        if line_stripped:
+                            print(f"[DEV SERVER] {line_stripped}")
+                        
+                        line_clean = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                        match = port_pattern.search(line_clean)
+                        if match:
+                            frontend_port = int(match.group(1))
+                            print(f"[Editor] ✅ Port detected: {frontend_port}")
+                            break
+                    
+                    if self.dev_server_process.poll() is not None:
+                        raise Exception(f"开发服务器启动失败 (退出码: {self.dev_server_process.returncode})")
+                    
+                    time.sleep(0.1)
+                
+                if frontend_port is None:
+                    raise Exception("无法从开发服务器输出中解析端口号")
+                
+                # 启动日志输出线程
+                import threading
+                def output_dev_server_logs():
+                    try:
+                        for line in iter(self.dev_server_process.stdout.readline, ''):
+                            if line:
+                                print(f"[DEV SERVER] {line.rstrip()}")
+                    except Exception as e:
+                        print(f"[Editor] Dev server log thread error: {e}")
+                
+                log_thread = threading.Thread(target=output_dev_server_logs, daemon=True)
+                log_thread.start()
+                
+                # 阶段3: 启动后端服务器
+                progress_bar.value = 0.5
+                status_text.value = "启动后端API服务器..."
+                detail_text.value = "FastAPI server"
+                self.page.update()
+                
+                info_file = tempfile.NamedTemporaryFile(
+                    mode='w', 
+                    delete=False, 
+                    suffix='.json'
+                )
+                info_path = info_file.name
+                info_file.close()
+                
+                server_script = os.path.join(
+                    os.path.dirname(__file__), 
+                    'mainTools', 
+                    'editor_server.py'
+                )
+                
+                import sys
+                python_exe = sys.executable
+                
+                self.editor_server = subprocess.Popen(
+                    [python_exe, server_script, "--info-file", info_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                print(f"[Editor] Server process started with PID: {self.editor_server.pid}")
+                
+                # 启动服务器日志输出线程
+                def output_server_logs():
+                    try:
+                        for line in iter(self.editor_server.stdout.readline, ''):
+                            if line:
+                                print(f"[SERVER] {line.rstrip()}")
+                    except Exception as e:
+                        print(f"[Editor] Log thread error: {e}")
+                
+                log_thread = threading.Thread(target=output_server_logs, daemon=True)
+                log_thread.start()
+                
+                # 阶段4: 等待服务器就绪
+                progress_bar.value = 0.7
+                status_text.value = "等待后端服务器就绪..."
+                detail_text.value = "读取服务器信息"
+                self.page.update()
+                
+                max_wait = 20
+                server_info = None
+                
+                for i in range(max_wait):
+                    time.sleep(0.5)
+                    
+                    if self.editor_server.poll() is not None:
+                        raise Exception(f"服务器进程意外退出 (退出码: {self.editor_server.returncode})")
+                    
+                    if os.path.exists(info_path) and os.path.getsize(info_path) > 0:
+                        try:
+                            with open(info_path, 'r') as f:
+                                server_info = json.load(f)
+                            print(f"[Editor] Server info loaded: port={server_info['port']}")
+                            break
+                        except json.JSONDecodeError:
+                            if i < max_wait - 1:
+                                continue
+                            else:
+                                raise Exception("服务器信息文件格式错误")
+                
+                if server_info is None:
+                    raise Exception("等待服务器启动超时")
+                
+                self.editor_port = server_info['port']
+                self.editor_token = server_info['token']
+                
+                # 阶段5: 打开浏览器
+                progress_bar.value = 0.9
+                status_text.value = "打开浏览器..."
+                detail_text.value = ""
+                self.page.update()
+                
+                self.editor_url = f"http://localhost:{frontend_port}/#/editor?token={self.editor_token}&api_port={self.editor_port}"
+                print(f"[Editor] Opening browser: {self.editor_url}")
+                webbrowser.open(self.editor_url)
+                
+                # 启动监控线程
+                monitor_thread = threading.Thread(
+                    target=self.monitor_editor_page,
+                    daemon=True
+                )
+                monitor_thread.start()
+                
+                # 标记编辑器已启动
+                self.editor_running = True
+                
+                # 完成
+                progress_bar.value = 1.0
+                status_text.value = "启动完成！"
+                self.page.update()
                 time.sleep(0.5)
                 
-                # 检查进程是否还在运行
-                if self.editor_server.poll() is not None:
-                    # 进程已退出
-                    stderr_output = self.editor_server.stderr.read().decode('utf-8', errors='ignore')
-                    stdout_output = self.editor_server.stdout.read().decode('utf-8', errors='ignore')
-                    error_msg = f"服务器进程意外退出 (退出码: {self.editor_server.returncode})"
-                    if stderr_output:
-                        error_msg += f"\n错误输出:\n{stderr_output}"
-                    if stdout_output:
-                        error_msg += f"\n标准输出:\n{stdout_output}"
-                    raise Exception(error_msg)
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
                 
-                if os.path.exists(info_path) and os.path.getsize(info_path) > 0:
+                # 刷新UI以显示新按钮
+                self.build_ui()
+                
+                self.snack("✅ 编辑器已启动！", False)
+                
+            except Exception as ex:
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                
+                self.snack(f"启动编辑器失败: {ex}", True)
+                print(f"[Editor] Error: {ex}")
+                import traceback
+                traceback.print_exc()
+                
+                # 清理进程
+                if hasattr(self, 'dev_server_process') and self.dev_server_process:
                     try:
-                        # 尝试读取并解析JSON
-                        with open(info_path, 'r') as f:
-                            server_info = json.load(f)
-                        # 成功读取,跳出循环
-                        print(f"[Editor] Server info loaded: port={server_info['port']}")
-                        break
-                    except json.JSONDecodeError:
-                        # 文件可能还在写入中,继续等待
-                        if i < max_wait - 1:
-                            continue
-                        else:
-                            raise Exception("服务器信息文件格式错误")
-                    except Exception as e:
-                        # 其他错误,继续等待
-                        if i < max_wait - 1:
-                            continue
-                        else:
-                            raise
-            
-            # 检查是否成功获取服务器信息
-            if server_info is None:
-                # 尝试读取服务器的错误输出
-                stderr_output = ""
-                if hasattr(self, 'editor_server'):
-                    try:
-                        stderr_output = self.editor_server.stderr.read().decode('utf-8', errors='ignore')
+                        self.dev_server_process.terminate()
                     except:
                         pass
                 
-                error_msg = "等待服务器启动超时"
-                if stderr_output:
-                    error_msg += f"\n服务器错误输出:\n{stderr_output[:500]}"
-                
-                raise Exception(error_msg)
-            
-            self.editor_port = server_info['port']
-            self.editor_token = server_info['token']
-            
-            # 打开浏览器
-            editor_url = f"http://localhost:5173/#/editor?token={self.editor_token}&api_port={self.editor_port}"
-            print(f"[Editor] Opening browser: {editor_url}")
-            webbrowser.open(editor_url)
-            
-            # 启动监控线程
-            import threading
-            monitor_thread = threading.Thread(
-                target=self.monitor_editor_page,
-                daemon=True
-            )
-            monitor_thread.start()
-            
-            self.snack("✅ 编辑器已启动！浏览器将自动打开。", False)
-            
-        except Exception as ex:
-            self.snack(f"启动编辑器失败: {ex}", True)
-            import traceback
-            traceback.print_exc()
-            
-            # 尝试清理服务器进程
-            if hasattr(self, 'editor_server'):
-                try:
-                    self.editor_server.terminate()
-                    self.editor_server.wait(timeout=5)
-                except:
+                if hasattr(self, 'editor_server') and self.editor_server:
                     try:
-                        self.editor_server.kill()
+                        self.editor_server.terminate()
                     except:
                         pass
+                
+                self.editor_running = False
+                self.editor_url = None
+
+        # 使用Flet的run_thread在后台执行
+        import threading
+        threading.Thread(target=lambda: self.page.run_thread(
+            editor_task), daemon=True).start()
+
+    def open_editor_window(self, e):
+        """打开已运行的编辑器窗口"""
+        if self.editor_url:
+            import webbrowser
+            webbrowser.open(self.editor_url)
+            self.snack("✅ 已打开编辑器窗口", False)
+        else:
+            self.snack("编辑器未运行", True)
+
+    def stop_editor(self, e):
+        """停止编辑器服务"""
+        def confirm_stop():
+            try:
+                # 停止开发服务器
+                if hasattr(self, 'dev_server_process') and self.dev_server_process:
+                    print("[Editor] Stopping dev server...")
+                    try:
+                        self.dev_server_process.terminate()
+                        self.dev_server_process.wait(timeout=5)
+                        print("[Editor] Dev server stopped")
+                    except:
+                        try:
+                            self.dev_server_process.kill()
+                        except:
+                            pass
+                
+                # 停止后端服务器
+                if hasattr(self, 'editor_server') and self.editor_server:
+                    print("[Editor] Stopping backend server...")
+                    try:
+                        self.editor_server.terminate()
+                        self.editor_server.wait(timeout=5)
+                        print("[Editor] Backend server stopped")
+                    except:
+                        try:
+                            self.editor_server.kill()
+                        except:
+                            pass
+                
+                # 重置状态
+                self.editor_running = False
+                self.editor_url = None
+                self.dev_server_process = None
+                self.editor_server = None
+                
+                # 刷新UI
+                self.build_ui()
+                
+                self.snack("✅ 编辑器已关闭", False)
+                
+            except Exception as ex:
+                self.snack(f"关闭失败: {ex}", True)
+                import traceback
+                traceback.print_exc()
+        
+        # 确认对话框
+        self.confirm(
+            "确认关闭",
+            "确定要关闭编辑器服务吗？\n这将停止开发服务器和后端API服务器。",
+            confirm_stop
+        )
 
     def monitor_editor_page(self):
         """监控编辑器页面状态"""
