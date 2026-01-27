@@ -256,31 +256,16 @@ async def verify_token(x_auth_token: Optional[str] = Header(None)) -> bool:
 
 # ==================== CORS配置 ====================
 
-# 动态 CORS 配置 - 允许所有 localhost 和 127.0.0.1 的端口
-def add_cors_headers(request, call_next):
-    """动态添加 CORS 头"""
-    import asyncio
-    response = asyncio.create_task(call_next(request))
-    response = asyncio.run(response) if not asyncio.iscoroutine(response) else response
-    
-    origin = request.headers.get("origin")
-    if origin:
-        # 允许所有 localhost 和 127.0.0.1 的端口
-        if origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-    
-    return response
-
 # 使用正则表达式匹配所有 localhost 端口
+# 这个配置允许所有来自 localhost 或 127.0.0.1 的任意端口的请求
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # 预检请求缓存1小时
 )
 
 

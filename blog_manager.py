@@ -718,56 +718,90 @@ class BlogManagerGUI:
                 on_click=on_delete_collection,
             )
 
-        # 拖放接收处理
-        def on_drag_accept(e):
-            print(f"[Drag] on_drag_accept triggered")
-            print(f"[Drag] src_id: {e.src_id}")
+        # 检查是否有封面图片
+        from mainTools.path_utils import get_posts_path
+        collection_path = os.path.join(get_posts_path(), collection_name)
+        image_path = os.path.join(collection_path, 'image.png')
+        has_image = os.path.exists(image_path)
 
-            # 尝试直接从事件获取源控件
-            src_control = None
-            if hasattr(e, 'src') and e.src:
-                src_control = e.src
-                print(f"[Drag] Found src control: {type(src_control)}")
+        # 创建文件选择器（用于选择图片）
+        def pick_image(e):
+            """打开文件选择器选择图片"""
+            # 使用 tkinter 的文件对话框
+            import tkinter as tk
+            from tkinter import filedialog
+            
+            # 创建隐藏的 tkinter 窗口
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            
+            # 打开文件选择对话框
+            file_path = filedialog.askopenfilename(
+                title=f"选择 {collection_name} 的封面图片",
+                filetypes=[
+                    ("图片文件", "*.png *.jpg *.jpeg *.webp *.gif"),
+                    ("PNG", "*.png"),
+                    ("JPEG", "*.jpg *.jpeg"),
+                    ("WebP", "*.webp"),
+                    ("GIF", "*.gif"),
+                    ("所有文件", "*.*")
+                ]
+            )
+            
+            root.destroy()
+            
+            if file_path:
+                # 检查是否已有图片
+                img_path = os.path.join(collection_path, 'image.png')
+                if os.path.exists(img_path):
+                    self.show_image_replace_dialog(file_path, collection_name, collection_path)
+                else:
+                    self.process_collection_image(file_path, collection_name, collection_path)
 
-            # 如果找到源控件且有数据
-            if src_control and hasattr(src_control, 'data') and src_control.data:
-                data = src_control.data
-                print(f"[Drag] Got data from src control: {data}")
+        def handle_file_pick(result, coll_name, coll_path):
+            """处理文件选择结果（已废弃，使用 tkinter 代替）"""
+            pass
 
-                post_name = data.get('post_name')
-                source_collection = data.get('source_collection')
-                print(
-                    f"[Drag] Moving {post_name} from {source_collection} to {collection_name}")
+        # 构建图片上传区域（仅支持点击上传，Flet 不支持从外部拖放文件）
+        image_upload_area = ft.Container(
+            content=ft.Stack([
+                ft.Image(
+                    src=image_path,
+                    width=150,
+                    height=100,
+                    fit="cover",
+                    border_radius=8,
+                ) if has_image else ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE, size=36, color=ft.Colors.GREY_400),
+                        ft.Text("点击上传封面", size=12, color=ft.Colors.GREY_500),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
+                    width=150,
+                    height=100,
+                    bgcolor=ft.Colors.GREY_200,
+                    border_radius=8,
+                    alignment=ft.Alignment(0, 0),
+                ),
+                # 悬停时显示更换按钮
+                ft.Container(
+                    content=ft.Icon(ft.Icons.EDIT, size=24, color=ft.Colors.WHITE),
+                    width=150,
+                    height=100,
+                    bgcolor=ft.Colors.with_opacity(0.7, ft.Colors.BLACK),
+                    border_radius=8,
+                    alignment=ft.Alignment(0, 0),
+                    visible=False,
+                ) if has_image else ft.Container(),
+            ]),
+            padding=ft.Padding(0, 10, 0, 0),
+            on_click=pick_image if not is_default else None,
+            ink=True if not is_default else False,
+        ) if not is_default else ft.Container()
 
-                try:
-                    # 移动文章
-                    self.move_post_to_collection(
-                        post_name, source_collection, collection_name)
-                except Exception as ex:
-                    print(f"[Drag] Error in move_post_to_collection: {ex}")
-                    import traceback
-                    traceback.print_exc()
-            else:
-                print(f"[Drag] Warning: Could not get data from src control")
-
-        # 拖放悬停效果
-        def on_will_accept(e):
-            import time
-            print(f"[性能-时间戳] 拖拽开始(on_will_accept): {time.time():.3f}")
-            print(f"[Drag] on_will_accept: entering {collection_name}")
-            e.control.bgcolor = ft.Colors.BLUE_100
-            e.control.border = ft.Border.all(2, ft.Colors.BLUE_500)
-            e.control.update()
-
-        def on_leave(e):
-            print(f"[Drag] on_leave: leaving {collection_name}")
-            e.control.bgcolor = ft.Colors.BLUE_GREY_50 if not is_default else ft.Colors.GREY_100
-            e.control.border = None
-            e.control.update()
-
-        # 构建头部容器
-        header_container = ft.Container(
-            content=ft.Row([
+        # 构建头部容器（增加高度以显示图片）
+        header_content = ft.Column([
+            ft.Row([
                 ft.Icon(
                     ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT,
                     size=24,
@@ -782,28 +816,28 @@ class BlogManagerGUI:
                 ),
                 delete_button if delete_button else ft.Container(),
             ], spacing=10),
-            padding=ft.Padding(12, 8, 12, 8),
+            # 显示封面图片（如果有）或上传按钮
+            image_upload_area,
+        ], spacing=5)
+
+        header_container = ft.Container(
+            content=header_content,
+            padding=ft.Padding(12, 12, 12, 12),
             bgcolor=ft.Colors.BLUE_GREY_50 if not is_default else ft.Colors.GREY_100,
             border_radius=8,
             on_click=toggle_expand,
             ink=True,
         )
 
-        # 将头部包装在 DragTarget 中
-        header = ft.DragTarget(
-            group="posts",
-            content=header_container,
-            on_accept=on_drag_accept,
-            on_will_accept=on_will_accept,
-            on_leave=on_leave,
-        )
+        # 不再使用 DragTarget，直接返回容器
+        header = header_container
 
-        # 文章列表 (展开时显示)
+        # 文章列表 (展开时显示) - 移除拖拽功能
         posts_list = None
         if is_expanded:
             post_widgets = []
             for post_line in posts:
-                post_widgets.append(self.build_draggable_post(
+                post_widgets.append(self.build_post_item(
                     post_line, collection_name))
 
             posts_list = ft.Container(
@@ -816,8 +850,8 @@ class BlogManagerGUI:
             posts_list if posts_list else ft.Container(),
         ], spacing=5)
 
-    def build_draggable_post(self, line, source_collection):
-        """构建可拖拽的文章项"""
+    def build_post_item(self, line, source_collection):
+        """构建文章项（不可拖拽）"""
         # 从列表中提取文章名
         line_clean = line.replace('Post:', '').strip()
         parts = line_clean.split('|')
@@ -833,26 +867,15 @@ class BlogManagerGUI:
         if post_name.endswith('.md'):
             post_name = post_name[:-3]
 
-        # 创建拖拽数据
-        drag_data = {
-            'post_name': post_name,
-            'source_collection': source_collection
-        }
-
-        print(
-            f"[Drag] Creating draggable: {post_name} from {source_collection}")
-
         def on_hover(e):
             if e.data == "true":
                 e.control.bgcolor = ft.Colors.BLUE_100
-                e.control.scale = 1.01
             else:
                 e.control.bgcolor = ft.Colors.BLUE_50
-                e.control.scale = 1.0
             e.control.update()
 
         def on_delete(e):
-            e.stop_propagation()  # 阻止事件冒泡
+            e.stop_propagation()
             self.confirm(
                 self.t('confirm_delete'),
                 self.t('confirm_delete_post').format(post_name),
@@ -860,11 +883,9 @@ class BlogManagerGUI:
                     post_name, None if source_collection == 'Markdowns' else source_collection)
             )
 
-        # 构建可拖拽的文章卡片
+        # 构建文章卡片（不可拖拽）
         post_card = ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.DRAG_INDICATOR, size=20,
-                        color=ft.Colors.GREY_400),
                 ft.Icon(ft.Icons.ARTICLE, size=22, color=ft.Colors.BLUE_600),
                 ft.Text(line.strip(), size=13, expand=True),
                 ft.IconButton(
@@ -881,44 +902,120 @@ class BlogManagerGUI:
             bgcolor=ft.Colors.BLUE_50,
             on_hover=on_hover,
             animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
-            tooltip="拖动到合集以移动文章",
         )
 
-        # 使用 Draggable 包装
-        import json
-        drag_json = json.dumps(drag_data)
-        print(f"[Drag] Draggable data JSON: {drag_json}")
+        return post_card
 
-        draggable = ft.Draggable(
-            group="posts",
-            content=post_card,
-            content_when_dragging=ft.Container(
-                content=ft.Text("正在移动...", size=12, color=ft.Colors.GREY_400),
-                padding=12,
-                border=ft.Border.all(1, ft.Colors.GREY_300),
-                border_radius=8,
-                bgcolor=ft.Colors.GREY_50,
+    def process_collection_image(self, source_path, collection_name, collection_path):
+        """处理合集封面图片"""
+        try:
+            from PIL import Image
+            
+            # 确保目录存在
+            os.makedirs(collection_path, exist_ok=True)
+            
+            # 目标路径
+            target_path = os.path.join(collection_path, 'image.png')
+            
+            # 打开图片
+            img = Image.open(source_path)
+            
+            # 检查是否是 GIF
+            ext = os.path.splitext(source_path)[1].lower()
+            if ext == '.gif':
+                # GIF 保持动态效果，直接复制
+                import shutil
+                # 先转换为 PNG 序列帧或保存为 GIF
+                # 这里简化处理：如果是 GIF，保存第一帧为 PNG
+                img.seek(0)
+                img.convert('RGBA').save(target_path, 'PNG')
+            else:
+                # 其他格式转换为 PNG
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                img.save(target_path, 'PNG')
+            
+            print(f"[Image] Saved collection image: {target_path}")
+            
+            # 刷新UI
+            self.build_ui()
+            self.snack(f"✅ 已设置 {collection_name} 的封面图片", False)
+            
+        except Exception as ex:
+            print(f"[Image] Error processing image: {ex}")
+            import traceback
+            traceback.print_exc()
+            self.snack(f"处理图片失败: {ex}", True)
+
+    def show_image_replace_dialog(self, new_image_path, collection_name, collection_path):
+        """显示图片替换确认对话框"""
+        old_image_path = os.path.join(collection_path, 'image.png')
+        
+        # 创建预览
+        preview_content = ft.Row([
+            ft.Column([
+                ft.Text("当前图片", size=14, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Image(
+                        src=old_image_path,
+                        width=200,
+                        height=150,
+                        fit="contain",
+                    ),
+                    border=ft.Border.all(2, ft.Colors.GREY_400),
+                    border_radius=8,
+                ),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+            ft.Icon(ft.Icons.ARROW_FORWARD, size=32, color=ft.Colors.BLUE_600),
+            ft.Column([
+                ft.Text("新图片", size=14, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Image(
+                        src=new_image_path,
+                        width=200,
+                        height=150,
+                        fit="contain",
+                    ),
+                    border=ft.Border.all(2, ft.Colors.GREEN_400),
+                    border_radius=8,
+                ),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+        ], spacing=20, alignment=ft.MainAxisAlignment.CENTER)
+
+        def confirm_replace():
+            try:
+                # 删除旧图片
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+                
+                # 处理新图片
+                self.process_collection_image(new_image_path, collection_name, collection_path)
+                self.close_dlg(dlg)
+                
+            except Exception as ex:
+                self.snack(f"替换失败: {ex}", True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(f"替换 {collection_name} 的封面图片？"),
+            content=ft.Container(
+                content=preview_content,
+                width=600,
+                height=250,
             ),
-            content_feedback=ft.Container(
-                content=ft.Row([
-                    ft.Icon(ft.Icons.ARTICLE, size=22, color=ft.Colors.WHITE),
-                    ft.Text(post_name, size=13, color=ft.Colors.WHITE),
-                ], spacing=10),
-                padding=12,
-                bgcolor=ft.Colors.with_opacity(0.9, ft.Colors.BLUE_700),
-                border_radius=8,
-                width=300,
-                shadow=ft.BoxShadow(
-                    blur_radius=10, color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK)),
-            ),
-            data=drag_data,  # 直接附加数据
+            actions=[
+                ft.TextButton("取消", on_click=lambda e: self.close_dlg(dlg)),
+                ft.Button(
+                    "替换",
+                    on_click=lambda e: confirm_replace(),
+                    bgcolor=ft.Colors.GREEN_600,
+                    color=ft.Colors.WHITE,
+                ),
+            ],
         )
-
-        # 直接存储映射（使用Python对象id作为id）
-        draggable_id = id(draggable)
-        self.draggable_data_map[draggable_id] = drag_data
-
-        return draggable
+        
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
 
     def move_post_to_collection(self, post_name, source_collection, target_collection):
         """移动文章到目标合集"""
@@ -1493,7 +1590,33 @@ class BlogManagerGUI:
             import re
             
             try:
-                # 阶段1: 启动开发服务器
+                # 阶段1: 清理旧的开发服务器
+                progress_bar.value = 0.05
+                status_text.value = "清理旧的开发服务器..."
+                detail_text.value = "检查端口占用"
+                self.page.update()
+                
+                # 杀死所有 npm run dev 进程
+                try:
+                    if os.name == 'nt':
+                        # Windows: 杀死所有 node.exe 进程（运行 vite 的）
+                        subprocess.run('taskkill /F /IM node.exe /T', 
+                                     shell=True, 
+                                     stdout=subprocess.DEVNULL, 
+                                     stderr=subprocess.DEVNULL)
+                        print("[Editor] Killed existing node processes")
+                        time.sleep(1)  # 等待端口释放
+                    else:
+                        # Linux/Mac: 杀死 vite 进程
+                        subprocess.run(['pkill', '-f', 'vite'], 
+                                     stdout=subprocess.DEVNULL, 
+                                     stderr=subprocess.DEVNULL)
+                        print("[Editor] Killed existing vite processes")
+                        time.sleep(1)
+                except Exception as e:
+                    print(f"[Editor] Warning: Failed to kill old processes: {e}")
+                
+                # 阶段2: 启动开发服务器
                 progress_bar.value = 0.1
                 status_text.value = "启动开发服务器..."
                 detail_text.value = "npm run dev"
@@ -1531,7 +1654,7 @@ class BlogManagerGUI:
                 
                 print(f"[Editor] Dev server process started with PID: {self.dev_server_process.pid}")
                 
-                # 阶段2: 解析端口号
+                # 阶段3: 解析端口号
                 progress_bar.value = 0.3
                 status_text.value = "等待开发服务器就绪..."
                 detail_text.value = "解析端口号"
@@ -1577,7 +1700,7 @@ class BlogManagerGUI:
                 log_thread = threading.Thread(target=output_dev_server_logs, daemon=True)
                 log_thread.start()
                 
-                # 阶段3: 启动后端服务器
+                # 阶段4: 启动后端服务器
                 progress_bar.value = 0.5
                 status_text.value = "启动后端API服务器..."
                 detail_text.value = "FastAPI server"
