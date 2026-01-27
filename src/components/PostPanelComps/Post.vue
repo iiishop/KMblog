@@ -1,136 +1,141 @@
 <template>
-    <div class="post-panel" @mouseenter="handleMouseEnter" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"
-        :style="{ '--mouse-x': mouseX, '--mouse-y': mouseY }">
-        <!-- 粒子背景容器 -->
-        <canvas ref="particleCanvas" class="particle-canvas"></canvas>
+    <div class="post-wrapper">
+        <div class="post-panel" @mouseenter="handleMouseEnter" @mousemove="handleMouseMove"
+            @mouseleave="handleMouseLeave" :style="{ '--mouse-x': mouseX, '--mouse-y': mouseY }">
+            <!-- Collection 主题背景层 -->
+            <div v-if="collectionThemeImage" class="collection-theme-bg" :style="backgroundStyle"></div>
 
-        <!-- 光晕效果 -->
-        <div class="glow-orb" :style="glowStyle"></div>
+            <!-- 粒子背景容器 -->
+            <canvas ref="particleCanvas" class="particle-canvas"></canvas>
 
-        <div class="image-panel" v-if="imageSrc && imageSrc !== loadingGif" :style="{ width: imagePanelWidth }">
-            <div class="image-border-frame">
-                <img :src="imageSrc" alt="Image" @load="adjustImagePanelWidth" @error="handleImageError" />
-                <div class="image-shimmer"></div>
+            <!-- 光晕效果 -->
+            <div class="glow-orb" :style="glowStyle"></div>
+
+            <div class="image-panel" v-if="imageSrc && imageSrc !== loadingGif" :style="{ width: imagePanelWidth }">
+                <div class="image-border-frame">
+                    <img :src="imageSrc" alt="Image" @load="adjustImagePanelWidth" @error="handleImageError" />
+                    <div class="image-shimmer"></div>
+                </div>
             </div>
-        </div>
-        <div class="content-panel">
-            <!-- 装饰性几何图形 -->
-            <div class="deco-geometry">
-                <div class="deco-circle"></div>
-                <div class="deco-triangle"></div>
-            </div>
-
-            <div v-if="metadata" class="content-wrapper">
-
-                <!-- Left Main Content Area -->
-                <div class="main-content-area">
-                    <div class="title-panel" @click="initiateTransition">
-                        <p class="title-text">
-                            <span v-for="(char, index) in metadata.title" :key="index" class="title-char"
-                                :style="{ '--char-index': index }">
-                                {{ char === ' ' ? '\u00A0' : char }}
-                            </span>
-                        </p>
-                        <div class="title-underline"></div>
-                    </div>
-
-                    <div class="pre-panel" @click="initiateTransition">
-                        <pre class="pre-text">{{ metadata.pre }}</pre>
-                        <div class="pre-gradient-overlay"></div>
-                    </div>
+            <div class="content-panel">
+                <!-- 装饰性几何图形 -->
+                <div class="deco-geometry">
+                    <div class="deco-circle"></div>
+                    <div class="deco-triangle"></div>
                 </div>
 
-                <!-- Right Meta Sidebar -->
-                <div class="meta-sidebar">
-                    <div class="meta-list">
-                        <div class="meta-item category-row" v-if="lastCategory">
-                            <div class="meta-icon-wrapper">
-                                <IconCategory class="meta-icon" />
-                                <div class="icon-ripple"></div>
-                            </div>
-                            <router-link :to="categoryLink" class="meta-link">
-                                <span class="link-text">{{ lastCategory }}</span>
-                                <span class="link-arrow">→</span>
-                            </router-link>
+                <div v-if="metadata" class="content-wrapper">
+
+                    <!-- Left Main Content Area -->
+                    <div class="main-content-area">
+                        <div class="title-panel" @click="initiateTransition">
+                            <p class="title-text">
+                                <span v-for="(char, index) in metadata.title" :key="index" class="title-char"
+                                    :style="{ '--char-index': index }">
+                                    {{ char === ' ' ? '\u00A0' : char }}
+                                </span>
+                            </p>
+                            <div class="title-underline"></div>
                         </div>
-                        <div class="meta-item date-row" v-if="metadata.date">
-                            <div class="meta-icon-wrapper">
-                                <IconDate class="meta-icon" />
-                                <div class="icon-ripple"></div>
-                            </div>
-                            <router-link :to="archiveLink" class="meta-link">
-                                <span class="link-text">{{ metadata.date }}</span>
-                                <span class="link-arrow">→</span>
-                            </router-link>
+
+                        <div class="pre-panel" @click="initiateTransition">
+                            <pre class="pre-text">{{ metadata.pre }}</pre>
+                            <div class="pre-gradient-overlay"></div>
                         </div>
                     </div>
 
-                    <div class="props-divider">
-                        <div class="divider-glow"></div>
+                    <!-- Right Meta Sidebar -->
+                    <div class="meta-sidebar">
+                        <div class="meta-list">
+                            <div class="meta-item category-row" v-if="lastCategory">
+                                <div class="meta-icon-wrapper">
+                                    <IconCategory class="meta-icon" />
+                                    <div class="icon-ripple"></div>
+                                </div>
+                                <router-link :to="categoryLink" class="meta-link">
+                                    <span class="link-text">{{ lastCategory }}</span>
+                                    <span class="link-arrow">→</span>
+                                </router-link>
+                            </div>
+                            <div class="meta-item date-row" v-if="metadata.date">
+                                <div class="meta-icon-wrapper">
+                                    <IconDate class="meta-icon" />
+                                    <div class="icon-ripple"></div>
+                                </div>
+                                <router-link :to="archiveLink" class="meta-link">
+                                    <span class="link-text">{{ metadata.date }}</span>
+                                    <span class="link-arrow">→</span>
+                                </router-link>
+                            </div>
+                        </div>
+
+                        <div class="props-divider">
+                            <div class="divider-glow"></div>
+                        </div>
+
+                        <div class="tags-container">
+                            <Tag v-for="(tag, index) in metadata.tags" :key="index" :tagname="tag"
+                                :style="{ '--tag-index': index }" class="animated-tag" />
+                        </div>
                     </div>
 
-                    <div class="tags-container">
-                        <Tag v-for="(tag, index) in metadata.tags" :key="index" :tagname="tag"
-                            :style="{ '--tag-index': index }" class="animated-tag" />
-                    </div>
                 </div>
 
+                <!-- 光效扫描线 -->
+                <div class="scan-line"></div>
             </div>
 
-            <!-- 光效扫描线 -->
-            <div class="scan-line"></div>
         </div>
 
+        <!-- 全屏过渡遮罩 - 使用Teleport确保最高层级 -->
+        <teleport to="body">
+            <transition name="page-transition">
+                <div v-if="isTransitioning" class="transition-overlay">
+                    <!-- 背景粒子爆发 -->
+                    <canvas ref="transitionCanvas" class="transition-canvas"></canvas>
+
+                    <!-- 径向扩散波纹 -->
+                    <div class="radial-waves">
+                        <div class="wave" v-for="i in 5" :key="i" :style="{ '--wave-delay': i * 0.1 + 's' }"></div>
+                    </div>
+
+                    <!-- 几何图形动画 -->
+                    <div class="floating-shapes">
+                        <div class="shape shape-circle" v-for="i in 8" :key="'c' + i"
+                            :style="{ '--shape-delay': Math.random() * 0.5 + 's', '--shape-x': Math.random() * 100 + '%', '--shape-y': Math.random() * 100 + '%' }">
+                        </div>
+                        <div class="shape shape-square" v-for="i in 6" :key="'s' + i"
+                            :style="{ '--shape-delay': Math.random() * 0.5 + 's', '--shape-x': Math.random() * 100 + '%', '--shape-y': Math.random() * 100 + '%' }">
+                        </div>
+                    </div>
+
+                    <!-- 主要内容 -->
+                    <div class="transition-content">
+                        <div class="transition-spinner">
+                            <div class="spinner-ring"></div>
+                            <div class="spinner-ring"></div>
+                            <div class="spinner-ring"></div>
+                        </div>
+
+                        <!-- 文字碎片化效果 -->
+                        <div class="transition-text-wrapper">
+                            <p class="transition-text">{{ metadata.title }}</p>
+                            <div class="text-particles">
+                                <span v-for="i in 20" :key="i" class="text-particle"
+                                    :style="{ '--particle-delay': Math.random() * 0.3 + 's', '--particle-angle': Math.random() * 360 + 'deg' }">
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 加载进度条 -->
+                        <div class="loading-bar">
+                            <div class="loading-progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </teleport>
     </div>
-
-    <!-- 全屏过渡遮罩 - 使用Teleport确保最高层级 -->
-    <teleport to="body">
-        <transition name="page-transition">
-            <div v-if="isTransitioning" class="transition-overlay">
-                <!-- 背景粒子爆发 -->
-                <canvas ref="transitionCanvas" class="transition-canvas"></canvas>
-
-                <!-- 径向扩散波纹 -->
-                <div class="radial-waves">
-                    <div class="wave" v-for="i in 5" :key="i" :style="{ '--wave-delay': i * 0.1 + 's' }"></div>
-                </div>
-
-                <!-- 几何图形动画 -->
-                <div class="floating-shapes">
-                    <div class="shape shape-circle" v-for="i in 8" :key="'c' + i"
-                        :style="{ '--shape-delay': Math.random() * 0.5 + 's', '--shape-x': Math.random() * 100 + '%', '--shape-y': Math.random() * 100 + '%' }">
-                    </div>
-                    <div class="shape shape-square" v-for="i in 6" :key="'s' + i"
-                        :style="{ '--shape-delay': Math.random() * 0.5 + 's', '--shape-x': Math.random() * 100 + '%', '--shape-y': Math.random() * 100 + '%' }">
-                    </div>
-                </div>
-
-                <!-- 主要内容 -->
-                <div class="transition-content">
-                    <div class="transition-spinner">
-                        <div class="spinner-ring"></div>
-                        <div class="spinner-ring"></div>
-                        <div class="spinner-ring"></div>
-                    </div>
-
-                    <!-- 文字碎片化效果 -->
-                    <div class="transition-text-wrapper">
-                        <p class="transition-text">{{ metadata.title }}</p>
-                        <div class="text-particles">
-                            <span v-for="i in 20" :key="i" class="text-particle"
-                                :style="{ '--particle-delay': Math.random() * 0.3 + 's', '--particle-angle': Math.random() * 360 + 'deg' }">
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- 加载进度条 -->
-                    <div class="loading-bar">
-                        <div class="loading-progress"></div>
-                    </div>
-                </div>
-            </div>
-        </transition>
-    </teleport>
 </template>
 
 <script setup>
@@ -155,6 +160,7 @@ const props = defineProps({
 // 定义 ref 来存储图片链接和 meta 数据
 const imageSrc = ref(props.imageUrl || loadingGif);
 const metadata = ref({});
+const collectionThemeImage = ref('');
 
 // 定义 imagePanelWidth
 const imagePanelWidth = ref('auto');
@@ -292,6 +298,47 @@ const adjustImagePanelWidth = (event) => {
     imagePanelWidth.value = `${newWidth}rem`;
 };
 
+// 从 markdownUrl 提取 collection 名称
+function extractCollection(url) {
+    if (!url) return null;
+
+    // URL 格式: /Posts/Collection/file.md 或 Posts/Collection/file.md
+    const parts = url.split('/').filter(part => part && part !== 'Posts');
+
+    // 如果有多个部分，第一个就是 collection
+    if (parts.length > 1) {
+        return parts[0];
+    }
+
+    return null;
+}
+
+// 加载 collection 主题图片
+async function loadCollectionTheme(collection) {
+    if (!collection) return;
+
+    try {
+        // 尝试加载 image.png
+        const themePath = `/Posts/${collection}/image.png`;
+        const img = new Image();
+
+        img.onload = () => {
+            collectionThemeImage.value = themePath;
+            console.log('Collection theme loaded:', themePath);
+        };
+
+        img.onerror = () => {
+            console.log('No theme image found for collection:', collection);
+            collectionThemeImage.value = '';
+        };
+
+        img.src = themePath;
+    } catch (error) {
+        console.error('Failed to load collection theme:', error);
+        collectionThemeImage.value = '';
+    }
+}
+
 // 初始化 Markdown meta 数据的函数
 async function initializeMarkdown(url) {
     console.log('Initializing markdown with URL:', url);
@@ -377,6 +424,18 @@ const categoryLink = computed(() => {
 
 const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
+// 计算背景样式
+const backgroundStyle = computed(() => {
+    if (!collectionThemeImage.value) return {};
+
+    return {
+        backgroundImage: `url(${collectionThemeImage.value})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+    };
+});
+
 // 在组件挂载时初始化链接
 onMounted(() => {
     console.log('Component mounted');
@@ -385,6 +444,12 @@ onMounted(() => {
     }
     if (props.markdownUrl) {
         initializeMarkdown(props.markdownUrl);
+
+        // 提取并加载 collection 主题
+        const collection = extractCollection(props.markdownUrl);
+        if (collection) {
+            loadCollectionTheme(collection);
+        }
     }
 });
 
@@ -488,6 +553,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.post-wrapper {
+    width: 100%;
+    display: block;
+}
+
 .post-panel {
     gap: 1.5rem;
     display: flex;
@@ -512,6 +582,52 @@ onUnmounted(() => {
 
 .post-panel:hover .particle-canvas {
     opacity: 1;
+}
+
+/* === Collection 主题背景 === */
+.collection-theme-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    opacity: 0.15;
+    z-index: 9999;
+    pointer-events: none;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: blur(0px) saturate(0.8) brightness(1.1);
+    transform: scale(1);
+}
+
+.post-panel:hover .collection-theme-bg {
+    transform: translateY(-3px);
+    opacity: 0.25;
+    filter: blur(2px) saturate(1.2) brightness(1.2);
+}
+
+/* 为主题背景添加渐变遮罩，使其更加融入 */
+.collection-theme-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%,
+            transparent 0%,
+            var(--theme-panel-bg) 70%);
+    border-radius: 16px;
+    z-index: 1;
+}
+
+/* 添加边缘柔化效果 */
+.collection-theme-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            var(--theme-panel-bg) 0%,
+            transparent 30%,
+            transparent 70%,
+            var(--theme-panel-bg) 100%);
+    border-radius: 16px;
+    opacity: 0.5;
+    z-index: 2;
 }
 
 /* === 光晕效果 === */
