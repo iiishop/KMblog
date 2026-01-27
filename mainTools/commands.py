@@ -557,6 +557,148 @@ class Generate(Command):
         else:
             return path.replace('\\', '/')
 
+    def _cleanup_unused_images(self):
+        """清理未使用的图片文件（优化版：只扫描有图片目录的文章）"""
+        posts_path = get_posts_path()
+        images_path = os.path.join(posts_path, 'Images')
+        
+        if not os.path.exists(images_path):
+            return "[图片清理] Images 目录不存在，跳过清理"
+        
+        # 获取 Images 目录下的所有文章文件夹
+        article_folders = [
+            d for d in os.listdir(images_path)
+            if os.path.isdir(os.path.join(images_path, d))
+        ]
+        
+        if not article_folders:
+            return "[图片清理] Images 目录为空，无需清理"
+        
+        print(f"[图片清理] 发现 {len(article_folders)} 个文章图片目录")
+        
+        deleted_count = 0
+        total_checked = 0
+        not_found_articles = []
+        
+        # 只扫描有图片目录的文章
+        for article_name in article_folders:
+            article_image_dir = os.path.join(images_path, article_name)
+            
+            # 查找对应的 markdown 文件
+            md_file_path = self._find_markdown_file(posts_path, article_name)
+            
+            if not md_file_path:
+                print(f"[图片清理] 警告: 未找到文章 '{article_name}.md'，保留其图片目录")
+                not_found_articles.append(article_name)
+                continue
+            
+            # 提取文章中使用的图片
+            used_images = self._extract_images_from_markdown(md_file_path)
+            
+            # 获取该目录下的所有图片文件
+            existing_images = []
+            for file in os.listdir(article_image_dir):
+                file_path = os.path.join(article_image_dir, file)
+                if os.path.isfile(file_path):
+                    # 检查是否是图片文件
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico', '.bmp']:
+                        existing_images.append(file)
+            
+            total_checked += len(existing_images)
+            
+            # 找出未使用的图片
+            for image_file in existing_images:
+                # 检查这个图片是否在使用列表中
+                is_used = False
+                for used_image in used_images:
+                    # 匹配文件名（忽略路径）
+                    if image_file in used_image or used_image.endswith(image_file):
+                        is_used = True
+                        break
+                
+                if not is_used:
+                    # 删除未使用的图片
+                    image_path = os.path.join(article_image_dir, image_file)
+                    try:
+                        os.remove(image_path)
+                        print(f"[图片清理] ✓ 删除: {article_name}/{image_file}")
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"[图片清理] ✗ 删除失败 {article_name}/{image_file}: {e}")
+            
+            # 如果目录为空，删除目录
+            try:
+                if not os.listdir(article_image_dir):
+                    os.rmdir(article_image_dir)
+                    print(f"[图片清理] ✓ 删除空目录: {article_name}/")
+            except:
+                pass
+        
+        result_lines = [
+            f"[图片清理] 完成！",
+            f"  - 扫描了 {len(article_folders)} 个文章图片目录",
+            f"  - 检查了 {total_checked} 张图片",
+            f"  - 删除了 {deleted_count} 张未使用的图片"
+        ]
+        
+        if not_found_articles:
+            result_lines.append(f"  - {len(not_found_articles)} 个文章未找到对应 .md 文件（已保留图片）")
+        
+        return '\n'.join(result_lines)
+    
+    def _find_markdown_file(self, posts_path, article_name):
+        """查找文章的 markdown 文件路径"""
+        # 先在 Markdowns 目录查找
+        markdowns_path = os.path.join(posts_path, 'Markdowns', f"{article_name}.md")
+        if os.path.exists(markdowns_path):
+            return markdowns_path
+        
+        # 在各个合集目录中查找
+        directories = [
+            d for d in os.listdir(posts_path)
+            if os.path.isdir(os.path.join(posts_path, d)) and d not in ['Markdowns', 'Images']
+        ]
+        
+        for dir_name in directories:
+            file_path = os.path.join(posts_path, dir_name, f"{article_name}.md")
+            if os.path.exists(file_path):
+                return file_path
+        
+        return None
+    
+    def _extract_images_from_markdown(self, file_path):
+        """从 Markdown 文件中提取所有图片引用"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 匹配 Markdown 图片语法: ![alt](path)
+            # 支持多种格式：
+            # - ![](image.png)
+            # - ![alt](./image.png)
+            # - ![alt](../folder/image.png)
+            # - ![alt](/Posts/Images/article/image.png)
+            # - ![alt](article/image.png)
+            
+            image_pattern = r'!\[.*?\]\(([^)]+)\)'
+            matches = re.findall(image_pattern, content)
+            
+            # 提取图片路径
+            images = []
+            for match in matches:
+                # 移除可能的引号
+                image_path = match.strip().strip('\'"')
+                # 移除 URL 参数（如 ?width=100）
+                if '?' in image_path:
+                    image_path = image_path.split('?')[0]
+                images.append(image_path)
+            
+            return images
+        except Exception as e:
+            print(f"[图片清理] 读取文件失败 {file_path}: {e}")
+            return []
+
     def execute(self):
         posts_path = get_posts_path()
         assets_path = get_assets_path()
@@ -577,6 +719,11 @@ class Generate(Command):
         # 收集加密文章
         crypto_tag = self._get_crypto_tag()
         crypto_posts = self._collect_crypto_posts(crypto_tag)
+
+        # 清理未使用的图片
+        print("[Generate] 开始清理未使用的图片...")
+        cleanup_result = self._cleanup_unused_images()
+        print(cleanup_result)
 
         # Ensure the output directory exists
         os.makedirs(os.path.dirname(posts_output_path), exist_ok=True)
@@ -653,7 +800,7 @@ class Generate(Command):
 
             print(f"[Crypto] 加密完成: {encrypted_count}/{len(crypto_posts)} 篇文章")
 
-        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)\nEncrypted: {encrypted_count} files"
+        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)\nEncrypted: {encrypted_count} files\n{cleanup_result}"
 
 
 class AddPost(Command):
