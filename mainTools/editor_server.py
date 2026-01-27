@@ -983,29 +983,7 @@ async def delete_folder(path: str, authorized: bool = Depends(verify_token)):
         )
 
 
-@app.post("/api/images/upload")
-async def upload_image(authorized: bool = Depends(verify_token)):
-    """
-    上传图片到Images目录
-    
-    接收multipart/form-data格式的图片文件
-    自动按文章名分类存储，并按数字递增命名
-    
-    Form Data:
-        image: 图片文件
-        article_name: 文章名（不含.md扩展名）
-        
-    Returns:
-        dict: 包含图片相对路径的结果
-    """
-    from fastapi import File, UploadFile, Form
-    from fastapi.requests import Request
-    
-    # 需要重新定义函数签名以接收文件
-    pass
-
-
-# 重新定义upload_image以正确接收文件
+# 图片上传API
 from fastapi import File, UploadFile, Form
 
 @app.post("/api/images/upload")
