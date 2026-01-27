@@ -1077,6 +1077,24 @@ class BlogManagerGUI:
             
             print(f"[Image] Saved collection image: {target_path}")
             
+            # 自动调用 Generate 命令更新 JSON 文件
+            try:
+                import sys
+                import os
+                # 确保 mainTools 目录在 Python 路径中
+                main_tools_path = os.path.join(os.path.dirname(__file__), 'mainTools')
+                if main_tools_path not in sys.path:
+                    sys.path.insert(0, main_tools_path)
+                
+                from commands import Generate
+                generate_cmd = Generate()
+                result = generate_cmd.execute()
+                print(f"[Generate] Auto-generated after image upload")
+            except Exception as gen_ex:
+                print(f"[Generate] Warning: Failed to auto-generate: {gen_ex}")
+                import traceback
+                traceback.print_exc()
+            
             # 刷新UI
             self.build_ui()
             self.snack(f"✅ 已设置 {collection_name} 的封面图片", False)

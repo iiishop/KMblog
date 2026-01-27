@@ -61,7 +61,10 @@ const fetchProxy = async (targetUrl) => {
     for (const getProxyUrl of proxyGenerators) {
         try {
             const proxyUrl = getProxyUrl(targetUrl);
-            const response = await axios.get(proxyUrl);
+            // 不发送自定义请求头（如 x-auth-token），避免 CORS 预检失败
+            const response = await axios.get(proxyUrl, {
+                headers: {}  // 清空自定义请求头
+            });
             if (response.data) return response.data;
         } catch (e) {
             console.warn(`Proxy request failed: ${e.message}`);

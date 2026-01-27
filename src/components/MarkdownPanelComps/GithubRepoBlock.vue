@@ -132,7 +132,7 @@ const fetchRepoDetails = async () => {
 
     const fetchStatsWithRetry = async (url, retries = 3) => {
         try {
-            const resp = await axios.get(url);
+            const resp = await axios.get(url, { headers: {} });
             if (resp.status === 202 && retries > 0) {
                 await new Promise(r => setTimeout(r, 2000));
                 return fetchStatsWithRetry(url, retries - 1);
@@ -144,8 +144,10 @@ const fetchRepoDetails = async () => {
     try {
         // 合并请求逻辑，主请求使用 ETag 条件请求减少配额消耗
         const etag = loadEtag(owner, repo);
-        const mainPromise = axios.get(baseApi, { headers: etag ? { 'If-None-Match': etag } : {} });
-        const contribPromise = axios.get(`${baseApi}/contributors`, { params: { per_page: 6 }, headers: etag ? { 'If-None-Match': etag } : {} });
+        const mainHeaders = etag ? { 'If-None-Match': etag } : {};
+        const mainPromise = axios.get(baseApi, { headers: mainHeaders });
+        const contribHeaders = etag ? { 'If-None-Match': etag } : {};
+        const contribPromise = axios.get(`${baseApi}/contributors`, { params: { per_page: 6 }, headers: contribHeaders });
         const commitPromise = fetchStatsWithRetry(`${baseApi}/stats/commit_activity`);
 
         const results = await Promise.allSettled([mainPromise, commitPromise, contribPromise]);
@@ -217,7 +219,7 @@ const fetchRepoDetails = async () => {
             const link = contribResp.headers && contribResp.headers.link;
             if (link) {
                 try {
-                    const probe = await axios.get(`${baseApi}/contributors`, { params: { per_page: 1 } });
+                    const probe = await axios.get(`${baseApi}/contributors`, { params: { per_page: 1 }, headers: {} });
                     const probeLink = probe.headers && probe.headers.link;
                     if (probeLink) {
                         const m = probeLink.match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/);
