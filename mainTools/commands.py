@@ -306,14 +306,25 @@ class InitBlog(Command):
             # 3. 从 GitHub 拉取代码
             print("[初始化] 正在从 GitHub 拉取 KMBlog 框架...")
             try:
-                # 创建临时目录
-                temp_dir = os.path.join(base_path, '.kmblog_temp')
+                # 使用用户的临时目录
+                import tempfile
+                temp_base = tempfile.gettempdir()
+                temp_dir = os.path.join(temp_base, f'kmblog_init_{os.getpid()}')
+                
+                # 确保临时目录不存在
                 if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except:
+                        # 如果删除失败，使用另一个名称
+                        import time
+                        temp_dir = os.path.join(temp_base, f'kmblog_init_{os.getpid()}_{int(time.time())}')
+                
+                print(f"[初始化] 临时目录: {temp_dir}")
                 
                 # 克隆仓库到临时目录
                 result = subprocess.run(
-                    ['git', 'clone', 'https://github.com/iiishop/KMBlog.git', temp_dir],
+                    ['git', 'clone', '--depth', '1', 'https://github.com/iiishop/KMBlog.git', temp_dir],
                     capture_output=True,
                     text=True,
                     encoding='utf-8',
@@ -324,27 +335,95 @@ class InitBlog(Command):
                 
                 # 移动文件到当前目录
                 print("[初始化] 正在复制文件...")
+                
+                # 获取所有需要复制的文件和目录
+                items_to_copy = []
                 for item in os.listdir(temp_dir):
                     if item == '.git':
                         continue  # 跳过 .git 目录
-                    
+                    items_to_copy.append(item)
+                
+                # 复制文件
+                copied_count = 0
+                for item in items_to_copy:
                     src = os.path.join(temp_dir, item)
                     dst = os.path.join(base_path, item)
                     
-                    if os.path.exists(dst):
-                        if os.path.isdir(dst):
-                            shutil.rmtree(dst)
+                    try:
+                        # 如果目标已存在，先删除
+                        if os.path.exists(dst):
+                            if os.path.isdir(dst):
+                                shutil.rmtree(dst)
+                            else:
+                                os.remove(dst)
+                        
+                        # 复制
+                        if os.path.isdir(src):
+                            shutil.copytree(src, dst)
                         else:
-                            os.remove(dst)
-                    
-                    if os.path.isdir(src):
-                        shutil.copytree(src, dst)
-                    else:
-                        shutil.copy2(src, dst)
+                            shutil.copy2(src, dst)
+                        
+                        copied_count += 1
+                        print(f"[初始化] 复制: {item}")
+                    except Exception as e:
+                        print(f"[初始化] 警告: 复制 {item} 失败: {e}")
                 
-                # 清理临时目录
-                shutil.rmtree(temp_dir)
-                print("[初始化] ✓ 文件复制完成")
+                print(f"[初始化] ✓ 文件复制完成 ({copied_count}/{len(items_to_copy)} 个项目)")
+                
+                # 清理临时目录（使用更强大的清理机制）
+                print("[初始化] 正在清理临时文件...")
+                cleanup_success = False
+                
+                try:
+                    # 方法1: 使用 shutil.rmtree 的 onerror 回调处理权限问题
+                    def handle_remove_readonly(func, path, exc):
+                        """处理只读文件的删除"""
+                        import stat
+                        if os.name == 'nt':
+                            # Windows: 移除只读属性
+                            try:
+                                os.chmod(path, stat.S_IWRITE)
+                                func(path)
+                            except:
+                                pass
+                        else:
+                            # Unix: 添加写权限
+                            try:
+                                os.chmod(path, stat.S_IWUSR | stat.S_IRUSR)
+                                func(path)
+                            except:
+                                pass
+                    
+                    shutil.rmtree(temp_dir, onerror=handle_remove_readonly)
+                    
+                    if not os.path.exists(temp_dir):
+                        print("[初始化] ✓ 临时文件清理完成")
+                        cleanup_success = True
+                    
+                except Exception as e:
+                    print(f"[初始化] 方法1清理失败: {e}")
+                
+                # 方法2: 如果方法1失败，在Windows上使用 rmdir /s /q 命令
+                if not cleanup_success and os.name == 'nt' and os.path.exists(temp_dir):
+                    try:
+                        print("[初始化] 尝试使用系统命令清理...")
+                        subprocess.run(
+                            ['cmd', '/c', 'rmdir', '/s', '/q', temp_dir],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            timeout=30
+                        )
+                        
+                        if not os.path.exists(temp_dir):
+                            print("[初始化] ✓ 临时文件清理完成（使用系统命令）")
+                            cleanup_success = True
+                    except Exception as e:
+                        print(f"[初始化] 方法2清理失败: {e}")
+                
+                # 如果所有方法都失败，给出警告但不阻止继续
+                if not cleanup_success and os.path.exists(temp_dir):
+                    print(f"[初始化] 警告: 临时文件清理失败，请手动删除: {temp_dir}")
+                    print("[初始化] 这不会影响博客的正常使用，可以稍后手动删除该目录")
                 
             except subprocess.CalledProcessError as e:
                 raise Exception(f"Git 克隆失败: {e.stderr}")
