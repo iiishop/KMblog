@@ -14,7 +14,13 @@ import json
 import webbrowser
 
 # 添加 mainTools 目录到路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
+if getattr(sys, 'frozen', False):
+    # 打包后：mainTools 在临时目录
+    sys.path.insert(0, os.path.join(sys._MEIPASS, 'mainTools'))
+else:
+    # 开发环境
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'mainTools'))
+
 from mainTools.commands import Command
 
 class BlogManagerGUI:
@@ -813,9 +819,16 @@ class BlogManagerGUI:
         """
         try:
             from PIL import Image
+            import sys
             
-            # 目标目录
-            base_path = os.path.dirname(__file__)
+            # 目标目录：使用正确的基础路径
+            if getattr(sys, 'frozen', False):
+                # 打包后：使用 exe 所在目录
+                base_path = os.path.dirname(os.path.abspath(sys.executable))
+            else:
+                # 开发环境：使用当前文件所在目录
+                base_path = os.path.dirname(__file__)
+            
             assets_path = os.path.join(base_path, 'public', 'assets')
             os.makedirs(assets_path, exist_ok=True)
             
@@ -1106,7 +1119,11 @@ class BlogManagerGUI:
             # 自动调用 Generate 命令更新 JSON 文件
             try:
                 # 确保 mainTools 目录在 Python 路径中
-                main_tools_path = os.path.join(os.path.dirname(__file__), 'mainTools')
+                if getattr(sys, 'frozen', False):
+                    main_tools_path = os.path.join(sys._MEIPASS, 'mainTools')
+                else:
+                    main_tools_path = os.path.join(os.path.dirname(__file__), 'mainTools')
+                
                 if main_tools_path not in sys.path:
                     sys.path.insert(0, main_tools_path)
                 
@@ -1896,11 +1913,21 @@ class BlogManagerGUI:
                 info_path = info_file.name
                 info_file.close()
                 
-                server_script = os.path.join(
-                    os.path.dirname(__file__), 
-                    'mainTools', 
-                    'editor_server.py'
-                )
+                # 获取 editor_server.py 路径
+                if getattr(sys, 'frozen', False):
+                    # 打包后：在临时目录
+                    server_script = os.path.join(
+                        sys._MEIPASS,
+                        'mainTools', 
+                        'editor_server.py'
+                    )
+                else:
+                    # 开发环境
+                    server_script = os.path.join(
+                        os.path.dirname(__file__), 
+                        'mainTools', 
+                        'editor_server.py'
+                    )
                 
                 import sys
                 python_exe = sys.executable
@@ -2857,7 +2884,12 @@ class BlogManagerGUI:
         form_rows.append(ft.Text('图片配置', size=20, weight=ft.FontWeight.BOLD, color="#FFFFFF"))
         
         # 获取项目根目录
-        base_path = os.path.dirname(__file__)
+        if getattr(sys, 'frozen', False):
+            # 打包后：使用 exe 所在目录
+            base_path = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境
+            base_path = os.path.dirname(__file__)
         
         # 获取配置中的图片路径（相对路径，如 /assets/background.png）
         bg_img_filename = current_config.get('BackgroundImg', '/assets/background.png')

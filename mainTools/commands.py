@@ -526,9 +526,8 @@ class ShowPostsJson(Command):
     description = "Shows the posts directory structure in JSON format."
 
     def execute(self):
-        base_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '../'))
-        posts_path = os.path.join(base_path, 'public/Posts')
+        base_path = get_base_path()
+        posts_path = get_posts_path()
         if not os.path.exists(posts_path):
             raise FileNotFoundError(
                 f"No such file or directory: '{posts_path}'")
@@ -2155,10 +2154,15 @@ class StartEditor(Command):
         import tempfile
 
         # 获取editor_server.py的路径
-        server_script = os.path.join(
-            os.path.dirname(__file__),
-            'editor_server.py'
-        )
+        if getattr(sys, 'frozen', False):
+            # 打包后：editor_server.py 在临时目录中
+            server_script = os.path.join(sys._MEIPASS, 'mainTools', 'editor_server.py')
+        else:
+            # 开发环境：在当前目录
+            server_script = os.path.join(
+                os.path.dirname(__file__),
+                'editor_server.py'
+            )
 
         if not os.path.exists(server_script):
             return f"Error: editor_server.py not found at {server_script}"
