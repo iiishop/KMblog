@@ -24,7 +24,8 @@ const config = {
     HeadImg: '/assets/head.png',//头像图片的URL
     Name: 'iiishop',//作者名称
     Description: 'A social network for finding love and making friends',//作者描述
-    PostsPerPage: 5,//每页显示的文章数量
+    PostsPerPage: 5,//每页显示的文章数量（最小值，实际会根据侧边栏高度动态调整）
+    EnableDynamicPostsPerPage: true,//是否启用动态文章数量（根据侧边栏高度自动调整）
     ChangeInfoAndTipPosition: false,//是否调换Info和Tip的位置
     InfoListUp: [
         'SelfIntroductionPanel',
