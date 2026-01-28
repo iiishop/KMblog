@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
+    "animejs": "^4.3.5",
     "axios": "^1.7.9",
     "colorthief": "^2.6.0",
     "front-matter": "^4.0.2",
