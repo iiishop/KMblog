@@ -486,6 +486,67 @@ npm run test:ui
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+## 开发者文档
+
+### 版本发布流程
+
+KMblog 使用自动化脚本管理版本发布：
+
+**前提：提交所有更改**
+```bash
+git add .
+git commit -m "feat: 添加新功能"
+```
+
+**Linux/macOS:**
+```bash
+# 发布新版本（自动推送）
+chmod +x scripts/release.sh
+./scripts/release.sh 1.0.1
+```
+
+**Windows:**
+```powershell
+# 发布新版本（自动推送）
+.\scripts\release.ps1 1.0.1
+```
+
+**发布脚本会自动：**
+1. 检查 Git 状态
+2. 更新 `VERSION` 文件
+3. 提交版本更改
+4. 创建 Git tag
+5. 推送到 GitHub
+6. 触发自动构建
+
+**GitHub Actions 会自动：**
+1. 构建 Windows/macOS/Linux 版本
+2. 创建 GitHub Release
+3. 上传构建产物
+4. 生成 Release Notes
+
+### 版本号规范
+
+使用语义化版本号（Semantic Versioning）：
+
+- **主版本号（Major）**：不兼容的 API 修改
+- **次版本号（Minor）**：向下兼容的功能性新增
+- **修订号（Patch）**：向下兼容的问题修正
+
+示例：
+- `1.0.0` → `1.0.1`：修复 bug
+- `1.0.1` → `1.1.0`：添加新功能
+- `1.1.0` → `2.0.0`：重大更新，可能不兼容
+
+### 更新检测机制
+
+KMblog 支持两种更新检测：
+
+1. **框架更新**：通过 Git commits 检测博客框架更新
+2. **管理工具更新**：通过 GitHub Releases API 检测管理工具更新
+
+详见 [UPDATE_DETECTION_SUMMARY.md](UPDATE_DETECTION_SUMMARY.md)
+
 ## 许可证
 
 MIT License - 详见 [LICENSE](LICENSE) 文件

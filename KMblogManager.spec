@@ -12,6 +12,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('mainTools', 'mainTools'),
+        ('VERSION', '.'),  # 包含版本文件
         # 如果需要包含其他文件，在这里添加
         # ('public/favicon.ico', 'public'),
     ],

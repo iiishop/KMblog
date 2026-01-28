@@ -22,6 +22,27 @@ class ManagerUpdater:
     def __init__(self):
         self.current_exe = sys.executable if getattr(sys, 'frozen', False) else None
         self.is_frozen = getattr(sys, 'frozen', False)
+        self.current_version = self._get_current_version()
+    
+    def _get_current_version(self):
+        """获取当前版本号"""
+        try:
+            # 尝试从 VERSION 文件读取
+            if self.is_frozen:
+                # 打包后，VERSION 文件在临时目录
+                version_file = os.path.join(sys._MEIPASS, 'VERSION')
+            else:
+                # 开发环境，VERSION 文件在项目根目录
+                version_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'VERSION')
+            
+            if os.path.exists(version_file):
+                with open(version_file, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+        except Exception as e:
+            print(f"[版本检测] 读取 VERSION 文件失败: {e}")
+        
+        # 默认版本号
+        return "1.0.0"
         
     def check_for_updates(self):
         """检查是否有新版本
@@ -62,15 +83,18 @@ class ManagerUpdater:
                     'message': f'未找到适用于 {platform} 平台的下载文件'
                 }
             
-            # 简单的版本比较（这里可以改进）
-            has_update = True  # 暂时总是提示有更新，可以改进为实际版本比较
+            # 版本比较
+            has_update = self._compare_versions(self.current_version, latest_version)
             
+            print(f"[管理工具更新] 当前版本: {self.current_version}")
             print(f"[管理工具更新] 最新版本: {latest_version}")
+            print(f"[管理工具更新] 需要更新: {has_update}")
             print(f"[管理工具更新] 下载地址: {download_url}")
             
             return {
                 'success': True,
                 'has_update': has_update,
+                'current_version': self.current_version,
                 'latest_version': latest_version,
                 'download_url': download_url,
                 'release_notes': release_notes,
@@ -96,6 +120,45 @@ class ManagerUpdater:
             return 'macos'
         else:
             return 'linux'
+    
+    def _compare_versions(self, current, latest):
+        """比较版本号
+        
+        Args:
+            current: 当前版本 (如 "1.0.0")
+            latest: 最新版本 (如 "1.0.1")
+            
+        Returns:
+            bool: 如果最新版本更高则返回 True
+        """
+        try:
+            # 移除 'v' 前缀
+            current = current.lstrip('v')
+            latest = latest.lstrip('v')
+            
+            # 分割版本号
+            current_parts = [int(x) for x in current.split('.')]
+            latest_parts = [int(x) for x in latest.split('.')]
+            
+            # 补齐长度
+            max_len = max(len(current_parts), len(latest_parts))
+            current_parts += [0] * (max_len - len(current_parts))
+            latest_parts += [0] * (max_len - len(latest_parts))
+            
+            # 逐位比较
+            for c, l in zip(current_parts, latest_parts):
+                if l > c:
+                    return True
+                elif l < c:
+                    return False
+            
+            # 版本号相同
+            return False
+            
+        except Exception as e:
+            print(f"[版本比较] 错误: {e}")
+            # 如果比较失败，保守起见返回 False
+            return False
     
     def download_and_update(self, download_url, asset_name):
         """下载并更新管理工具
