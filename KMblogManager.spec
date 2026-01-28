@@ -49,6 +49,42 @@ a = Analysis(
         'test',
         'unittest',
         'pytest',
+        # 排除更多不需要的模块
+        'IPython',
+        'jupyter',
+        'notebook',
+        'sphinx',
+        'setuptools',
+        'distutils',
+        'pip',
+        'wheel',
+        # 排除测试相关
+        '_pytest',
+        'py.test',
+        'nose',
+        # 排除文档和示例
+        'doctest',
+        'pydoc',
+        'pydoc_data',
+        # 排除其他大型库
+        'PyQt5',
+        'PyQt6',
+        'PySide2',
+        'PySide6',
+        'wx',
+        'tornado',
+        'django',
+        'flask',
+        'sqlalchemy',
+        # 排除 XML 处理（如果不需要）
+        'xml.dom',
+        'xml.sax',
+        'xmlrpc',
+        # 排除邮件相关
+        'email',
+        'smtplib',
+        'imaplib',
+        'poplib',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -68,9 +104,14 @@ exe = EXE(
     name='KMblogManager',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
+    strip=True,  # 启用 strip 移除调试符号（Linux/macOS）
+    upx=True,  # 启用 UPX 压缩
+    upx_exclude=[
+        # 排除某些不应该被 UPX 压缩的文件
+        'vcruntime140.dll',
+        'python3.dll',
+        'python311.dll',
+    ],
     runtime_tmpdir=None,
     console=False,  # 不显示控制台窗口
     disable_windowed_traceback=False,

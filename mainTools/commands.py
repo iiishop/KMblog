@@ -1012,6 +1012,21 @@ class Generate(Command):
     def execute(self):
         posts_path = get_posts_path()
         assets_path = get_assets_path()
+        
+        # 检查并创建必要的目录结构
+        if not os.path.exists(posts_path):
+            print("[Generate] 检测到 Posts 目录不存在，正在创建...")
+            os.makedirs(posts_path, exist_ok=True)
+            
+            # 创建基本目录结构
+            markdowns_path = os.path.join(posts_path, 'Markdowns')
+            images_path = os.path.join(posts_path, 'Images')
+            os.makedirs(markdowns_path, exist_ok=True)
+            os.makedirs(images_path, exist_ok=True)
+            
+            print("[Generate] ✓ 已创建基本目录结构")
+            print("[Generate] 提示: 建议先使用「初始化博客框架」功能完整初始化项目")
+        
         posts_output_path = os.path.join(assets_path, 'PostDirectory.json')
         tags_output_path = os.path.join(assets_path, 'Tags.json')
         categories_output_path = os.path.join(assets_path, 'Categories.json')
