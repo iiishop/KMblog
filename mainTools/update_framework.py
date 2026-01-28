@@ -303,31 +303,126 @@ class FrameworkUpdater:
         try:
             self.log("开始拉取最新代码...")
             
+            # 先获取当前分支名
+            result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            current_branch = result.stdout.strip() if result.returncode == 0 else None
+            
+            # 如果没有当前分支（detached HEAD），尝试获取默认分支
+            if not current_branch:
+                # 尝试从远程获取默认分支
+                result = subprocess.run(
+                    ['git', 'remote', 'show', 'origin'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if result.returncode == 0:
+                    # 解析输出找到 HEAD branch
+                    import re
+                    match = re.search(r'HEAD branch:\s*(\S+)', result.stdout)
+                    if match:
+                        current_branch = match.group(1)
+                        self.log(f"检测到远程默认分支: {current_branch}")
+            
+            # 如果还是没有，尝试常见的分支名
+            if not current_branch:
+                self.log("无法检测当前分支，尝试常见分支名...")
+                for branch in ['main', 'master']:
+                    result = subprocess.run(
+                        ['git', 'rev-parse', '--verify', f'origin/{branch}'],
+                        cwd=self.base_path,
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    if result.returncode == 0:
+                        current_branch = branch
+                        self.log(f"找到可用分支: {branch}")
+                        break
+            
+            if not current_branch:
+                return {
+                    'success': False,
+                    'message': '无法确定要拉取的分支，请手动执行 git pull'
+                }
+            
+            self.log(f"准备从 origin/{current_branch} 拉取代码...")
+            
+            # 检查是否有未提交的更改
+            result = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            has_changes = bool(result.stdout.strip())
+            stashed = False
+            
+            if has_changes:
+                self.log("检测到未提交的更改，正在暂存...")
+                # 使用 git stash 暂存更改
+                result = subprocess.run(
+                    ['git', 'stash', 'push', '-m', 'KMBlog auto-stash before update'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if result.returncode == 0:
+                    stashed = True
+                    self.log("✓ 本地更改已暂存")
+                else:
+                    self.log(f"警告: 暂存失败: {result.stderr}")
+                    # 继续尝试 pull，可能会失败但至少给出明确错误
+            
             # 执行 git pull
             result = subprocess.run(
-                ['git', 'pull', 'origin', 'main'],
+                ['git', 'pull', 'origin', current_branch],
                 cwd=self.base_path,
                 capture_output=True,
                 text=True,
                 timeout=60
             )
             
-            if result.returncode != 0:
-                # 尝试 master 分支
-                result = subprocess.run(
-                    ['git', 'pull', 'origin', 'master'],
+            pull_success = result.returncode == 0
+            
+            # 如果之前 stash 了，现在恢复
+            if stashed:
+                self.log("正在恢复暂存的更改...")
+                restore_result = subprocess.run(
+                    ['git', 'stash', 'pop'],
                     cwd=self.base_path,
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=30
                 )
+                
+                if restore_result.returncode == 0:
+                    self.log("✓ 本地更改已恢复")
+                else:
+                    self.log(f"警告: 恢复暂存失败: {restore_result.stderr}")
+                    self.log("提示: 你的更改仍在 stash 中，可以手动执行 'git stash pop' 恢复")
             
-            if result.returncode == 0:
+            if pull_success:
                 self.log("代码拉取成功！")
                 self.log(result.stdout)
                 return {
                     'success': True,
-                    'output': result.stdout
+                    'output': result.stdout,
+                    'branch': current_branch,
+                    'stashed': stashed
                 }
             else:
                 self.log(f"代码拉取失败: {result.stderr}")

@@ -77,6 +77,12 @@ class BlogManagerGUI:
                 print("[更新检查] 开始检查框架更新...")
                 self.update_info['checking'] = True
                 
+                # 强制重新加载模块，避免缓存问题
+                import sys
+                if 'mainTools.update_framework' in sys.modules:
+                    import importlib
+                    importlib.reload(sys.modules['mainTools.update_framework'])
+                
                 # 导入更新模块
                 from mainTools.update_framework import FrameworkUpdater
                 
@@ -2798,6 +2804,12 @@ class BlogManagerGUI:
 
         def update_task():
             try:
+                # 强制重新加载模块，避免缓存问题
+                import sys
+                if 'mainTools.update_framework' in sys.modules:
+                    import importlib
+                    importlib.reload(sys.modules['mainTools.update_framework'])
+                
                 from mainTools.update_framework import FrameworkUpdater
                 updater = FrameworkUpdater()
                 
