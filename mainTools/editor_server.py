@@ -1105,6 +1105,13 @@ def main():
     """主函数 - 启动服务器"""
     global SERVER_PORT, AUTH_TOKEN
     
+    # 配置 logging 避免 formatter 错误
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s: %(message)s'
+    )
+    
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Markdown Editor API Server')
     parser.add_argument('--info-file', type=str, help='Path to write server info JSON')
@@ -1136,21 +1143,33 @@ def main():
     import uvicorn
     
     # 配置说明：
-    # - workers=4: 使用4个worker进程处理请求
+    # - workers=1: 单worker但使用异步事件循环
     # - limit_concurrency=200: 每个worker最多200个并发连接
     # - timeout_keep_alive=30: 保持连接30秒
     # - backlog=2048: 等待队列大小
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=SERVER_PORT,
-        log_level="info",
-        workers=1,  # 单worker但使用异步事件循环
-        limit_concurrency=200,
-        timeout_keep_alive=30,
-        backlog=2048,
-        loop="asyncio"  # 使用asyncio事件循环
-    )
+    
+    try:
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=SERVER_PORT,
+            log_level="info",
+            workers=1,
+            limit_concurrency=200,
+            timeout_keep_alive=30,
+            backlog=2048,
+            loop="asyncio"
+        )
+    except Exception as e:
+        # 如果启动失败，尝试使用最小配置
+        print(f"⚠️ 服务器启动失败，尝试使用简化配置: {e}")
+        print(f"正在使用最小配置重新启动...")
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=SERVER_PORT,
+            access_log=False  # 禁用访问日志避免 formatter 问题
+        )
 
 
 if __name__ == "__main__":
