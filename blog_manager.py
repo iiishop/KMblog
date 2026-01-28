@@ -54,7 +54,9 @@ class BlogManagerGUI:
         self.update_info = {
             'has_updates': False,
             'commits_behind': 0,
-            'checking': False
+            'checking': False,
+            'manager_has_update': False,  # 管理工具是否有更新
+            'manager_version': None,  # 管理工具最新版本
         }
 
         self.build_ui()
@@ -77,6 +79,7 @@ class BlogManagerGUI:
                 print("[更新检查] 开始检查框架更新...")
                 self.update_info['checking'] = True
                 
+                # 1. 检查框架更新（Git commits）
                 # 强制重新加载模块，避免缓存问题
                 import sys
                 if 'mainTools.update_framework' in sys.modules:
@@ -95,18 +98,35 @@ class BlogManagerGUI:
                     self.update_info['commits_behind'] = result.get('commits_behind', 0)
                     
                     if result['has_updates']:
-                        print(f"[更新检查] 发现 {result['commits_behind']} 个更新")
+                        print(f"[更新检查] 发现框架更新 {result['commits_behind']} 个提交")
                         print(f"[更新检查] 本地: {result.get('local_commit', 'unknown')}")
                         print(f"[更新检查] 远程: {result.get('remote_commit', 'unknown')}")
                     else:
-                        print("[更新检查] 已是最新版本")
+                        print("[更新检查] 框架已是最新版本")
                 else:
-                    print(f"[更新检查] 检查失败: {result.get('message', '未知错误')}")
+                    print(f"[更新检查] 框架检查失败: {result.get('message', '未知错误')}")
+                
+                # 2. 检查管理工具更新（GitHub Releases）
+                print("[更新检查] 开始检查管理工具更新...")
+                try:
+                    from mainTools.update_manager import ManagerUpdater
+                    manager_updater = ManagerUpdater()
+                    manager_result = manager_updater.check_for_updates()
+                    
+                    if manager_result['success'] and manager_result['has_update']:
+                        self.update_info['manager_has_update'] = True
+                        self.update_info['manager_version'] = manager_result['latest_version']
+                        print(f"[更新检查] 发现管理工具更新: {manager_result['latest_version']}")
+                    else:
+                        print("[更新检查] 管理工具已是最新版本")
+                except Exception as e:
+                    print(f"[更新检查] 管理工具检查失败: {e}")
                 
                 self.update_info['checking'] = False
                 
-                # 如果当前在 dashboard 视图且有更新，刷新 UI 显示徽章
-                if result['success'] and result['has_updates'] and self.current_view == 'dashboard':
+                # 如果有任何更新且当前在 dashboard 视图，刷新 UI 显示徽章
+                has_any_update = self.update_info['has_updates'] or self.update_info['manager_has_update']
+                if has_any_update and self.current_view == 'dashboard':
                     try:
                         self.page.run_task(self.refresh_dashboard_ui)
                     except:
@@ -492,8 +512,8 @@ class BlogManagerGUI:
                 self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
                                 self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
                 self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE,
-                                self.show_update_framework_dialog, ft.Colors.DEEP_PURPLE_600, '更新框架',
-                                badge=self.update_info['commits_behind'] if self.update_info['has_updates'] else None),
+                                self.show_update_options_dialog, ft.Colors.DEEP_PURPLE_600, '更新',
+                                badge=(self.update_info['commits_behind'] + (1 if self.update_info['manager_has_update'] else 0)) if (self.update_info['has_updates'] or self.update_info['manager_has_update']) else None),
             ]
 
             # 编辑器按钮 - 根据状态显示不同的按钮
@@ -2742,6 +2762,100 @@ class BlogManagerGUI:
         threading.Thread(target=lambda: self.page.run_thread(
             migrate_task), daemon=True).start()
 
+    def show_update_options_dialog(self, e):
+        """显示更新选项对话框"""
+        options = []
+        
+        # 框架更新选项
+        if self.update_info['has_updates']:
+            options.append(
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.CODE, color=ft.Colors.DEEP_PURPLE_600, size=30),
+                        ft.Column([
+                            ft.Text("更新博客框架", size=16, weight=ft.FontWeight.BOLD),
+                            ft.Text(f"有 {self.update_info['commits_behind']} 个新提交", 
+                                   size=12, color=ft.Colors.GREY_600),
+                        ], spacing=2, expand=True),
+                        ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400),
+                    ], spacing=15),
+                    padding=15,
+                    border=ft.border.all(1, ft.Colors.GREY_300),
+                    border_radius=8,
+                    bgcolor=ft.Colors.WHITE,
+                    on_click=lambda e: self.close_and_show_framework_update(dlg),
+                    ink=True,
+                )
+            )
+        
+        # 管理工具更新选项
+        if self.update_info['manager_has_update']:
+            options.append(
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.SETTINGS_APPLICATIONS, color=ft.Colors.BLUE_600, size=30),
+                        ft.Column([
+                            ft.Text("更新管理工具", size=16, weight=ft.FontWeight.BOLD),
+                            ft.Text(f"最新版本: {self.update_info['manager_version']}", 
+                                   size=12, color=ft.Colors.GREY_600),
+                        ], spacing=2, expand=True),
+                        ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400),
+                    ], spacing=15),
+                    padding=15,
+                    border=ft.border.all(1, ft.Colors.GREY_300),
+                    border_radius=8,
+                    bgcolor=ft.Colors.WHITE,
+                    on_click=lambda e: self.close_and_show_manager_update(dlg),
+                    ink=True,
+                )
+            )
+        
+        # 如果没有更新
+        if not options:
+            options.append(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_600, size=50),
+                        ft.Text("已是最新版本", size=16, color=ft.Colors.GREY_700),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
+                    padding=30,
+                )
+            )
+        
+        content = ft.Column([
+            ft.Text("选择更新项目", size=20, weight=ft.FontWeight.BOLD),
+            ft.Container(height=10),
+            ft.Column(options, spacing=10),
+        ], tight=True, scroll=ft.ScrollMode.AUTO)
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text(""),
+            content=content,
+            actions=[
+                ft.TextButton("取消", on_click=lambda e: self.close_dlg(dlg)),
+            ] if options and (self.update_info['has_updates'] or self.update_info['manager_has_update']) else [
+                ft.TextButton("确定", on_click=lambda e: self.close_dlg(dlg)),
+            ],
+        )
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+    
+    def close_and_show_framework_update(self, dlg):
+        """关闭选项对话框并显示框架更新对话框"""
+        self.close_dlg(dlg)
+        import time
+        time.sleep(0.1)  # 短暂延迟，确保对话框关闭
+        self.show_update_framework_dialog(None)
+    
+    def close_and_show_manager_update(self, dlg):
+        """关闭选项对话框并显示管理工具更新对话框"""
+        self.close_dlg(dlg)
+        import time
+        time.sleep(0.1)  # 短暂延迟，确保对话框关闭
+        # 直接调用管理工具更新
+        self.check_manager_update()
+
     def show_update_framework_dialog(self, e):
         """显示更新框架对话框"""
         content = ft.Column([
@@ -2933,9 +3047,10 @@ class BlogManagerGUI:
                 # 显示成功消息
                 self.snack(self.t('update_success'))
                 
-                # 检查管理工具是否有更新
-                time.sleep(1)
-                self.check_manager_update()
+                # 如果管理工具也有更新，提示用户
+                if self.update_info['manager_has_update']:
+                    time.sleep(1)
+                    self.show_manager_update_reminder()
 
             except Exception as ex:
                 # 更新失败
@@ -2959,6 +3074,35 @@ class BlogManagerGUI:
         import threading
         threading.Thread(target=lambda: self.page.run_thread(
             update_task), daemon=True).start()
+
+    def show_manager_update_reminder(self):
+        """提醒用户管理工具也有更新"""
+        dlg = ft.AlertDialog(
+            title=ft.Text("提示"),
+            content=ft.Text(
+                f"管理工具也有新版本 ({self.update_info['manager_version']})，是否立即更新？",
+                size=14
+            ),
+            actions=[
+                ft.TextButton("稍后", on_click=lambda e: self.close_dlg(dlg)),
+                ft.Button(
+                    "立即更新",
+                    on_click=lambda e: self.close_and_update_manager(dlg),
+                    bgcolor=ft.Colors.BLUE_600,
+                    color=ft.Colors.WHITE
+                ),
+            ],
+        )
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+    
+    def close_and_update_manager(self, dlg):
+        """关闭提醒对话框并更新管理工具"""
+        self.close_dlg(dlg)
+        import time
+        time.sleep(0.1)
+        self.check_manager_update()
 
     def check_manager_update(self):
         """检查管理工具更新"""
