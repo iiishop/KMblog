@@ -1,6 +1,6 @@
 <script setup>
 import globalVar from '@/globalVar';
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { gsap } from 'gsap';
 import axios from 'axios';
@@ -14,8 +14,16 @@ const props = defineProps({
 });
 
 const posts = ref({});
-const filteredPosts = ref([]);
+const allFilteredPosts = ref([]); // 所有过滤后的文章
+const displayedPosts = ref([]); // 当前显示的文章
 const router = useRouter();
+
+// 分页配置
+const POSTS_PER_PAGE = 20;
+const currentPage = ref(1);
+const isLoading = ref(false);
+const hasMore = ref(true);
+const loadMoreTrigger = ref(null);
 
 // 过滤掉带'公告'标签和 title 为 'About' 的文章
 async function filterPosts() {
@@ -61,9 +69,78 @@ async function filterPosts() {
     return result;
 }
 
+// 加载更多文章
+function loadMorePosts() {
+    if (isLoading.value || !hasMore.value) return;
+
+    isLoading.value = true;
+
+    // 模拟异步加载（实际上数据已经在内存中）
+    setTimeout(() => {
+        const start = (currentPage.value - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const newPosts = allFilteredPosts.value.slice(start, end);
+
+        if (newPosts.length > 0) {
+            displayedPosts.value.push(...newPosts);
+            currentPage.value++;
+
+            // 检查是否还有更多
+            if (end >= allFilteredPosts.value.length) {
+                hasMore.value = false;
+            }
+
+            // 为新加载的文章添加入场动画
+            nextTick(() => {
+                const newElements = document.querySelectorAll('.post-entry:not(.animated)');
+                gsap.from(newElements, {
+                    opacity: 0,
+                    x: -20,
+                    duration: 0.5,
+                    stagger: 0.05,
+                    ease: 'power2.out',
+                    onComplete: () => {
+                        newElements.forEach(el => el.classList.add('animated'));
+                    }
+                });
+            });
+        } else {
+            hasMore.value = false;
+        }
+
+        isLoading.value = false;
+    }, 300);
+}
+
+// 设置 Intersection Observer
+function setupIntersectionObserver() {
+    if (!loadMoreTrigger.value) return;
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
+                loadMorePosts();
+            }
+        },
+        {
+            root: null,
+            rootMargin: '100px', // 提前 100px 开始加载
+            threshold: 0.1
+        }
+    );
+
+    observer.observe(loadMoreTrigger.value);
+
+    // 组件卸载时清理
+    return () => observer.disconnect();
+}
+
 onMounted(async () => {
     posts.value = globalVar.markdowns;
-    filteredPosts.value = await filterPosts();
+    allFilteredPosts.value = await filterPosts();
+
+    // 初始加载第一页
+    loadMorePosts();
 
     // Panel Entry Animation
     gsap.from('.ArchivePanel', {
@@ -72,6 +149,10 @@ onMounted(async () => {
         duration: 0.8,
         ease: 'power3.out'
     });
+
+    // 设置滚动加载
+    await nextTick();
+    setupIntersectionObserver();
 });
 
 // 定义导航到 PostPage 的函数
@@ -98,6 +179,10 @@ function navigateToPost(markdownUrl) {
         params: { collection, mdName }
     });
 }
+
+// 计算统计信息
+const totalCount = computed(() => allFilteredPosts.value.length);
+const displayedCount = computed(() => displayedPosts.value.length);
 </script>
 
 <template>
@@ -115,19 +200,19 @@ function navigateToPost(markdownUrl) {
             </div>
             <div class="header-text">
                 <h1>Archive</h1>
-                <span class="subtitle">历史文章归档</span>
+                <span class="subtitle">历史文章归档 · {{ displayedCount }} / {{ totalCount }}</span>
             </div>
         </div>
 
         <div class="timeline-container">
-            <div v-for="(post, index) in filteredPosts" :key="post.url" class="post-item-wrapper">
+            <div v-for="(post, index) in displayedPosts" :key="post.url" class="post-item-wrapper">
                 <!-- Timeline Marker logic remains same but styled differently -->
-                <div v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(filteredPosts[index - 1].date).getFullYear()"
+                <div v-if="index === 0 || new Date(post.date).getFullYear() !== new Date(displayedPosts[index - 1].date).getFullYear()"
                     class="timeline-marker year-marker">
                     <span class="year-text">{{ new Date(post.date).getFullYear() }}</span>
                 </div>
 
-                <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(filteredPosts[index - 1].date).getMonth()"
+                <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(displayedPosts[index - 1].date).getMonth()"
                     class="timeline-marker month-marker">
                     <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
                         }}</span>
@@ -145,6 +230,20 @@ function navigateToPost(markdownUrl) {
                             {{ post.date }}
                         </p>
                     </div>
+                </div>
+            </div>
+
+            <!-- 加载触发器 -->
+            <div ref="loadMoreTrigger" class="load-more-trigger">
+                <div v-if="isLoading" class="loading-indicator">
+                    <div class="spinner"></div>
+                    <span>加载中...</span>
+                </div>
+                <div v-else-if="!hasMore" class="end-message">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>已加载全部 {{ totalCount }} 篇文章</span>
                 </div>
             </div>
         </div>
@@ -350,5 +449,56 @@ h1 {
 .date-icon {
     width: 12px;
     height: 12px;
+}
+
+/* === 加载更多样式 === */
+.load-more-trigger {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--theme-meta-text);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--theme-border-light);
+    border-top-color: var(--theme-success);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.end-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--theme-meta-text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 1rem;
+    background: var(--theme-surface-hover);
+    border-radius: 12px;
+    border: 1px dashed var(--theme-border-light);
+}
+
+.end-message svg {
+    color: var(--theme-success);
+    flex-shrink: 0;
 }
 </style>

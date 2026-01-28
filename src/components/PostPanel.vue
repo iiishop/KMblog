@@ -93,20 +93,44 @@ const goToPreviousPage = () => {
     }
 };
 
+// Vue TransitionGroup hooks for staggered animation
+function onBeforeEnter(el) {
+    el.style.opacity = 0;
+    el.style.transform = 'translateY(30px)';
+}
+
+function onEnter(el, done) {
+    const delay = el.dataset.index * 100; // 100ms delay per item
+    setTimeout(() => {
+        gsap.to(el, {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: 'power2.out',
+            onComplete: done
+        });
+    }, delay);
+}
+
 function onLeave(el, done) {
     gsap.to(el, {
-        height: 0.1,
-        width: 0.1,
+        opacity: 0,
+        y: -20,
+        scale: 0.98,
+        duration: 0.4,
+        ease: 'power2.in',
         onComplete: done
-    })
+    });
 }
 
 </script>
 
 <template>
     <div class="PostPanel">
-        <transition-group name="fade" tag="div" class="posts" @leave="onLeave">
-            <Post v-for="post in paginatedPosts" :key="post.key" :imageUrl="post.imageUrl" :markdownUrl="post.key" />
+        <transition-group name="list" tag="div" class="posts" @before-enter="onBeforeEnter" @enter="onEnter"
+            @leave="onLeave" appear>
+            <Post v-for="(post, index) in paginatedPosts" :key="post.key" :imageUrl="post.imageUrl"
+                :markdownUrl="post.key" :data-index="index" />
         </transition-group>
         <div class="pagination">
             <button @click="goToFirstPage" :disabled="currentPage === 1">最前页</button>
@@ -132,6 +156,16 @@ function onLeave(el, done) {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+/* List transition styles */
+.list-move {
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.list-leave-active {
+    position: absolute;
+    width: 100%;
 }
 
 .pagination {
@@ -161,25 +195,5 @@ function onLeave(el, done) {
 .pagination button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
-}
-
-.fade-move {
-    transition: transform 0.5s ease;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.5s ease, transform 0.5s ease, scale 0.5s ease;
-}
-
-.fade-enter,
-.fade-leave-to {
-    opacity: 0;
-    transform: translateY(-100px);
-    scale: 0.9;
-}
-
-.fade-leave-active {
-    position: absolute;
 }
 </style>

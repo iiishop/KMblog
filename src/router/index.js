@@ -7,6 +7,7 @@ const PostPage = () => import('../views/PostPage.vue');
 const ArchivePage = () => import('../views/ArchivePage.vue');
 const CategoryPage = () => import('../views/CategoryPage.vue');
 const AboutPage = () => import('../views/AboutPage.vue');
+const CollectionPage = () => import('../views/CollectionPage.vue');
 
 const getMarkdownUrls = (categoryPath) => {
     console.log('categoryPath', categoryPath);
@@ -114,6 +115,14 @@ const routes = [
             const categoryPath = Array.isArray(pathMatch) ? pathMatch : pathMatch ? pathMatch.split('/') : [];
             return { categoryPath };
         }
+    },
+    {
+        path: '/collection/:name',
+        name: 'CollectionPage',
+        component: CollectionPage,
+        props: route => ({
+            collectionName: route.params.name
+        })
     }
 ];
 
