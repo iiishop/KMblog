@@ -1,0 +1,328 @@
+"""
+KMBlog Manager 自动更新工具
+从 GitHub Releases 下载最新版本并自动替换
+"""
+
+import os
+import sys
+import json
+import subprocess
+import tempfile
+import shutil
+import zipfile
+import requests
+from datetime import datetime
+
+
+class ManagerUpdater:
+    """管理工具更新器"""
+    
+    GITHUB_API = "https://api.github.com/repos/iiishop/KMblog/releases/latest"
+    
+    def __init__(self):
+        self.current_exe = sys.executable if getattr(sys, 'frozen', False) else None
+        self.is_frozen = getattr(sys, 'frozen', False)
+        
+    def check_for_updates(self):
+        """检查是否有新版本
+        
+        Returns:
+            dict: {
+                'success': bool,
+                'has_update': bool,
+                'latest_version': str,
+                'download_url': str,
+                'release_notes': str
+            }
+        """
+        try:
+            print("[管理工具更新] 检查最新版本...")
+            
+            # 获取最新 release 信息
+            response = requests.get(self.GITHUB_API, timeout=10)
+            response.raise_for_status()
+            
+            release_data = response.json()
+            latest_version = release_data.get('tag_name', '').lstrip('v')
+            release_notes = release_data.get('body', '')
+            
+            # 查找对应平台的下载链接
+            platform = self._get_platform()
+            download_url = None
+            
+            for asset in release_data.get('assets', []):
+                asset_name = asset.get('name', '').lower()
+                if platform in asset_name and ('zip' in asset_name or 'tar.gz' in asset_name):
+                    download_url = asset.get('browser_download_url')
+                    break
+            
+            if not download_url:
+                return {
+                    'success': False,
+                    'message': f'未找到适用于 {platform} 平台的下载文件'
+                }
+            
+            # 简单的版本比较（这里可以改进）
+            has_update = True  # 暂时总是提示有更新，可以改进为实际版本比较
+            
+            print(f"[管理工具更新] 最新版本: {latest_version}")
+            print(f"[管理工具更新] 下载地址: {download_url}")
+            
+            return {
+                'success': True,
+                'has_update': has_update,
+                'latest_version': latest_version,
+                'download_url': download_url,
+                'release_notes': release_notes,
+                'asset_name': os.path.basename(download_url)
+            }
+            
+        except requests.RequestException as e:
+            return {
+                'success': False,
+                'message': f'网络请求失败: {str(e)}'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'检查更新失败: {str(e)}'
+            }
+    
+    def _get_platform(self):
+        """获取当前平台"""
+        if sys.platform == 'win32':
+            return 'windows'
+        elif sys.platform == 'darwin':
+            return 'macos'
+        else:
+            return 'linux'
+    
+    def download_and_update(self, download_url, asset_name):
+        """下载并更新管理工具
+        
+        Args:
+            download_url: 下载地址
+            asset_name: 文件名
+            
+        Returns:
+            dict: 更新结果
+        """
+        try:
+            if not self.is_frozen:
+                return {
+                    'success': False,
+                    'message': '当前不是打包版本，无法自动更新'
+                }
+            
+            print("[管理工具更新] 开始下载新版本...")
+            
+            # 创建临时目录
+            temp_dir = tempfile.mkdtemp(prefix='kmblog_manager_update_')
+            download_path = os.path.join(temp_dir, asset_name)
+            
+            # 下载文件
+            response = requests.get(download_url, stream=True, timeout=60)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            
+            with open(download_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            progress = (downloaded / total_size) * 100
+                            print(f"\r[管理工具更新] 下载进度: {progress:.1f}%", end='')
+            
+            print("\n[管理工具更新] 下载完成")
+            
+            # 解压文件
+            print("[管理工具更新] 解压文件...")
+            extract_dir = os.path.join(temp_dir, 'extracted')
+            os.makedirs(extract_dir, exist_ok=True)
+            
+            if asset_name.endswith('.zip'):
+                with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+            elif asset_name.endswith('.tar.gz'):
+                import tarfile
+                with tarfile.open(download_path, 'r:gz') as tar_ref:
+                    tar_ref.extractall(extract_dir)
+            else:
+                return {
+                    'success': False,
+                    'message': '不支持的压缩格式'
+                }
+            
+            print("[管理工具更新] 解压完成")
+            
+            # 查找新的可执行文件
+            new_exe = self._find_executable(extract_dir)
+            if not new_exe:
+                return {
+                    'success': False,
+                    'message': '未找到可执行文件'
+                }
+            
+            print(f"[管理工具更新] 找到新版本: {new_exe}")
+            
+            # 创建更新脚本
+            update_script = self._create_update_script(new_exe, self.current_exe)
+            
+            print("[管理工具更新] 准备替换文件...")
+            print("[管理工具更新] 将在 3 秒后关闭当前程序并执行更新...")
+            
+            # 执行更新脚本并退出当前程序
+            if sys.platform == 'win32':
+                # Windows: 使用 cmd 执行批处理脚本
+                subprocess.Popen(
+                    ['cmd', '/c', update_script],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
+                )
+            else:
+                # Unix: 使用 sh 执行脚本
+                subprocess.Popen(
+                    ['sh', update_script],
+                    start_new_session=True
+                )
+            
+            return {
+                'success': True,
+                'message': '更新脚本已启动，程序即将关闭',
+                'should_exit': True
+            }
+            
+        except requests.RequestException as e:
+            return {
+                'success': False,
+                'message': f'下载失败: {str(e)}'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'更新失败: {str(e)}'
+            }
+    
+    def _find_executable(self, directory):
+        """在目录中查找可执行文件"""
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if sys.platform == 'win32':
+                    if file.lower() == 'kmblogmanager.exe':
+                        return os.path.join(root, file)
+                else:
+                    if file == 'KMblogManager':
+                        full_path = os.path.join(root, file)
+                        if os.access(full_path, os.X_OK):
+                            return full_path
+        return None
+    
+    def _create_update_script(self, new_exe, old_exe):
+        """创建更新脚本"""
+        if sys.platform == 'win32':
+            # Windows 批处理脚本
+            script_path = os.path.join(tempfile.gettempdir(), 'kmblog_update.bat')
+            
+            script_content = f"""@echo off
+echo KMBlog Manager 更新脚本
+echo ========================
+
+echo 等待程序关闭...
+timeout /t 3 /nobreak >nul
+
+echo 备份旧版本...
+if exist "{old_exe}.backup" del "{old_exe}.backup"
+move "{old_exe}" "{old_exe}.backup"
+
+echo 复制新版本...
+copy "{new_exe}" "{old_exe}"
+
+echo 启动新版本...
+start "" "{old_exe}"
+
+echo 清理临时文件...
+timeout /t 2 /nobreak >nul
+rmdir /s /q "{os.path.dirname(new_exe)}"
+
+echo 更新完成！
+del "%~f0"
+"""
+        else:
+            # Unix shell 脚本
+            script_path = os.path.join(tempfile.gettempdir(), 'kmblog_update.sh')
+            
+            script_content = f"""#!/bin/bash
+echo "KMBlog Manager 更新脚本"
+echo "========================"
+
+echo "等待程序关闭..."
+sleep 3
+
+echo "备份旧版本..."
+if [ -f "{old_exe}.backup" ]; then
+    rm "{old_exe}.backup"
+fi
+mv "{old_exe}" "{old_exe}.backup"
+
+echo "复制新版本..."
+cp "{new_exe}" "{old_exe}"
+chmod +x "{old_exe}"
+
+echo "启动新版本..."
+"{old_exe}" &
+
+echo "清理临时文件..."
+sleep 2
+rm -rf "{os.path.dirname(new_exe)}"
+
+echo "更新完成！"
+rm "$0"
+"""
+        
+        with open(script_path, 'w', encoding='utf-8') as f:
+            f.write(script_content)
+        
+        if sys.platform != 'win32':
+            os.chmod(script_path, 0o755)
+        
+        return script_path
+
+
+class UpdateManager:
+    """更新管理命令（用于命令行）"""
+    description = "Update KMBlog Manager to the latest version"
+    
+    def execute(self):
+        updater = ManagerUpdater()
+        
+        # 检查更新
+        check_result = updater.check_for_updates()
+        if not check_result['success']:
+            return f"检查更新失败: {check_result.get('message', '未知错误')}"
+        
+        if not check_result['has_update']:
+            return "已是最新版本"
+        
+        print(f"\n发现新版本: {check_result['latest_version']}")
+        print(f"\n更新说明:\n{check_result['release_notes']}\n")
+        
+        # 询问是否更新
+        response = input("是否立即更新？(y/n): ")
+        if response.lower() != 'y':
+            return "已取消更新"
+        
+        # 执行更新
+        update_result = updater.download_and_update(
+            check_result['download_url'],
+            check_result['asset_name']
+        )
+        
+        if update_result['success']:
+            print("\n更新成功！程序将在 3 秒后关闭...")
+            import time
+            time.sleep(3)
+            sys.exit(0)
+        else:
+            return f"更新失败: {update_result.get('message', '未知错误')}"

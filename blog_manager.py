@@ -2925,6 +2925,10 @@ class BlogManagerGUI:
 
                 # 显示成功消息
                 self.snack(self.t('update_success'))
+                
+                # 检查管理工具是否有更新
+                time.sleep(1)
+                self.check_manager_update()
 
             except Exception as ex:
                 # 更新失败
@@ -2948,6 +2952,124 @@ class BlogManagerGUI:
         import threading
         threading.Thread(target=lambda: self.page.run_thread(
             update_task), daemon=True).start()
+
+    def check_manager_update(self):
+        """检查管理工具更新"""
+        try:
+            from mainTools.update_manager import ManagerUpdater
+            updater = ManagerUpdater()
+            
+            # 检查更新
+            result = updater.check_for_updates()
+            if not result['success'] or not result['has_update']:
+                return
+            
+            # 显示更新对话框
+            self.show_manager_update_dialog(result, updater)
+            
+        except Exception as e:
+            print(f"[管理工具更新] 检查失败: {e}")
+    
+    def show_manager_update_dialog(self, update_info, updater):
+        """显示管理工具更新对话框"""
+        content = ft.Column([
+            ft.Text("发现管理工具新版本", size=20, weight=ft.FontWeight.BOLD),
+            ft.Container(height=10),
+            ft.Text(f"最新版本: {update_info['latest_version']}", size=14),
+            ft.Container(height=10),
+            ft.Text("更新说明:", size=14, weight=ft.FontWeight.BOLD),
+            ft.Container(
+                content=ft.Text(
+                    update_info['release_notes'][:200] + "..." if len(update_info['release_notes']) > 200 else update_info['release_notes'],
+                    size=12,
+                    color=ft.Colors.GREY_700
+                ),
+                height=100,
+                padding=10,
+                border=ft.border.all(1, ft.Colors.GREY_300),
+                border_radius=5,
+            ),
+            ft.Container(height=10),
+            ft.Text("是否立即更新管理工具？", size=13, color=ft.Colors.GREY_700),
+            ft.Text("（程序将自动关闭并重启）", size=11, color=ft.Colors.ORANGE_700),
+        ], tight=True, scroll=ft.ScrollMode.AUTO)
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text("管理工具更新"),
+            content=content,
+            actions=[
+                ft.TextButton("稍后更新", on_click=lambda e: self.close_dlg(dlg)),
+                ft.Button(
+                    "立即更新",
+                    on_click=lambda e: self.confirm_manager_update(dlg, update_info, updater),
+                    bgcolor=ft.Colors.BLUE_600,
+                    color=ft.Colors.WHITE
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
+    
+    def confirm_manager_update(self, dlg, update_info, updater):
+        """确认更新管理工具"""
+        self.close_dlg(dlg)
+        
+        # 显示下载进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text("准备下载...", size=14)
+        
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text("更新管理工具"),
+            content=ft.Container(
+                content=ft.Column([
+                    status_text,
+                    ft.Container(height=10),
+                    progress_bar,
+                ], tight=True),
+                width=400,
+            ),
+            modal=True,
+        )
+        
+        self.page.dialog = progress_dlg
+        progress_dlg.open = True
+        self.page.update()
+        
+        def update_task():
+            try:
+                status_text.value = "正在下载新版本..."
+                progress_bar.value = None  # 不确定进度
+                self.page.update()
+                
+                # 执行更新
+                result = updater.download_and_update(
+                    update_info['download_url'],
+                    update_info['asset_name']
+                )
+                
+                if result['success']:
+                    status_text.value = "下载完成！程序即将关闭..."
+                    progress_bar.value = 1.0
+                    self.page.update()
+                    
+                    import time
+                    time.sleep(2)
+                    
+                    # 关闭程序
+                    self.page.window_destroy()
+                else:
+                    raise Exception(result.get('message', '更新失败'))
+                    
+            except Exception as ex:
+                progress_dlg.open = False
+                self.page.update()
+                self.snack(f"更新失败: {ex}", True)
+        
+        import threading
+        threading.Thread(target=update_task, daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""

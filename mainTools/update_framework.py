@@ -303,6 +303,26 @@ class FrameworkUpdater:
         try:
             self.log("开始拉取最新代码...")
             
+            # 先检查是否有未解决的冲突
+            result = subprocess.run(
+                ['git', 'ls-files', '-u'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.stdout.strip():
+                self.log("检测到未解决的合并冲突，正在清理...")
+                # 尝试中止合并
+                subprocess.run(
+                    ['git', 'merge', '--abort'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    timeout=10
+                )
+                self.log("✓ 已清理冲突状态")
+            
             # 先获取当前分支名
             result = subprocess.run(
                 ['git', 'branch', '--show-current'],
