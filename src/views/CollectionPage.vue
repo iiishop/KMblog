@@ -123,7 +123,43 @@ const goBack = () => {
 
 // 导航到文章
 const navigateToArticle = (path) => {
-    router.push(`/post?url=${encodeURIComponent(path)}`);
+    // 解析路径：/Posts/Collection/filename.md
+    // 移除开头的 / 并分割
+    const parts = path.replace(/^\//, '').split('/');
+
+    // parts[0] = 'Posts'
+    // parts[1] = collection name (可能不存在)
+    // parts[2] = filename.md (或 parts[1] 如果没有 collection)
+
+    let collection = null;
+    let filename = '';
+
+    if (parts.length >= 3) {
+        // /Posts/Collection/file.md
+        collection = parts[1];
+        filename = parts[2];
+    } else if (parts.length === 2) {
+        // /Posts/file.md (没有 collection)
+        filename = parts[1];
+    }
+
+    // 移除 .md 扩展名
+    const mdName = filename.replace('.md', '');
+
+    console.log('[CollectionPage] Navigating to article:', { path, collection, mdName });
+
+    // 使用路由参数导航
+    if (collection) {
+        router.push({
+            name: 'PostPage',
+            params: { collection, mdName }
+        });
+    } else {
+        router.push({
+            name: 'PostPage',
+            params: { mdName }
+        });
+    }
 };
 
 // 提取图片主色调

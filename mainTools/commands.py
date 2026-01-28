@@ -668,12 +668,25 @@ class Generate(Command):
         return None
     
     def _extract_images_from_markdown(self, file_path):
-        """从 Markdown 文件中提取所有图片引用"""
+        """从 Markdown 文件中提取所有图片引用（包括 metadata 中的 img 字段）"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 匹配 Markdown 图片语法: ![alt](path)
+            images = []
+            
+            # 1. 解析 metadata 中的 img 字段
+            metadata = parse_markdown_metadata(file_path)
+            if 'img' in metadata and metadata['img']:
+                img_value = metadata['img']
+                # img 可能是字符串或列表
+                if isinstance(img_value, str):
+                    if img_value.strip():  # 确保不是空字符串
+                        images.append(img_value.strip())
+                elif isinstance(img_value, list):
+                    images.extend([img.strip() for img in img_value if img.strip()])
+            
+            # 2. 匹配 Markdown 图片语法: ![alt](path)
             # 支持多种格式：
             # - ![](image.png)
             # - ![alt](./image.png)
@@ -685,7 +698,6 @@ class Generate(Command):
             matches = re.findall(image_pattern, content)
             
             # 提取图片路径
-            images = []
             for match in matches:
                 # 移除可能的引号
                 image_path = match.strip().strip('\'"')

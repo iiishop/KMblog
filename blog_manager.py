@@ -1079,8 +1079,6 @@ class BlogManagerGUI:
             
             # 自动调用 Generate 命令更新 JSON 文件
             try:
-                import sys
-                import os
                 # 确保 mainTools 目录在 Python 路径中
                 main_tools_path = os.path.join(os.path.dirname(__file__), 'mainTools')
                 if main_tools_path not in sys.path:

@@ -89,21 +89,6 @@ function loadMorePosts() {
             if (end >= allFilteredPosts.value.length) {
                 hasMore.value = false;
             }
-
-            // 为新加载的文章添加入场动画
-            nextTick(() => {
-                const newElements = document.querySelectorAll('.post-entry:not(.animated)');
-                gsap.from(newElements, {
-                    opacity: 0,
-                    x: -20,
-                    duration: 0.5,
-                    stagger: 0.05,
-                    ease: 'power2.out',
-                    onComplete: () => {
-                        newElements.forEach(el => el.classList.add('animated'));
-                    }
-                });
-            });
         } else {
             hasMore.value = false;
         }
@@ -215,7 +200,7 @@ const displayedCount = computed(() => displayedPosts.value.length);
                 <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(displayedPosts[index - 1].date).getMonth()"
                     class="timeline-marker month-marker">
                     <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <div @click="navigateToPost(post.url)" class="post-content post-entry">
