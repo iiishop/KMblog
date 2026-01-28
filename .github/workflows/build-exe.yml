@@ -49,21 +49,45 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Create virtual environment
+      - name: Create virtual environment (Windows)
+        if: matrix.platform == 'windows'
         run: uv venv .venv
-        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
+        shell: pwsh
 
-      - name: Install dependencies
+      - name: Create virtual environment (Unix)
+        if: matrix.platform != 'windows'
+        run: uv venv .venv
+        shell: bash
+
+      - name: Install dependencies (Windows)
+        if: matrix.platform == 'windows'
         run: uv pip install -r requirements.txt
-        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
+        shell: pwsh
 
-      - name: Verify PyInstaller
+      - name: Install dependencies (Unix)
+        if: matrix.platform != 'windows'
+        run: uv pip install -r requirements.txt
+        shell: bash
+
+      - name: Verify PyInstaller (Windows)
+        if: matrix.platform == 'windows'
         run: ${{ matrix.pyinstaller }} --version
-        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
+        shell: pwsh
 
-      - name: Build executable
+      - name: Verify PyInstaller (Unix)
+        if: matrix.platform != 'windows'
+        run: ${{ matrix.pyinstaller }} --version
+        shell: bash
+
+      - name: Build executable (Windows)
+        if: matrix.platform == 'windows'
         run: ${{ matrix.pyinstaller }} --clean --noconfirm KMblogManager.spec
-        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
+        shell: pwsh
+
+      - name: Build executable (Unix)
+        if: matrix.platform != 'windows'
+        run: ${{ matrix.pyinstaller }} --clean --noconfirm KMblogManager.spec
+        shell: bash
 
       - name: Verify build (Windows)
         if: matrix.platform == 'windows'
