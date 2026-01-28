@@ -9,9 +9,31 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            ext: .exe
+            pyinstaller: .venv\Scripts\pyinstaller.exe
+            shell: pwsh
+          - os: macos-latest
+            platform: macos
+            ext: ""
+            pyinstaller: .venv/bin/pyinstaller
+            shell: bash
+          - os: ubuntu-latest
+            platform: linux
+            ext: ""
+            pyinstaller: .venv/bin/pyinstaller
+            shell: bash
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -29,21 +51,22 @@ jobs:
 
       - name: Create virtual environment
         run: uv venv .venv
-        shell: pwsh
+        shell: ${{ matrix.shell }}
 
       - name: Install dependencies
         run: uv pip install -r requirements.txt
-        shell: pwsh
+        shell: ${{ matrix.shell }}
 
       - name: Verify PyInstaller
-        run: .venv\Scripts\pyinstaller.exe --version
-        shell: pwsh
+        run: ${{ matrix.pyinstaller }} --version
+        shell: ${{ matrix.shell }}
 
-      - name: Build EXE
-        run: .venv\Scripts\pyinstaller.exe --clean --noconfirm KMblogManager.spec
-        shell: pwsh
+      - name: Build executable
+        run: ${{ matrix.pyinstaller }} --clean --noconfirm KMblogManager.spec
+        shell: ${{ matrix.shell }}
 
-      - name: Verify build
+      - name: Verify build (Windows)
+        if: matrix.platform == 'windows'
         run: |
           if (Test-Path "dist/KMblogManager.exe") {
             Write-Output "✓ Build successful"
@@ -55,12 +78,28 @@ jobs:
           }
         shell: pwsh
 
-      - name: Create build info
+      - name: Verify build (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [ -f "dist/KMblogManager" ]; then
+            echo "✓ Build successful"
+            size=$(du -h "dist/KMblogManager" | cut -f1)
+            echo "Size: $size"
+            chmod +x "dist/KMblogManager"
+          else
+            echo "Build failed!"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Create build info (Windows)
+        if: matrix.platform == 'windows'
         run: |
           $version = if ($env:GITHUB_REF -match 'refs/tags/v(.*)') { $matches[1] } else { "dev-$(Get-Date -Format 'yyyyMMdd')" }
           @"
           KMBlog Manager - Build Info
           ============================
+          Platform: Windows
           Version: $version
           Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
           Commit: $env:GITHUB_SHA
@@ -68,30 +107,106 @@ jobs:
           "@ | Out-File -FilePath "dist/BUILD_INFO.txt" -Encoding UTF8
         shell: pwsh
 
-      - name: Package release
+      - name: Create build info (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [[ "$GITHUB_REF" =~ refs/tags/v(.*) ]]; then
+            version="${BASH_REMATCH[1]}"
+          else
+            version="dev-$(date +%Y%m%d)"
+          fi
+          cat > dist/BUILD_INFO.txt << EOF
+          KMBlog Manager - Build Info
+          ============================
+          Platform: ${{ matrix.platform }}
+          Version: $version
+          Date: $(date '+%Y-%m-%d %H:%M:%S')
+          Commit: $GITHUB_SHA
+          Branch: $GITHUB_REF_NAME
+          EOF
+        shell: bash
+
+      - name: Package release (Windows)
+        if: matrix.platform == 'windows'
         run: |
           New-Item -ItemType Directory -Force -Path release
           Copy-Item "dist/KMblogManager.exe" release/
           Copy-Item "dist/BUILD_INFO.txt" release/
           Copy-Item "README.md" release/ -ErrorAction SilentlyContinue
-          Copy-Item "*.md" release/ -ErrorAction SilentlyContinue
 
           $version = if ($env:GITHUB_REF -match 'refs/tags/v(.*)') { $matches[1] } else { "dev" }
           Compress-Archive -Path "release/*" -DestinationPath "KMblogManager-$version-windows.zip"
         shell: pwsh
 
+      - name: Package release (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p release
+          cp dist/KMblogManager release/
+          cp dist/BUILD_INFO.txt release/
+          cp README.md release/ 2>/dev/null || true
+
+          if [[ "$GITHUB_REF" =~ refs/tags/v(.*) ]]; then
+            version="${BASH_REMATCH[1]}"
+          else
+            version="dev"
+          fi
+
+          cd release
+          tar -czf "../KMblogManager-$version-macos.tar.gz" *
+        shell: bash
+
+      - name: Package release (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p release
+          cp dist/KMblogManager release/
+          cp dist/BUILD_INFO.txt release/
+          cp README.md release/ 2>/dev/null || true
+
+          if [[ "$GITHUB_REF" =~ refs/tags/v(.*) ]]; then
+            version="${BASH_REMATCH[1]}"
+          else
+            version="dev"
+          fi
+
+          cd release
+          tar -czf "../KMblogManager-$version-linux.tar.gz" *
+        shell: bash
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KMblogManager-Windows
-          path: KMblogManager-*-windows.zip
+          name: KMblogManager-${{ matrix.platform }}
+          path: KMblogManager-*-${{ matrix.platform }}.*
           retention-days: 30
 
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} release/ \;
+          ls -lh release/
+
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: KMblogManager-*-windows.zip
+          files: release/*
           draft: false
           prerelease: false
           generate_release_notes: true
