@@ -104,14 +104,9 @@ exe = EXE(
     name='KMblogManager',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # 启用 strip 移除调试符号（Linux/macOS）
-    upx=True,  # 启用 UPX 压缩
-    upx_exclude=[
-        # 排除某些不应该被 UPX 压缩的文件
-        'vcruntime140.dll',
-        'python3.dll',
-        'python311.dll',
-    ],
+    strip=False,  # Windows 上禁用 strip（只在 Linux/macOS 有效）
+    upx=False,  # 禁用 UPX 压缩以避免 DLL 损坏问题
+    upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # 不显示控制台窗口
     disable_windowed_traceback=False,
