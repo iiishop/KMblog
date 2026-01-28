@@ -419,7 +419,7 @@ onBeforeUnmount(() => {
     transform: translateY(-50%);
     width: 3px;
     height: 0;
-    background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+    background: var(--theme-gradient);
     border-radius: 0 2px 2px 0;
     transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
@@ -431,16 +431,19 @@ onBeforeUnmount(() => {
 
 /* 悬停效果 */
 .node-content:hover {
-    background: rgba(99, 102, 241, 0.06);
+    background: var(--theme-nav-hover-bg);
+    transition: var(--theme-transition-colors);
 }
 
 .node-content.is-current {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
+    background: var(--theme-nav-active-bg);
     font-weight: 600;
+    transition: var(--theme-transition-colors);
 }
 
 .node-content.is-current:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.16) 100%);
+    background: var(--theme-nav-active-bg);
+    opacity: 0.9;
 }
 
 /* 拖拽状态 */
@@ -472,7 +475,7 @@ onBeforeUnmount(() => {
 .expand-arrow {
     width: 14px;
     height: 14px;
-    color: #94a3b8;
+    color: var(--theme-meta-text);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -499,17 +502,17 @@ onBeforeUnmount(() => {
 .file-icon svg {
     width: 16px;
     height: 16px;
-    color: #64748b;
+    color: var(--theme-meta-text);
     transition: all 0.2s;
 }
 
 .node-content:hover .file-icon svg {
-    color: #475569;
+    color: var(--theme-panel-text);
     transform: scale(1.1);
 }
 
 .node-content.is-current .file-icon svg {
-    color: #6366f1;
+    color: var(--theme-primary);
 }
 
 /* 节点名称 */
@@ -520,18 +523,18 @@ onBeforeUnmount(() => {
     white-space: nowrap;
     font-size: 13px;
     font-weight: 500;
-    color: #475569;
+    color: var(--theme-panel-text);
     letter-spacing: -0.01em;
     transition: color 0.2s;
     z-index: 1;
 }
 
 .node-content:hover .node-name {
-    color: #1e293b;
+    color: var(--theme-heading-text);
 }
 
 .node-content.is-current .node-name {
-    color: #1e293b;
+    color: var(--theme-heading-text);
     font-weight: 600;
 }
 
@@ -604,10 +607,11 @@ onBeforeUnmount(() => {
 .context-backdrop {
     position: absolute;
     inset: -6px;
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--theme-panel-bg);
     border-radius: 12px;
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    border: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
 }
 
 .context-content {
@@ -623,7 +627,7 @@ onBeforeUnmount(() => {
     padding: 10px 13px;
     border: none;
     background: transparent;
-    color: #475569;
+    color: var(--theme-panel-text);
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
@@ -634,14 +638,14 @@ onBeforeUnmount(() => {
 }
 
 .context-item:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: #1e293b;
+    background: var(--theme-nav-active-bg);
+    color: var(--theme-heading-text);
     transform: translateX(2px);
 }
 
 .context-item.danger:hover {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.08) 100%);
-    color: #dc2626;
+    background: var(--theme-error-disabled);
+    color: var(--theme-error-hover);
 }
 
 .item-icon {
@@ -652,8 +656,9 @@ onBeforeUnmount(() => {
 
 .context-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.2) 50%, transparent 100%);
+    background: var(--theme-divider);
     margin: 4px 0;
+    transition: var(--theme-transition-colors);
 }
 
 /* 右键菜单动画 */

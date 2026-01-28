@@ -45,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
@@ -53,6 +53,7 @@ import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
 import Post from '@/components/PostPanelComps/Post.vue';
+import { useTheme } from '@/composables/useTheme';
 
 // Error handling utility
 const handleApiError = (error, context = '') => {
@@ -156,10 +157,17 @@ const saveStatus = ref('saved'); // 'saved', 'saving', 'unsaved'
 const lastSaveTime = ref(null); // 上次保存时间戳
 const editorScrollTop = ref(0);
 const monacoEditorRef = ref(null);
-const editorTheme = ref('vs'); // 'vs', 'vs-dark', 'hc-black'
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
 let isScrollingFromPreview = false; // 标记是否来自预览的滚动
+
+// Theme management
+const { currentMode, isDarkMode } = useTheme();
+
+// Computed Monaco theme based on global theme
+const editorTheme = computed(() => {
+    return isDarkMode.value ? 'vs-dark' : 'vs';
+});
 
 // 解析当前文件的metadata用于Post组件显示
 const currentMetadata = computed(() => {
@@ -928,9 +936,10 @@ onBeforeUnmount(() => {
     display: flex;
     height: 100vh;
     width: 100vw;
-    background-color: var(--theme-content-bg, #ffffff);
-    color: var(--theme-text-color, #333333);
+    background-color: var(--theme-body-bg);
+    color: var(--theme-body-text);
     overflow: hidden;
+    transition: var(--theme-transition-colors);
 }
 
 /* Main Editor */
@@ -955,34 +964,39 @@ onBeforeUnmount(() => {
 }
 
 .edit-panel {
-    border-right: 1px solid var(--theme-border-color, #e0e0e0);
+    border-right: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
 }
 
 .preview-panel {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    background: var(--theme-panel-bg);
+    transition: var(--theme-transition-colors);
 }
 
 /* Post预览区域 */
 .post-preview-section {
     padding: 1.5rem;
-    background: var(--theme-surface-default, #f5f5f5);
-    border-bottom: 2px solid var(--theme-border-color, #e0e0e0);
+    background: var(--theme-surface-default);
+    border-bottom: 2px solid var(--theme-panel-border);
     flex-shrink: 0;
+    transition: var(--theme-transition-colors);
 }
 
 .preview-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--theme-text-secondary, #666);
+    color: var(--theme-meta-text);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 1rem;
     padding: 0.5rem 1rem;
-    background: var(--theme-surface-hover, #e8e8e8);
+    background: var(--theme-surface-hover);
     border-radius: 6px;
     display: inline-block;
+    transition: var(--theme-transition-colors);
 }
 
 /* Markdown预览区域 */
@@ -1000,7 +1014,7 @@ onBeforeUnmount(() => {
 
     .edit-panel {
         border-right: none;
-        border-bottom: 1px solid var(--theme-border-color, #e0e0e0);
+        border-bottom: 1px solid var(--theme-panel-border);
     }
 }
 </style>

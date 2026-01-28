@@ -200,8 +200,8 @@ const startResize = (e) => {
 
 .ethereal-sidebar {
     position: relative;
-    background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
-    border-right: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--theme-panel-bg);
+    border-right: 1px solid var(--theme-panel-border);
     display: flex;
     flex-direction: column;
     min-width: 200px;
@@ -235,12 +235,13 @@ const startResize = (e) => {
     justify-content: space-between;
     align-items: center;
     padding: 16px 21px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid var(--theme-panel-border);
+    background: var(--theme-surface-default);
     backdrop-filter: blur(10px);
     flex-shrink: 0;
     position: relative;
     z-index: 1;
+    transition: var(--theme-transition-colors);
 }
 
 .header-content {
@@ -252,16 +253,18 @@ const startResize = (e) => {
 .header-icon {
     width: 20px;
     height: 20px;
-    color: #6366f1;
+    color: var(--theme-primary);
     stroke-width: 2;
+    transition: var(--theme-transition-colors);
 }
 
 .sidebar-header h3 {
     margin: 0;
     font-size: 14px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--theme-heading-text);
     letter-spacing: -0.02em;
+    transition: var(--theme-transition-colors);
 }
 
 .close-btn {
@@ -325,7 +328,8 @@ const startResize = (e) => {
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
-    color: #94a3b8;
+    color: var(--theme-meta-text);
+    transition: var(--theme-transition-colors);
 }
 
 .empty-icon {
@@ -359,19 +363,19 @@ const startResize = (e) => {
 .handle-indicator {
     width: 2px;
     height: 40px;
-    background: rgba(148, 163, 184, 0.2);
+    background: var(--theme-border-medium);
     border-radius: 1px;
     transition: all 0.2s;
 }
 
 .resize-handle:hover .handle-indicator {
-    background: #6366f1;
+    background: var(--theme-primary);
     height: 60px;
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 8px var(--theme-primary);
 }
 
 .resize-handle:active .handle-indicator {
-    background: #4f46e5;
+    background: var(--theme-primary-hover);
 }
 
 /* 右键菜单 */
@@ -384,10 +388,11 @@ const startResize = (e) => {
 .context-backdrop {
     position: absolute;
     inset: -6px;
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--theme-panel-bg);
     border-radius: 12px;
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    border: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
 }
 
 .context-content {
@@ -403,7 +408,7 @@ const startResize = (e) => {
     padding: 10px 13px;
     border: none;
     background: transparent;
-    color: #475569;
+    color: var(--theme-panel-text);
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
@@ -414,8 +419,8 @@ const startResize = (e) => {
 }
 
 .context-item:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    color: #1e293b;
+    background: var(--theme-nav-active-bg);
+    color: var(--theme-heading-text);
     transform: translateX(2px);
 }
 

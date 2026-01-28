@@ -291,6 +291,27 @@
                         <div class="status-dot"></div>
                         <span class="status-text">{{ saveStatusText }}</span>
                     </div>
+
+                    <!-- Theme Toggle Button -->
+                    <button @click="toggleTheme" class="tool-btn theme-toggle-btn"
+                        :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'">
+                        <svg v-if="isDarkMode" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                        <svg v-else class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                    </button>
+
                     <button @click="$emit('save')" class="tool-btn save-btn"
                         :class="{ 'disabled': saveStatus === 'saved' }" :disabled="saveStatus === 'saved'"
                         title="保存 (Ctrl+S)">
@@ -393,6 +414,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps({
     saveStatus: {
@@ -411,6 +433,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['save', 'insert-format', 'insert-block', 'toggle-file-tree']);
+
+// Theme management
+const { currentMode, isDarkMode, toggleTheme } = useTheme();
 
 // Dropdown states
 const dropdownVisible = ref(false);
@@ -719,11 +744,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .ethereal-toolbar {
     position: relative;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    background: var(--theme-panel-bg);
+    border-bottom: 1px solid var(--theme-panel-border);
     backdrop-filter: blur(20px) saturate(180%);
     isolation: isolate;
     z-index: 100;
+    transition: var(--theme-transition-colors);
 }
 
 .toolbar-glow {
@@ -796,8 +822,8 @@ onBeforeUnmount(() => {
     gap: 6px;
     padding: 8px 13px;
     border: none;
-    background: rgba(255, 255, 255, 0.8);
-    color: #475569;
+    background: var(--theme-surface-default);
+    color: var(--theme-panel-text);
     border-radius: 8px;
     cursor: pointer;
     font-size: 13px;
@@ -806,18 +832,14 @@ onBeforeUnmount(() => {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     overflow: hidden;
-    box-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.05),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 2px var(--theme-shadow-sm);
 }
 
 .tool-btn:hover {
-    background: #ffffff;
-    color: #1e293b;
+    background: var(--theme-surface-hover);
+    color: var(--theme-heading-text);
     transform: translateY(-1px);
-    box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .tool-btn:active {
@@ -889,10 +911,11 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     padding: 6px 13px;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.08) 100%);
+    background: var(--theme-nav-active-bg);
     border-radius: 8px;
-    border: 1px solid rgba(245, 158, 11, 0.15);
+    border: 1px solid var(--theme-border-light);
     max-width: 240px;
+    transition: var(--theme-transition-colors);
 }
 
 .file-indicator {
@@ -921,27 +944,30 @@ onBeforeUnmount(() => {
 .file-name {
     font-size: 13px;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--theme-heading-text);
     letter-spacing: -0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: var(--theme-transition-colors);
 }
 
 .divider {
     width: 1px;
     height: 21px;
-    background: linear-gradient(180deg, transparent 0%, rgba(148, 163, 184, 0.2) 50%, transparent 100%);
+    background: var(--theme-divider);
     margin: 0 4px;
+    transition: var(--theme-transition-colors);
 }
 
 .tool-group {
     display: flex;
     gap: 4px;
     padding: 4px;
-    background: rgba(248, 250, 252, 0.8);
+    background: var(--theme-surface-hover);
     border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.1);
+    border: 1px solid var(--theme-border-light);
+    transition: var(--theme-transition-colors);
 }
 
 .mini-arrow {
@@ -967,19 +993,34 @@ onBeforeUnmount(() => {
 }
 
 .block-btn {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
-    border: 1px solid rgba(99, 102, 241, 0.15);
-    color: #6366f1;
+    background: var(--theme-nav-active-bg);
+    border: 1px solid var(--theme-border-light);
+    color: var(--theme-primary);
+    transition: var(--theme-transition-colors);
 }
 
 .block-btn:hover {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: var(--theme-gradient);
     color: #ffffff;
     border-color: transparent;
 }
 
 .block-btn.active {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: var(--theme-gradient);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    background: var(--theme-nav-active-bg);
+    border: 1px solid var(--theme-border-light);
+    color: var(--theme-primary);
+    transition: var(--theme-transition-colors);
+}
+
+.theme-toggle-btn:hover {
+    background: var(--theme-gradient);
     color: #ffffff;
     border-color: transparent;
 }
@@ -1004,10 +1045,11 @@ onBeforeUnmount(() => {
 .dropdown-backdrop {
     position: absolute;
     inset: -8px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
+    background: var(--theme-panel-bg);
     border-radius: 16px;
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    border: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
 }
 
 .dropdown-content {
@@ -1035,7 +1077,7 @@ onBeforeUnmount(() => {
     padding: 13px;
     border: none;
     background: transparent;
-    color: #475569;
+    color: var(--theme-panel-text);
     text-align: left;
     cursor: pointer;
     font-size: 13px;
@@ -1051,7 +1093,7 @@ onBeforeUnmount(() => {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+    background: var(--theme-nav-active-bg);
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -1061,7 +1103,7 @@ onBeforeUnmount(() => {
 }
 
 .dropdown-item:hover {
-    color: #1e293b;
+    color: var(--theme-heading-text);
     transform: translateX(4px);
 }
 
@@ -1083,8 +1125,9 @@ onBeforeUnmount(() => {
 
 .item-hint {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--theme-meta-text);
     font-weight: 400;
+    transition: var(--theme-transition-colors);
 }
 
 /* Compact dropdown for headings */
@@ -1099,17 +1142,19 @@ onBeforeUnmount(() => {
 
 .heading-preview {
     font-weight: 700;
-    color: #6366f1;
+    color: var(--theme-primary);
     min-width: 32px;
     text-align: center;
+    transition: var(--theme-transition-colors);
 }
 
 .font-size-preview {
     font-weight: 700;
-    color: #6366f1;
+    color: var(--theme-primary);
     min-width: 32px;
     text-align: center;
     line-height: 1;
+    transition: var(--theme-transition-colors);
 }
 
 /* Color dropdown */
@@ -1127,7 +1172,7 @@ onBeforeUnmount(() => {
 .color-swatch {
     width: 32px;
     height: 32px;
-    border: 2px solid rgba(148, 163, 184, 0.2);
+    border: 2px solid var(--theme-border-light);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
@@ -1141,8 +1186,8 @@ onBeforeUnmount(() => {
 
 .color-swatch:hover {
     transform: scale(1.15);
-    border-color: #6366f1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--theme-primary);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .custom-color-section {
@@ -1150,21 +1195,24 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 10px;
     padding-top: 12px;
-    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    border-top: 1px solid var(--theme-border-light);
+    transition: var(--theme-transition-colors);
 }
 
 .custom-color-input {
     width: 40px;
     height: 32px;
-    border: 2px solid rgba(148, 163, 184, 0.2);
+    border: 2px solid var(--theme-border-light);
     border-radius: 6px;
     cursor: pointer;
+    transition: var(--theme-transition-colors);
 }
 
 .custom-color-label {
     font-size: 12px;
-    color: #64748b;
+    color: var(--theme-meta-text);
     font-weight: 500;
+    transition: var(--theme-transition-colors);
 }
 
 /* Symbol dropdown */
@@ -1181,8 +1229,8 @@ onBeforeUnmount(() => {
 .symbol-btn {
     width: 36px;
     height: 36px;
-    border: 1px solid rgba(148, 163, 184, 0.15);
-    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--theme-border-light);
+    background: var(--theme-surface-default);
     border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
@@ -1190,11 +1238,11 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    color: #475569;
+    color: var(--theme-panel-text);
 }
 
 .symbol-btn:hover {
-    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    background: var(--theme-gradient);
     color: white;
     transform: scale(1.1);
     border-color: transparent;
