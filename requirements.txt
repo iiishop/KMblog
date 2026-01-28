@@ -1,0 +1,50 @@
+# KMBlog Manager Dependencies
+# Generated from .venv environment
+
+# Core Framework
+flet==0.80.2
+flet-cli==0.80.2
+flet-desktop==0.80.2
+flet-web==0.80.2
+
+# Image Processing
+pillow==12.1.0
+
+# Cryptography
+cryptography==46.0.3
+
+# HTTP & API
+requests==2.32.5
+httpx==0.28.1
+fastapi==0.128.0
+uvicorn==0.40.0
+python-multipart==0.0.22
+
+# Markdown & Text Processing
+markdown-it-py==4.0.0
+rich==14.2.0
+pygments==2.19.2
+
+# YAML & Config
+pyyaml==6.0.3
+python-dotenv==1.2.1
+
+# Utilities
+arrow==1.4.0
+python-dateutil==2.9.0.post0
+python-slugify==8.0.4
+qrcode==8.2
+watchdog==6.0.0
+
+# PyInstaller
+pyinstaller==6.18.0
+pyinstaller-hooks-contrib==2026.0
+pefile==2024.8.26
+altgraph==0.17.5
+
+# Testing (optional for CI)
+pytest==9.0.2
+
+# Template Engine
+jinja2==3.1.6
+cookiecutter==2.6.0

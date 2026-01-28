@@ -1,0 +1,99 @@
+name: Build Blog Manager EXE
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create virtual environment
+        run: uv venv .venv
+        shell: pwsh
+
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt
+        shell: pwsh
+
+      - name: Verify PyInstaller
+        run: .venv\Scripts\pyinstaller.exe --version
+        shell: pwsh
+
+      - name: Build EXE
+        run: .venv\Scripts\pyinstaller.exe --clean --noconfirm KMblogManager.spec
+        shell: pwsh
+
+      - name: Verify build
+        run: |
+          if (Test-Path "dist/KMblogManager.exe") {
+            Write-Output "✓ Build successful"
+            $size = (Get-Item "dist/KMblogManager.exe").Length / 1MB
+            Write-Output "Size: $([math]::Round($size, 2)) MB"
+          } else {
+            Write-Error "Build failed!"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Create build info
+        run: |
+          $version = if ($env:GITHUB_REF -match 'refs/tags/v(.*)') { $matches[1] } else { "dev-$(Get-Date -Format 'yyyyMMdd')" }
+          @"
+          KMBlog Manager - Build Info
+          ============================
+          Version: $version
+          Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+          Commit: $env:GITHUB_SHA
+          Branch: $env:GITHUB_REF_NAME
+          "@ | Out-File -FilePath "dist/BUILD_INFO.txt" -Encoding UTF8
+        shell: pwsh
+
+      - name: Package release
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item "dist/KMblogManager.exe" release/
+          Copy-Item "dist/BUILD_INFO.txt" release/
+          Copy-Item "README.md" release/ -ErrorAction SilentlyContinue
+          Copy-Item "*.md" release/ -ErrorAction SilentlyContinue
+
+          $version = if ($env:GITHUB_REF -match 'refs/tags/v(.*)') { $matches[1] } else { "dev" }
+          Compress-Archive -Path "release/*" -DestinationPath "KMblogManager-$version-windows.zip"
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KMblogManager-Windows
+          path: KMblogManager-*-windows.zip
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: KMblogManager-*-windows.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
