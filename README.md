@@ -492,38 +492,101 @@ npm run test:ui
 
 KMblog 使用自动化脚本管理版本发布：
 
-**前提：提交所有更改**
+#### 快速发布
+
+**方式 1：自动推荐版本号（推荐）**
+```bash
+# 1. 提交所有更改
+git add .
+git commit -m "feat: 添加新功能"
+
+# 2. 查看推荐的版本号
+./scripts/release.sh              # Linux/macOS
+.\scripts\release.ps1             # Windows
+
+# 输出：
+# 当前版本: 1.0.0
+# 推荐的版本号:
+#   1. 1.0.1 (修复 bug)
+#   2. 1.1.0 (新功能)
+#   3. 2.0.0 (重大更新)
+
+# 3. 选择合适的版本发布
+./scripts/release.sh 1.1.0        # Linux/macOS
+.\scripts\release.ps1 1.1.0       # Windows
+```
+
+**方式 2：直接指定版本号**
 ```bash
 git add .
 git commit -m "feat: 添加新功能"
+./scripts/release.sh 1.0.1        # Linux/macOS
+.\scripts\release.ps1 1.0.1       # Windows
 ```
 
-**Linux/macOS:**
+**方式 3：强制重新发布**
 ```bash
-# 发布新版本（自动推送）
-chmod +x scripts/release.sh
+# 如果标签已存在或需要覆盖
+./scripts/release.sh 1.0.1 --force    # Linux/macOS
+.\scripts\release.ps1 1.0.1 -Force    # Windows
+```
+
+#### 脚本功能
+
+**自动检测：**
+- ✅ VERSION 文件是否需要更新
+- ✅ 是否有未提交的更改
+- ✅ 是否有未推送的 commit
+- ✅ tag 是否已存在
+
+**自动执行：**
+1. 更新 `VERSION` 文件（如果需要）
+2. 提交版本更改（如果需要）
+3. 创建 Git tag
+4. 推送代码到 GitHub（如果需要）
+5. 推送标签到 GitHub
+6. 触发 GitHub Actions 自动构建
+
+**智能特性：**
+- 支持在任何阶段运行（commit 后、push 后、tag 后）
+- 只执行必要的操作，跳过不需要的步骤
+- 提供清晰的错误提示和解决方案
+
+#### 支持的场景
+
+| 场景 | 命令 | 脚本行为 |
+|------|------|----------|
+| 标准发布 | `release.sh 1.0.1` | 更新 VERSION → 提交 → tag → 推送全部 |
+| 已推送代码 | `release.sh 1.0.1` | 更新 VERSION → 提交 → tag → 推送 VERSION + tag |
+| VERSION 已更新 | `release.sh 1.0.1` | 跳过 VERSION → tag → 推送 tag |
+| 已创建 tag | `release.sh 1.0.1 --force` | 删除 tag → 更新 VERSION → 重新发布 |
+| 已推送 tag | `release.sh 1.0.1 --force` | 删除远程 tag → 更新 VERSION → 重新发布 |
+
+#### 常见问题
+
+**Q: 不知道下一个版本号是什么？**
+```bash
+# 不带参数运行，查看推荐
+./scripts/release.sh
+```
+
+**Q: 标签已存在怎么办？**
+```bash
+# 使用 --force 强制覆盖
+./scripts/release.sh 1.0.1 --force
+```
+
+**Q: 忘记更新 VERSION 文件？**
+```bash
+# 脚本会自动更新
 ./scripts/release.sh 1.0.1
 ```
 
-**Windows:**
-```powershell
-# 发布新版本（自动推送）
-.\scripts\release.ps1 1.0.1
+**Q: 已经推送了代码还能用脚本吗？**
+```bash
+# 可以！脚本会智能检测并只推送必要的内容
+./scripts/release.sh 1.0.1
 ```
-
-**发布脚本会自动：**
-1. 检查 Git 状态
-2. 更新 `VERSION` 文件
-3. 提交版本更改
-4. 创建 Git tag
-5. 推送到 GitHub
-6. 触发自动构建
-
-**GitHub Actions 会自动：**
-1. 构建 Windows/macOS/Linux 版本
-2. 创建 GitHub Release
-3. 上传构建产物
-4. 生成 Release Notes
 
 ### 版本号规范
 
@@ -538,6 +601,27 @@ chmod +x scripts/release.sh
 - `1.0.1` → `1.1.0`：添加新功能
 - `1.1.0` → `2.0.0`：重大更新，可能不兼容
 
+### CI/CD 流程
+
+推送标签后，GitHub Actions 会自动：
+
+1. **构建多平台版本**（约 10-15 分钟）
+   - Windows (KMblogManager.exe)
+   - macOS (KMblogManager)
+   - Linux (KMblogManager)
+
+2. **创建 GitHub Release**
+   - 自动生成 Release Notes
+   - 上传构建产物
+   - 标记为正式版本
+
+3. **用户自动更新**
+   - 用户启动程序时自动检测新版本
+   - 一键下载并安装更新
+   - 自动重启到新版本
+
+查看构建进度：https://github.com/iiishop/KMblog/actions
+
 ### 更新检测机制
 
 KMblog 支持两种更新检测：
@@ -545,7 +629,7 @@ KMblog 支持两种更新检测：
 1. **框架更新**：通过 Git commits 检测博客框架更新
 2. **管理工具更新**：通过 GitHub Releases API 检测管理工具更新
 
-详见 [UPDATE_DETECTION_SUMMARY.md](UPDATE_DETECTION_SUMMARY.md)
+管理工具会在启动时自动检查更新，如果发现新版本会在界面上显示更新徽章。
 
 ## 许可证
 

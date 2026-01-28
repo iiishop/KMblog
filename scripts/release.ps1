@@ -1,90 +1,224 @@
-# 自动发布脚本 (Windows PowerShell)
-# 用法: .\scripts\release.ps1 1.0.1
+# Auto release script (Windows PowerShell)
+# Usage: .\scripts\release.ps1 [version] [-Force]
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$Version
+    [Parameter(Mandatory = $false)]
+    [string]$Version,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
 
+# If no version provided, read current version and recommend
+if (-not $Version) {
+    if (Test-Path "VERSION") {
+        $currentVersion = Get-Content "VERSION" -Raw
+        $currentVersion = $currentVersion.Trim()
+        
+        # Parse version number
+        if ($currentVersion -match '^(\d+)\.(\d+)\.(\d+)$') {
+            $major = [int]$matches[1]
+            $minor = [int]$matches[2]
+            $patch = [int]$matches[3]
+            
+            # Recommend version numbers
+            $patchVersion = "$major.$minor.$($patch + 1)"
+            $minorVersion = "$major.$($minor + 1).0"
+            $majorVersion = "$($major + 1).0.0"
+            
+            Write-Host "==========================================" -ForegroundColor Cyan
+            Write-Host "Current version: $currentVersion" -ForegroundColor Yellow
+            Write-Host "==========================================" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Recommended versions:" -ForegroundColor Green
+            Write-Host "  1. $patchVersion (bug fix)" -ForegroundColor White
+            Write-Host "  2. $minorVersion (new feature)" -ForegroundColor White
+            Write-Host "  3. $majorVersion (major update)" -ForegroundColor White
+            Write-Host ""
+            Write-Host "Usage examples:" -ForegroundColor Cyan
+            Write-Host "  .\scripts\release.ps1 $patchVersion" -ForegroundColor Gray
+            Write-Host "  .\scripts\release.ps1 $minorVersion" -ForegroundColor Gray
+            Write-Host "  .\scripts\release.ps1 $majorVersion" -ForegroundColor Gray
+            Write-Host ""
+            exit 0
+        }
+        else {
+            Write-Host "Error: Invalid VERSION file format: $currentVersion" -ForegroundColor Red
+            Write-Host "Please specify version manually: .\scripts\release.ps1 1.0.0" -ForegroundColor Cyan
+            exit 1
+        }
+    }
+    else {
+        Write-Host "Error: VERSION file not found" -ForegroundColor Red
+        Write-Host "Please specify initial version: .\scripts\release.ps1 1.0.0" -ForegroundColor Cyan
+        exit 1
+    }
+}
+
 $Tag = "v$Version"
 
-# 验证版本号格式
+# Validate version format
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Write-Host "错误: 版本号格式不正确，应为 x.y.z (如 1.0.1)" -ForegroundColor Red
+    Write-Host "Error: Invalid version format, should be x.y.z (e.g. 1.0.1)" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "准备发布版本: $Version" -ForegroundColor Cyan
+Write-Host "Preparing release: $Version" -ForegroundColor Cyan
+if ($Force) {
+    Write-Host "Mode: Force release (overwrite existing tag)" -ForegroundColor Yellow
+}
 Write-Host "==========================================" -ForegroundColor Cyan
 
-# 检查是否有未提交的更改
-Write-Host "检查 Git 状态..." -ForegroundColor Yellow
+# Check if VERSION file needs update
+$needsVersionUpdate = $false
+if (Test-Path "VERSION") {
+    $currentVersion = Get-Content "VERSION" -Raw
+    $currentVersion = $currentVersion.Trim()
+    if ($currentVersion -ne $Version) {
+        $needsVersionUpdate = $true
+        Write-Host "VERSION file needs update: $currentVersion -> $Version" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "VERSION file is up to date: $Version" -ForegroundColor Green
+    }
+}
+else {
+    $needsVersionUpdate = $true
+    Write-Host "VERSION file not found, will create" -ForegroundColor Yellow
+}
+
+# Check for uncommitted changes (excluding VERSION file)
+Write-Host "Checking Git status..." -ForegroundColor Yellow
 $status = git status --porcelain
-if ($status) {
+
+# Filter out VERSION file changes
+$statusWithoutVersion = $status | Where-Object { $_ -notmatch 'VERSION' }
+
+if ($statusWithoutVersion) {
     Write-Host ""
-    Write-Host "错误: 检测到未提交的更改！" -ForegroundColor Red
+    Write-Host "Error: Uncommitted changes detected (excluding VERSION file)!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "未提交的文件:" -ForegroundColor Yellow
-    git status --short
+    Write-Host "Uncommitted files:" -ForegroundColor Yellow
+    $statusWithoutVersion | ForEach-Object { Write-Host "  $_" }
     Write-Host ""
-    Write-Host "请先提交所有更改:" -ForegroundColor Cyan
+    Write-Host "Please commit all changes first:" -ForegroundColor Cyan
     Write-Host "  git add ."
     Write-Host "  git commit -m `"your commit message`""
     Write-Host ""
-    Write-Host "然后再运行发布脚本。" -ForegroundColor Cyan
+    Write-Host "Then run the release script again." -ForegroundColor Cyan
     exit 1
 }
 
-Write-Host "✓ Git 状态检查通过" -ForegroundColor Green
+Write-Host "Git status check passed" -ForegroundColor Green
 
-# 检查 tag 是否已存在
-Write-Host "检查标签是否存在..." -ForegroundColor Yellow
+# Check if tag exists
+Write-Host "Checking if tag exists..." -ForegroundColor Yellow
+$tagExists = $false
 try {
-    git rev-parse $Tag 2>$null
-    Write-Host ""
-    Write-Host "错误: Tag $Tag 已存在" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "如果要重新发布，请先删除标签:" -ForegroundColor Cyan
-    Write-Host "  git tag -d $Tag"
-    Write-Host "  git push origin :refs/tags/$Tag"
-    exit 1
+    git rev-parse $Tag 2>$null | Out-Null
+    $tagExists = $true
 }
 catch {
-    # Tag 不存在，继续
-    Write-Host "✓ 标签检查通过" -ForegroundColor Green
+    $tagExists = $false
+}
+
+if ($tagExists) {
+    if ($Force) {
+        Write-Host "Tag $Tag exists, will force overwrite" -ForegroundColor Yellow
+        
+        # Delete local tag
+        Write-Host "  Deleting local tag..." -ForegroundColor Gray
+        git tag -d $Tag
+        
+        # Try to delete remote tag
+        Write-Host "  Deleting remote tag..." -ForegroundColor Gray
+        try {
+            git push origin ":refs/tags/$Tag" 2>$null
+            Write-Host "  Remote tag deleted" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "  Remote tag not found or already deleted" -ForegroundColor Gray
+        }
+    }
+    else {
+        Write-Host ""
+        Write-Host "Error: Tag $Tag already exists" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Option 1: Use -Force parameter to overwrite" -ForegroundColor Cyan
+        Write-Host "  .\scripts\release.ps1 $Version -Force"
+        Write-Host ""
+        Write-Host "Option 2: Delete tag manually" -ForegroundColor Cyan
+        Write-Host "  git tag -d $Tag"
+        Write-Host "  git push origin :refs/tags/$Tag"
+        Write-Host ""
+        exit 1
+    }
+}
+else {
+    Write-Host "Tag check passed" -ForegroundColor Green
 }
 
 Write-Host ""
 
-# 更新 VERSION 文件
-Write-Host "1. 更新 VERSION 文件..." -ForegroundColor Yellow
-Set-Content -Path "VERSION" -Value $Version -NoNewline
-git add VERSION
+# Update VERSION file if needed
+if ($needsVersionUpdate) {
+    Write-Host "1. Updating VERSION file..." -ForegroundColor Yellow
+    Set-Content -Path "VERSION" -Value $Version -NoNewline
+    git add VERSION
+    
+    Write-Host "2. Committing VERSION file..." -ForegroundColor Yellow
+    git commit -m "chore: bump version to $Version"
+    
+    $needsPush = $true
+}
+else {
+    Write-Host "1. VERSION file up to date, skipping" -ForegroundColor Gray
+    $needsPush = $false
+}
 
-# 提交 VERSION 文件
-Write-Host "2. 提交 VERSION 文件..." -ForegroundColor Yellow
-git commit -m "chore: bump version to $Version"
-
-# 创建 tag
-Write-Host "3. 创建 Git tag..." -ForegroundColor Yellow
+# Create tag
+Write-Host "2. Creating Git tag..." -ForegroundColor Yellow
 git tag -a $Tag -m "Release $Version"
 
-# 推送到远程
-Write-Host "4. 推送到 GitHub..." -ForegroundColor Yellow
-Write-Host "   推送代码..." -ForegroundColor Gray
-git push origin main
+# Check if code push is needed
+if ($needsPush) {
+    Write-Host "3. Pushing to GitHub..." -ForegroundColor Yellow
+    Write-Host "   Pushing code..." -ForegroundColor Gray
+    git push origin main
+}
+else {
+    # Check if local is ahead of remote
+    $localCommit = git rev-parse HEAD
+    $remoteCommit = git rev-parse origin/main 2>$null
+    
+    if ($localCommit -ne $remoteCommit) {
+        Write-Host "3. Pushing to GitHub..." -ForegroundColor Yellow
+        Write-Host "   Local commits detected" -ForegroundColor Gray
+        Write-Host "   Pushing code..." -ForegroundColor Gray
+        git push origin main
+    }
+    else {
+        Write-Host "3. Code is up to date, skipping push" -ForegroundColor Gray
+    }
+}
 
-Write-Host "   推送标签..." -ForegroundColor Gray
-git push origin $Tag
+# Push tag
+Write-Host "4. Pushing tag..." -ForegroundColor Yellow
+if ($Force) {
+    git push origin $Tag --force
+}
+else {
+    git push origin $Tag
+}
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host "✓ 版本 $Version 发布成功！" -ForegroundColor Green
+Write-Host "Version $Version released successfully!" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "GitHub Actions 将自动构建并发布新版本" -ForegroundColor Cyan
-Write-Host "查看构建进度: https://github.com/iiishop/KMblog/actions" -ForegroundColor Cyan
+Write-Host "GitHub Actions will automatically build and publish the new version" -ForegroundColor Cyan
+Write-Host "View build progress: https://github.com/iiishop/KMblog/actions" -ForegroundColor Cyan
 Write-Host ""
