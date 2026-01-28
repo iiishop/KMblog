@@ -61,9 +61,11 @@ const fetchProxy = async (targetUrl) => {
     for (const getProxyUrl of proxyGenerators) {
         try {
             const proxyUrl = getProxyUrl(targetUrl);
-            // 不发送自定义请求头（如 x-auth-token），避免 CORS 预检失败
+            // Create a clean axios instance without any default headers
             const response = await axios.get(proxyUrl, {
-                headers: {}  // 清空自定义请求头
+                headers: {
+                    'X-Auth-Token': undefined  // Explicitly remove the auth token header
+                }
             });
             if (response.data) return response.data;
         } catch (e) {

@@ -1,6 +1,7 @@
 ﻿<script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import axios from 'axios';
+import config from '@/config.js';
 
 const props = defineProps({
     repourl: String,
@@ -22,6 +23,15 @@ const extractRepoInfo = (url) => {
         if (path.length >= 2) return { owner: path[0], repo: path[1] };
     } catch (e) { return null; }
     return null;
+};
+
+// Helper to get auth headers
+const getAuthHeaders = () => {
+    const headers = {};
+    if (config.GitHubToken) {
+        headers['Authorization'] = `Bearer ${config.GitHubToken}`;
+    }
+    return headers;
 };
 
 // 立即尝试从 URL 预填充基本信息
@@ -132,7 +142,9 @@ const fetchRepoDetails = async () => {
 
     const fetchStatsWithRetry = async (url, retries = 3) => {
         try {
-            const resp = await axios.get(url, { headers: {} });
+            const resp = await axios.get(url, {
+                headers: getAuthHeaders()
+            });
             if (resp.status === 202 && retries > 0) {
                 await new Promise(r => setTimeout(r, 2000));
                 return fetchStatsWithRetry(url, retries - 1);
@@ -142,11 +154,12 @@ const fetchRepoDetails = async () => {
     };
 
     try {
-        // 合并请求逻辑，主请求使用 ETag 条件请求减少配额消耗
+        // Merge request logic, use ETag conditional requests to reduce quota consumption
         const etag = loadEtag(owner, repo);
-        const mainHeaders = etag ? { 'If-None-Match': etag } : {};
+        const authHeaders = getAuthHeaders();
+        const mainHeaders = etag ? { 'If-None-Match': etag, ...authHeaders } : authHeaders;
         const mainPromise = axios.get(baseApi, { headers: mainHeaders });
-        const contribHeaders = etag ? { 'If-None-Match': etag } : {};
+        const contribHeaders = etag ? { 'If-None-Match': etag, ...authHeaders } : authHeaders;
         const contribPromise = axios.get(`${baseApi}/contributors`, { params: { per_page: 6 }, headers: contribHeaders });
         const commitPromise = fetchStatsWithRetry(`${baseApi}/stats/commit_activity`);
 
@@ -219,7 +232,10 @@ const fetchRepoDetails = async () => {
             const link = contribResp.headers && contribResp.headers.link;
             if (link) {
                 try {
-                    const probe = await axios.get(`${baseApi}/contributors`, { params: { per_page: 1 }, headers: {} });
+                    const probe = await axios.get(`${baseApi}/contributors`, {
+                        params: { per_page: 1 },
+                        headers: getAuthHeaders()
+                    });
                     const probeLink = probe.headers && probe.headers.link;
                     if (probeLink) {
                         const m = probeLink.match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/);

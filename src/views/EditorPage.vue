@@ -124,12 +124,13 @@ console.log('URL Hash:', window.location.hash);
 console.log('Auth Token:', authToken ? 'Present' : 'Missing');
 console.log('API Port:', apiPort);
 
-// Configure axios defaults
-if (authToken) {
-    axios.defaults.headers.common['X-Auth-Token'] = authToken;
-}
-
 const API_BASE = apiPort ? `http://127.0.0.1:${apiPort}/api` : 'http://127.0.0.1:8000/api';
+
+// Create authenticated axios instance for backend API calls only
+const apiClient = axios.create({
+    baseURL: API_BASE,
+    headers: authToken ? { 'X-Auth-Token': authToken } : {}
+});
 
 // Helper function to normalize path for API
 // Backend expects paths relative to public/Posts (e.g., "Markdowns/file.md")
@@ -192,10 +193,10 @@ const virtualMarkdownUrl = computed(() => {
 let currentLoadRequest = null; // Track current file load request
 const pendingRequests = new Set(); // Track all pending requests
 
-// Create axios instance with request tracking
+// Create axios instance with request tracking (uses apiClient for authenticated requests)
 const createTrackedRequest = (config) => {
     const source = axios.CancelToken.source();
-    const request = axios({
+    const request = apiClient({
         ...config,
         cancelToken: source.token
     });
@@ -249,7 +250,7 @@ const handleSave = async () => {
         const normalizedPath = normalizePathForAPI(currentFile.value.path);
         console.log('[EditorPage] Saving file:', currentFile.value.path, '-> API path:', normalizedPath);
 
-        const response = await axios.post(`${API_BASE}/files/save`, {
+        const response = await apiClient.post('/files/save', {
             path: normalizedPath,
             content: content.value,
             expectedVersion: currentFileVersion.value
@@ -308,7 +309,7 @@ const handleForceSave = async () => {
 
     try {
         const normalizedPath = normalizePathForAPI(currentFile.value.path);
-        const response = await axios.post(`${API_BASE}/files/save`, {
+        const response = await apiClient.post('/files/save', {
             path: normalizedPath,
             content: content.value
             // No expectedVersion - force save
@@ -350,7 +351,7 @@ const handleReloadFile = async () => {
         const normalizedPath = normalizePathForAPI(currentFile.value.path);
         console.log('[EditorPage] Reloading file:', normalizedPath);
 
-        const response = await axios.get(`${API_BASE}/files/read`, {
+        const response = await apiClient.get('/files/read', {
             params: { path: normalizedPath }
         });
 
@@ -371,7 +372,7 @@ const handleReloadFile = async () => {
 // Load file tree
 const loadFileTree = async () => {
     try {
-        const response = await axios.get(`${API_BASE}/files/tree`);
+        const response = await apiClient.get('/files/tree');
         fileTree.value = response.data.tree || [];
         console.log('[EditorPage] File tree loaded:', fileTree.value.length, 'items');
     } catch (error) {
@@ -408,7 +409,7 @@ const handleFileSelect = async (file) => {
         // Create tracked request
         const { request, cancel } = createTrackedRequest({
             method: 'get',
-            url: `${API_BASE}/files/read`,
+            url: '/files/read',
             params: { path: normalizedPath }
         });
 
@@ -447,7 +448,7 @@ const handleFileCreate = async ({ folder, fileName }) => {
     console.log('[EditorPage] Creating file:', filePath, '-> API path:', normalizedPath);
 
     try {
-        await axios.post(`${API_BASE}/files/create`, {
+        await apiClient.post('/files/create', {
             path: normalizedPath,
             name: fileName,
             collection: folder.name
@@ -489,7 +490,7 @@ const handleFileDelete = async (file) => {
         const normalizedPath = normalizePathForAPI(file.path);
         console.log('[EditorPage] Deleting file:', file.path, '-> API path:', normalizedPath);
 
-        await axios.delete(`${API_BASE}/files/delete`, {
+        await apiClient.delete('/files/delete', {
             params: { path: normalizedPath }
         });
 
@@ -536,7 +537,7 @@ const handleFileMove = async ({ file, targetFolder }) => {
 
     try {
         console.log('[EditorPage] Sending move request to API...');
-        const response = await axios.post(`${API_BASE}/files/move`, {
+        const response = await apiClient.post('/files/move', {
             from: oldPath,
             to: newPath
         });
@@ -572,7 +573,7 @@ const handleFileRename = async ({ node, newName }) => {
 
     try {
         console.log('[EditorPage] Sending rename request to API...');
-        const response = await axios.post(`${API_BASE}/files/rename`, {
+        const response = await apiClient.post('/files/rename', {
             path: normalizedPath,
             new_name: newName
         });
@@ -609,7 +610,7 @@ const handleFolderCreate = async ({ parentFolder, folderName }) => {
 
     try {
         console.log('[EditorPage] Sending create folder request to API...');
-        const response = await axios.post(`${API_BASE}/folders/create`, {
+        const response = await apiClient.post('/folders/create', {
             path: normalizedPath,
             name: folderName
         });
@@ -636,7 +637,7 @@ const handleFolderDelete = async (folder) => {
 
     try {
         console.log('[EditorPage] Sending delete folder request to API...');
-        await axios.delete(`${API_BASE}/folders/delete`, {
+        await apiClient.delete('/folders/delete', {
             params: { path: normalizedPath }
         });
 

@@ -150,7 +150,9 @@ const fetchSubjectDetails = async () => {
         // API call - 清空自定义请求头避免 CORS 预检失败
         const apiUrl = `https://api.bgm.tv/v0/subjects/${subjectId}`;
         const response = await axios.get(apiUrl, {
-            headers: {}  // 清空自定义请求头
+            headers: {
+                'X-Auth-Token': undefined  // Explicitly remove the auth token header
+            }
         });
         const data = response.data;
 
