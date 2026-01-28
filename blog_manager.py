@@ -2923,6 +2923,13 @@ class BlogManagerGUI:
                 progress_dlg.open = False
                 self.page.update()
 
+                # 重置更新状态，移除 badge
+                self.update_info['has_updates'] = False
+                self.update_info['commits_behind'] = 0
+                
+                # 重新构建侧边栏以移除 badge
+                self.build_ui()
+
                 # 显示成功消息
                 self.snack(self.t('update_success'))
                 
