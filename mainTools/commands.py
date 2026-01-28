@@ -184,24 +184,205 @@ class CryptoEncryptor:
 class InitBlog(Command):
     description = "Initializes the blog structure with necessary directories and a sample post."
 
+    def _check_command(self, command):
+        """检查命令是否存在"""
+        try:
+            result = subprocess.run(
+                f'{command} --version',
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace'
+            )
+            return result.returncode == 0
+        except:
+            return False
+
+    def _install_git(self):
+        """安装 Git"""
+        print("[环境检查] Git 未安装，正在下载安装...")
+        
+        if os.name == 'nt':  # Windows
+            # 下载 Git 安装器
+            git_installer_url = "https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe"
+            installer_path = os.path.join(os.environ.get('TEMP', '.'), 'git_installer.exe')
+            
+            try:
+                print(f"[Git安装] 正在下载 Git 安装器...")
+                request.urlretrieve(git_installer_url, installer_path)
+                
+                print(f"[Git安装] 正在安装 Git（这可能需要几分钟）...")
+                # 静默安装
+                result = subprocess.run(
+                    [installer_path, '/VERYSILENT', '/NORESTART'],
+                    check=True
+                )
+                
+                # 清理安装器
+                os.remove(installer_path)
+                
+                print("[Git安装] Git 安装完成！")
+                return True
+            except Exception as e:
+                print(f"[Git安装] 自动安装失败: {e}")
+                print("[Git安装] 请手动从 https://git-scm.com/download/win 下载并安装 Git")
+                return False
+        else:
+            print("[Git安装] 请手动安装 Git:")
+            print("  Ubuntu/Debian: sudo apt-get install git")
+            print("  macOS: brew install git")
+            return False
+
+    def _install_nodejs(self):
+        """安装 Node.js"""
+        print("[环境检查] Node.js 未安装，正在下载安装...")
+        
+        if os.name == 'nt':  # Windows
+            # 下载 Node.js 安装器
+            nodejs_installer_url = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi"
+            installer_path = os.path.join(os.environ.get('TEMP', '.'), 'nodejs_installer.msi')
+            
+            try:
+                print(f"[Node.js安装] 正在下载 Node.js 安装器...")
+                request.urlretrieve(nodejs_installer_url, installer_path)
+                
+                print(f"[Node.js安装] 正在安装 Node.js（这可能需要几分钟）...")
+                # 静默安装
+                result = subprocess.run(
+                    ['msiexec', '/i', installer_path, '/quiet', '/norestart'],
+                    check=True
+                )
+                
+                # 清理安装器
+                os.remove(installer_path)
+                
+                print("[Node.js安装] Node.js 安装完成！")
+                return True
+            except Exception as e:
+                print(f"[Node.js安装] 自动安装失败: {e}")
+                print("[Node.js安装] 请手动从 https://nodejs.org/ 下载并安装 Node.js")
+                return False
+        else:
+            print("[Node.js安装] 请手动安装 Node.js:")
+            print("  Ubuntu/Debian: sudo apt-get install nodejs npm")
+            print("  macOS: brew install node")
+            return False
+
     def execute(self):
         base_path = get_base_path()
+        
+        # 1. 检查环境
+        print("[环境检查] 开始检查必要的环境...")
+        
+        # 检查 Git
+        if not self._check_command('git'):
+            print("[环境检查] ✗ Git 未安装")
+            if not self._install_git():
+                raise Exception("Git 安装失败，请手动安装后重试")
+        else:
+            print("[环境检查] ✓ Git 已安装")
+        
+        # 检查 Node.js
+        if not self._check_command('node'):
+            print("[环境检查] ✗ Node.js 未安装")
+            if not self._install_nodejs():
+                raise Exception("Node.js 安装失败，请手动安装后重试")
+        else:
+            print("[环境检查] ✓ Node.js 已安装")
+        
+        # 检查 npm
+        if not self._check_command('npm'):
+            print("[环境检查] ✗ npm 未安装")
+            raise Exception("npm 未安装，请重新安装 Node.js")
+        else:
+            print("[环境检查] ✓ npm 已安装")
+        
+        # 2. 检查是否已经是 Git 仓库
+        git_dir = os.path.join(base_path, '.git')
+        if os.path.exists(git_dir):
+            print("[初始化] 检测到已存在的 Git 仓库，跳过克隆")
+        else:
+            # 3. 从 GitHub 拉取代码
+            print("[初始化] 正在从 GitHub 拉取 KMBlog 框架...")
+            try:
+                # 创建临时目录
+                temp_dir = os.path.join(base_path, '.kmblog_temp')
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                
+                # 克隆仓库到临时目录
+                result = subprocess.run(
+                    ['git', 'clone', 'https://github.com/iiishop/KMBlog.git', temp_dir],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    check=True
+                )
+                print("[初始化] ✓ 代码拉取完成")
+                
+                # 移动文件到当前目录
+                print("[初始化] 正在复制文件...")
+                for item in os.listdir(temp_dir):
+                    if item == '.git':
+                        continue  # 跳过 .git 目录
+                    
+                    src = os.path.join(temp_dir, item)
+                    dst = os.path.join(base_path, item)
+                    
+                    if os.path.exists(dst):
+                        if os.path.isdir(dst):
+                            shutil.rmtree(dst)
+                        else:
+                            os.remove(dst)
+                    
+                    if os.path.isdir(src):
+                        shutil.copytree(src, dst)
+                    else:
+                        shutil.copy2(src, dst)
+                
+                # 清理临时目录
+                shutil.rmtree(temp_dir)
+                print("[初始化] ✓ 文件复制完成")
+                
+            except subprocess.CalledProcessError as e:
+                raise Exception(f"Git 克隆失败: {e.stderr}")
+            except Exception as e:
+                raise Exception(f"代码拉取失败: {str(e)}")
+        
+        # 4. 安装依赖
+        print("[初始化] 正在安装 npm 依赖...")
+        try:
+            result = subprocess.run(
+                'npm install',
+                cwd=base_path,
+                shell=True,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                check=True
+            )
+            print("[初始化] ✓ 依赖安装完成")
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"npm install 失败: {e.stderr}")
+        
+        # 5. 创建必要的目录结构
         posts_path = get_posts_path()
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         images_path = os.path.join(posts_path, 'Images')
-
-        # Create directories if they don't exist
+        
         os.makedirs(markdowns_path, exist_ok=True)
         os.makedirs(images_path, exist_ok=True)
-
-        # Initialize a new post named 'Helloworld'
-        name = "Helloworld"
-        collection = None
-        directory = markdowns_path
-        file_path = os.path.join(directory, f"{name}.md")
-        date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        metadata = f"""---
+        
+        # 6. 创建示例文章（如果不存在）
+        hello_world_path = os.path.join(markdowns_path, 'Helloworld.md')
+        if not os.path.exists(hello_world_path):
+            name = "Helloworld"
+            date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            metadata = f"""---
 title: {name}
 date: {date_str}
 tags: 
@@ -212,16 +393,54 @@ img:
 ---
 
 # Hello KMBlog
+
+Welcome to KMBlog! This is your first post.
+
+## Getting Started
+
+You can start writing your blog posts in Markdown format.
+
+## Features
+
+- 📝 Markdown support
+- 🎨 Beautiful themes
+- 📱 Responsive design
+- 🚀 Fast and lightweight
+
+Happy blogging!
 """
-
-        # Write the metadata and content to the file
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(metadata)
-
+            
+            with open(hello_world_path, 'w', encoding='utf-8') as file:
+                file.write(metadata)
+            
+            print(f"[初始化] ✓ 创建示例文章: {hello_world_path}")
+        
+        # 7. 生成配置
+        print("[初始化] 正在生成配置文件...")
         output_command = Generate()
         output_result = output_command.execute()
+        
+        return f"""
+✓ KMBlog 初始化完成！
 
-        return f"Initialized blog structure at {posts_path}\nCreated sample post at {file_path}\n{output_result}"
+环境检查:
+  ✓ Git 已安装
+  ✓ Node.js 已安装
+  ✓ npm 已安装
+
+初始化步骤:
+  ✓ 从 GitHub 拉取代码
+  ✓ 安装 npm 依赖
+  ✓ 创建目录结构
+  ✓ 创建示例文章
+  ✓ 生成配置文件
+
+下一步:
+  1. 运行 'npm run dev' 启动开发服务器
+  2. 或运行 'npm run build' 构建生产版本
+
+{output_result}
+"""
 
 
 class ShowPostsJson(Command):
