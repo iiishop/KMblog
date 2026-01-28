@@ -49,42 +49,6 @@ a = Analysis(
         'test',
         'unittest',
         'pytest',
-        # 排除更多不需要的模块
-        'IPython',
-        'jupyter',
-        'notebook',
-        'sphinx',
-        'setuptools',
-        'distutils',
-        'pip',
-        'wheel',
-        # 排除测试相关
-        '_pytest',
-        'py.test',
-        'nose',
-        # 排除文档和示例
-        'doctest',
-        'pydoc',
-        'pydoc_data',
-        # 排除其他大型库
-        'PyQt5',
-        'PyQt6',
-        'PySide2',
-        'PySide6',
-        'wx',
-        'tornado',
-        'django',
-        'flask',
-        'sqlalchemy',
-        # 排除 XML 处理（如果不需要）
-        'xml.dom',
-        'xml.sax',
-        'xmlrpc',
-        # 排除邮件相关
-        'email',
-        'smtplib',
-        'imaplib',
-        'poplib',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -104,8 +68,8 @@ exe = EXE(
     name='KMblogManager',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,  # Windows 上禁用 strip（只在 Linux/macOS 有效）
-    upx=False,  # 禁用 UPX 压缩以避免 DLL 损坏问题
+    strip=False,
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # 不显示控制台窗口
