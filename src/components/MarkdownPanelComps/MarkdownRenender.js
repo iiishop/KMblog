@@ -45,53 +45,136 @@ import markdownItMultimdTable from 'markdown-it-multimd-table';
 import markdownItCodeCopy from 'markdown-it-code-copy';
 import mermaid from 'mermaid';
 
-// 初始化 mermaid，配置高美观度的主题
-mermaid.initialize({
-    startOnLoad: true,
-    theme: 'base',
-    securityLevel: 'loose',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    // 宽度适配配置
-    maxWidth: '100%',
-    useMaxWidth: true,
-    themeVariables: {
-        // 基础颜色
-        primaryColor: '#eef2ff',          // 节点背景色 (极浅的靛蓝)
-        primaryTextColor: '#374151',      // 节点文字颜色 (深灰)
-        primaryBorderColor: '#818cf8',    // 节点边框 (柔和的靛蓝)
-        lineColor: '#6b7280',             // 连线颜色 (灰色)
-        secondaryColor: '#fdf2f8',        // 次要节点背景
-        tertiaryColor: '#fff',            // 第三级背景
+// 获取当前主题
+function getCurrentTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'day';
+}
 
-        // 流程图特定
-        mainBkg: '#eef2ff',
-        nodeBorder: '#818cf8',
-        clusterBkg: '#f9fafb',            // 子图背景
-        clusterBorder: '#d1d5db',
+// 根据主题返回 Mermaid 配置
+function getMermaidThemeConfig(theme) {
+    const isDark = theme === 'dark' || theme === 'night';
 
-        // 序列图特定
-        actorBkg: '#e0e7ff',
-        actorBorder: '#6366f1',
-        actorTextColor: '#1f2937',
-        signalColor: '#374151',
-        signalTextColor: '#111827',
-        labelBoxBkgColor: '#ffffff',
-        labelBoxBorderColor: '#e5e7eb',
+    if (isDark) {
+        // 深色主题配置
+        return {
+            theme: 'dark',
+            themeVariables: {
+                // 基础颜色 - 深色模式
+                primaryColor: '#1e293b',          // 节点背景色 (深蓝灰)
+                primaryTextColor: '#e2e8f0',      // 节点文字颜色 (浅灰)
+                primaryBorderColor: '#818cf8',    // 节点边框 (靛蓝)
+                lineColor: '#94a3b8',             // 连线颜色 (浅灰)
+                secondaryColor: '#312e81',        // 次要节点背景
+                tertiaryColor: '#1e1e1e',         // 第三级背景
 
-        // 甘特图特定
-        gridLineStartPadding: '350px', // 确保标签有足够空间
-        fontSize: '15px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    },
-    flowchart: {
-        curve: 'basis', // 更平滑的曲线
-        htmlLabels: true,
-        useMaxWidth: true
-    },
-    gantt: {
-        useWidth: undefined, // 让 Gantt 使用容器宽度
-        numberSectionStyles: 4
+                // 流程图特定
+                mainBkg: '#1e293b',
+                nodeBorder: '#818cf8',
+                clusterBkg: '#0f172a',            // 子图背景
+                clusterBorder: '#475569',
+
+                // 序列图特定
+                actorBkg: '#312e81',
+                actorBorder: '#818cf8',
+                actorTextColor: '#e2e8f0',
+                signalColor: '#cbd5e1',
+                signalTextColor: '#f1f5f9',
+                labelBoxBkgColor: '#1e293b',
+                labelBoxBorderColor: '#475569',
+                labelTextColor: '#e2e8f0',
+
+                // 文字颜色
+                textColor: '#e2e8f0',
+                fontSize: '15px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+            }
+        };
+    } else {
+        // 浅色主题配置
+        return {
+            theme: 'base',
+            themeVariables: {
+                // 基础颜色 - 浅色模式
+                primaryColor: '#eef2ff',          // 节点背景色 (极浅的靛蓝)
+                primaryTextColor: '#374151',      // 节点文字颜色 (深灰)
+                primaryBorderColor: '#818cf8',    // 节点边框 (柔和的靛蓝)
+                lineColor: '#6b7280',             // 连线颜色 (灰色)
+                secondaryColor: '#fdf2f8',        // 次要节点背景
+                tertiaryColor: '#fff',            // 第三级背景
+
+                // 流程图特定
+                mainBkg: '#eef2ff',
+                nodeBorder: '#818cf8',
+                clusterBkg: '#f9fafb',            // 子图背景
+                clusterBorder: '#d1d5db',
+
+                // 序列图特定
+                actorBkg: '#e0e7ff',
+                actorBorder: '#6366f1',
+                actorTextColor: '#1f2937',
+                signalColor: '#374151',
+                signalTextColor: '#111827',
+                labelBoxBkgColor: '#ffffff',
+                labelBoxBorderColor: '#e5e7eb',
+
+                // 文字颜色
+                textColor: '#374151',
+                fontSize: '15px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+            }
+        };
     }
+}
+
+// 初始化 mermaid
+function initializeMermaid() {
+    const currentTheme = getCurrentTheme();
+    const themeConfig = getMermaidThemeConfig(currentTheme);
+
+    mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: 'loose',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        // 宽度适配配置
+        maxWidth: '100%',
+        useMaxWidth: true,
+        ...themeConfig,
+        flowchart: {
+            curve: 'basis', // 更平滑的曲线
+            htmlLabels: true,
+            useMaxWidth: true
+        },
+        gantt: {
+            useWidth: undefined, // 让 Gantt 使用容器宽度
+            numberSectionStyles: 4,
+            gridLineStartPadding: '350px' // 确保标签有足够空间
+        }
+    });
+}
+
+// 初始化
+initializeMermaid();
+
+// 监听主题变化
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+            console.log('[Mermaid] Theme changed, reinitializing...');
+            initializeMermaid();
+            // 重新渲染所有 mermaid 图表
+            document.querySelectorAll('.mermaid').forEach((element) => {
+                if (element.getAttribute('data-processed')) {
+                    element.removeAttribute('data-processed');
+                    mermaid.init(undefined, element);
+                }
+            });
+        }
+    });
+});
+
+observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
 });
 
 // 语言别名映射
