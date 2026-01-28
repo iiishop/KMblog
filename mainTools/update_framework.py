@@ -303,25 +303,44 @@ class FrameworkUpdater:
         try:
             self.log("开始拉取最新代码...")
             
-            # 先检查是否有未解决的冲突
+            # 强力清理任何未完成的合并状态
+            self.log("检查并清理 Git 状态...")
+            
+            # 1. 尝试中止任何进行中的合并
+            subprocess.run(
+                ['git', 'merge', '--abort'],
+                cwd=self.base_path,
+                capture_output=True,
+                timeout=10
+            )
+            
+            # 2. 尝试中止任何进行中的 rebase
+            subprocess.run(
+                ['git', 'rebase', '--abort'],
+                cwd=self.base_path,
+                capture_output=True,
+                timeout=10
+            )
+            
+            # 3. 重置到 HEAD（清理所有未暂存的更改）
             result = subprocess.run(
-                ['git', 'ls-files', '-u'],
+                ['git', 'reset', '--hard', 'HEAD'],
                 cwd=self.base_path,
                 capture_output=True,
                 text=True,
                 timeout=10
             )
             
-            if result.stdout.strip():
-                self.log("检测到未解决的合并冲突，正在清理...")
-                # 尝试中止合并
-                subprocess.run(
-                    ['git', 'merge', '--abort'],
-                    cwd=self.base_path,
-                    capture_output=True,
-                    timeout=10
-                )
-                self.log("✓ 已清理冲突状态")
+            if result.returncode == 0:
+                self.log("✓ Git 状态已清理")
+            
+            # 4. 清理未跟踪的文件（可选，注释掉以保留用户文件）
+            # subprocess.run(
+            #     ['git', 'clean', '-fd'],
+            #     cwd=self.base_path,
+            #     capture_output=True,
+            #     timeout=10
+            # )
             
             # 先获取当前分支名
             result = subprocess.run(
@@ -377,84 +396,55 @@ class FrameworkUpdater:
             
             self.log(f"准备从 origin/{current_branch} 拉取代码...")
             
-            # 检查是否有未提交的更改
+            # 使用 git pull --rebase 避免合并冲突
+            # 或者使用 git fetch + git reset --hard 强制同步
+            self.log("使用强制同步模式（将丢弃所有本地提交）...")
+            
+            # Fetch 最新代码
             result = subprocess.run(
-                ['git', 'status', '--porcelain'],
-                cwd=self.base_path,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            has_changes = bool(result.stdout.strip())
-            stashed = False
-            
-            if has_changes:
-                self.log("检测到未提交的更改，正在暂存...")
-                # 使用 git stash 暂存更改
-                result = subprocess.run(
-                    ['git', 'stash', 'push', '-m', 'KMBlog auto-stash before update'],
-                    cwd=self.base_path,
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-                
-                if result.returncode == 0:
-                    stashed = True
-                    self.log("✓ 本地更改已暂存")
-                else:
-                    self.log(f"警告: 暂存失败: {result.stderr}")
-                    # 继续尝试 pull，可能会失败但至少给出明确错误
-            
-            # 执行 git pull
-            result = subprocess.run(
-                ['git', 'pull', 'origin', current_branch],
+                ['git', 'fetch', 'origin', current_branch],
                 cwd=self.base_path,
                 capture_output=True,
                 text=True,
                 timeout=60
             )
             
-            pull_success = result.returncode == 0
+            if result.returncode != 0:
+                return {
+                    'success': False,
+                    'message': f'Fetch 失败: {result.stderr}'
+                }
             
-            # 如果之前 stash 了，现在恢复
-            if stashed:
-                self.log("正在恢复暂存的更改...")
-                restore_result = subprocess.run(
-                    ['git', 'stash', 'pop'],
-                    cwd=self.base_path,
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-                
-                if restore_result.returncode == 0:
-                    self.log("✓ 本地更改已恢复")
-                else:
-                    self.log(f"警告: 恢复暂存失败: {restore_result.stderr}")
-                    self.log("提示: 你的更改仍在 stash 中，可以手动执行 'git stash pop' 恢复")
+            self.log("✓ 代码已获取")
             
-            if pull_success:
-                self.log("代码拉取成功！")
+            # 强制重置到远程分支（这会丢弃所有本地提交，但保留用户文件因为已经备份）
+            result = subprocess.run(
+                ['git', 'reset', '--hard', f'origin/{current_branch}'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode == 0:
+                self.log("代码同步成功！")
                 self.log(result.stdout)
                 return {
                     'success': True,
                     'output': result.stdout,
-                    'branch': current_branch,
-                    'stashed': stashed
+                    'branch': current_branch
                 }
             else:
-                self.log(f"代码拉取失败: {result.stderr}")
+                self.log(f"代码同步失败: {result.stderr}")
                 return {
                     'success': False,
-                    'message': f'Git pull 失败: {result.stderr}'
+                    'message': f'Git reset 失败: {result.stderr}'
                 }
                 
         except subprocess.TimeoutExpired:
             return {
                 'success': False,
-                'message': 'Git pull 超时'
+                'message': 'Git 操作超时'
             }
         except Exception as e:
             return {

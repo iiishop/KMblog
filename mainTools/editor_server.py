@@ -1107,10 +1107,26 @@ def main():
     
     # 配置 logging 避免 formatter 错误
     import logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(levelname)s: %(message)s'
-    )
+    
+    # 检测是否在 PyInstaller 打包环境中运行
+    is_frozen = getattr(sys, 'frozen', False)
+    
+    if is_frozen:
+        # 在打包环境中，完全禁用所有日志配置
+        logging.disable(logging.CRITICAL)
+        print("[Server] Running in frozen mode - logging disabled")
+    else:
+        # 在开发环境中，使用正常的日志配置
+        # 清除所有现有的 handlers
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+        
+        # 重新配置 logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(levelname)s: %(message)s',
+            force=True  # Python 3.8+ 强制重新配置
+        )
     
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Markdown Editor API Server')
@@ -1139,37 +1155,49 @@ def main():
     print(f"Health Check: http://127.0.0.1:{SERVER_PORT}/api/health")
     print(f"=" * 60)
     
-    # 启动服务器 - 使用多worker和异步配置
+    # 启动服务器 - 使用简化配置避免 logging 问题
     import uvicorn
     
-    # 配置说明：
-    # - workers=1: 单worker但使用异步事件循环
-    # - limit_concurrency=200: 每个worker最多200个并发连接
-    # - timeout_keep_alive=30: 保持连接30秒
-    # - backlog=2048: 等待队列大小
-    
-    try:
-        uvicorn.run(
+    # 在打包环境中使用更简化的配置
+    if is_frozen:
+        print("[Server] Starting with minimal configuration for frozen environment...")
+        try:
+            # 完全最小化的配置，不使用任何日志系统
+            uvicorn.run(
+                app,
+                host="127.0.0.1",
+                port=SERVER_PORT,
+                log_config=None,
+                access_log=False,
+                log_level="critical",  # 设置最高级别以减少日志输出
+            )
+        except Exception as e:
+            print(f"⚠️ 服务器启动失败: {e}")
+            raise
+    else:
+        # 开发环境使用标准配置
+        print("[Server] Starting with standard configuration for development...")
+        config = uvicorn.Config(
             app,
             host="127.0.0.1",
             port=SERVER_PORT,
-            log_level="info",
-            workers=1,
-            limit_concurrency=200,
-            timeout_keep_alive=30,
-            backlog=2048,
-            loop="asyncio"
+            log_config=None,  # 禁用日志配置
+            access_log=False,  # 禁用访问日志
         )
-    except Exception as e:
-        # 如果启动失败，尝试使用最小配置
-        print(f"⚠️ 服务器启动失败，尝试使用简化配置: {e}")
-        print(f"正在使用最小配置重新启动...")
-        uvicorn.run(
-            app,
-            host="127.0.0.1",
-            port=SERVER_PORT,
-            access_log=False  # 禁用访问日志避免 formatter 问题
-        )
+        
+        server = uvicorn.Server(config)
+        
+        try:
+            server.run()
+        except Exception as e:
+            print(f"⚠️ 服务器启动失败: {e}")
+            print(f"尝试使用最小配置重新启动...")
+            # 最后的备用方案：完全最小化配置
+            uvicorn.run(
+                app,
+                host="127.0.0.1",
+                port=SERVER_PORT,
+            )
 
 
 if __name__ == "__main__":

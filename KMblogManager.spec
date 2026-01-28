@@ -39,6 +39,7 @@ a = Analysis(
         'fastapi.middleware',
         'fastapi.middleware.cors',
         'uvicorn',
+        'uvicorn.config',
         'uvicorn.logging',
         'uvicorn.loops',
         'uvicorn.loops.auto',
@@ -60,9 +61,9 @@ a = Analysis(
         'httptools',
         'websockets',
     ],
-    hookspath=[],
+    hookspath=['hooks'],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['hooks/hook-uvicorn.py'],
     excludes=[
         # 排除不需要的大型模块以减小体积
         'matplotlib',
