@@ -336,11 +336,10 @@ class InitBlog(Command):
                 # 移动文件到当前目录
                 print("[初始化] 正在复制文件...")
                 
-                # 获取所有需要复制的文件和目录
+                # 获取所有需要复制的文件和目录（包括 .git）
                 items_to_copy = []
                 for item in os.listdir(temp_dir):
-                    if item == '.git':
-                        continue  # 跳过 .git 目录
+                    # 不跳过任何文件，包括 .git
                     items_to_copy.append(item)
                 
                 # 复制文件
@@ -364,11 +363,15 @@ class InitBlog(Command):
                             shutil.copy2(src, dst)
                         
                         copied_count += 1
-                        print(f"[初始化] 复制: {item}")
+                        if item == '.git':
+                            print(f"[初始化] 复制: {item} (Git 仓库)")
+                        else:
+                            print(f"[初始化] 复制: {item}")
                     except Exception as e:
                         print(f"[初始化] 警告: 复制 {item} 失败: {e}")
                 
                 print(f"[初始化] ✓ 文件复制完成 ({copied_count}/{len(items_to_copy)} 个项目)")
+                print(f"[初始化] ✓ Git 仓库已初始化，可以使用框架更新功能")
                 
                 # 清理临时目录（使用更强大的清理机制）
                 print("[初始化] 正在清理临时文件...")
