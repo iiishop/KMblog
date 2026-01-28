@@ -62,6 +62,127 @@ class FrameworkUpdater:
         self.update_log.append(log_message)
         print(log_message)
         
+    def check_for_updates(self):
+        """检查是否有更新（不执行更新）
+        
+        Returns:
+            dict: {
+                'success': bool,
+                'has_updates': bool,
+                'commits_behind': int,  # 落后的 commit 数量
+                'local_commit': str,
+                'remote_commit': str,
+                'message': str
+            }
+        """
+        try:
+            # 检查是否是 Git 仓库
+            git_status = self.check_git_status()
+            if not git_status['success'] or not git_status['is_git_repo']:
+                return {
+                    'success': False,
+                    'has_updates': False,
+                    'message': '不是 Git 仓库'
+                }
+            
+            # 获取本地 commit hash
+            result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                return {
+                    'success': False,
+                    'has_updates': False,
+                    'message': '无法获取本地 commit'
+                }
+            
+            local_commit = result.stdout.strip()
+            
+            # 获取远程最新 commit（不拉取代码，只获取信息）
+            # 先 fetch 更新远程分支信息
+            subprocess.run(
+                ['git', 'fetch', 'origin'],
+                cwd=self.base_path,
+                capture_output=True,
+                timeout=30
+            )
+            
+            # 尝试 main 分支
+            result = subprocess.run(
+                ['git', 'rev-parse', 'origin/main'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                # 尝试 master 分支
+                result = subprocess.run(
+                    ['git', 'rev-parse', 'origin/master'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+            
+            if result.returncode != 0:
+                return {
+                    'success': False,
+                    'has_updates': False,
+                    'message': '无法获取远程 commit'
+                }
+            
+            remote_commit = result.stdout.strip()
+            
+            # 比较 commit
+            has_updates = local_commit != remote_commit
+            
+            # 计算落后的 commit 数量
+            commits_behind = 0
+            if has_updates:
+                # 使用 git rev-list 计算差异
+                result = subprocess.run(
+                    ['git', 'rev-list', '--count', f'{local_commit}..{remote_commit}'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    try:
+                        commits_behind = int(result.stdout.strip())
+                    except:
+                        commits_behind = 1  # 至少有1个更新
+            
+            return {
+                'success': True,
+                'has_updates': has_updates,
+                'commits_behind': commits_behind,
+                'local_commit': local_commit[:7],  # 短 hash
+                'remote_commit': remote_commit[:7],
+                'message': f'发现 {commits_behind} 个更新' if has_updates else '已是最新版本'
+            }
+            
+        except subprocess.TimeoutExpired:
+            return {
+                'success': False,
+                'has_updates': False,
+                'message': 'Git 命令超时'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'has_updates': False,
+                'message': f'检查更新失败: {str(e)}'
+            }
+    
     def check_git_status(self):
         """检查 Git 状态"""
         try:

@@ -50,7 +50,17 @@ class BlogManagerGUI:
         self.dev_server_process = None  # 开发服务器进程
         self.editor_server = None  # 后端服务器进程
 
+        # 更新检查状态
+        self.update_info = {
+            'has_updates': False,
+            'commits_behind': 0,
+            'checking': False
+        }
+
         self.build_ui()
+        
+        # 启动后台线程检查更新
+        self.check_updates_on_startup()
 
     def setup_page(self):
         """设置页面属性"""
@@ -59,6 +69,65 @@ class BlogManagerGUI:
         self.page.window.height = 900
         self.page.padding = 0
         self.page.bgcolor = ft.Colors.GREY_50
+
+    def check_updates_on_startup(self):
+        """启动时在后台检查更新"""
+        def check_updates_thread():
+            try:
+                print("[更新检查] 开始检查框架更新...")
+                self.update_info['checking'] = True
+                
+                # 导入更新模块
+                from mainTools.update_framework import FrameworkUpdater
+                
+                # 检查更新
+                updater = FrameworkUpdater()
+                result = updater.check_for_updates()
+                
+                if result['success']:
+                    self.update_info['has_updates'] = result['has_updates']
+                    self.update_info['commits_behind'] = result.get('commits_behind', 0)
+                    
+                    if result['has_updates']:
+                        print(f"[更新检查] 发现 {result['commits_behind']} 个更新")
+                        print(f"[更新检查] 本地: {result.get('local_commit', 'unknown')}")
+                        print(f"[更新检查] 远程: {result.get('remote_commit', 'unknown')}")
+                    else:
+                        print("[更新检查] 已是最新版本")
+                else:
+                    print(f"[更新检查] 检查失败: {result.get('message', '未知错误')}")
+                
+                self.update_info['checking'] = False
+                
+                # 如果当前在 dashboard 视图且有更新，刷新 UI 显示徽章
+                if result['success'] and result['has_updates'] and self.current_view == 'dashboard':
+                    try:
+                        self.page.run_task(self.refresh_dashboard_ui)
+                    except:
+                        # 如果 run_task 失败，尝试直接更新
+                        try:
+                            self.build_ui()
+                        except:
+                            pass
+                
+            except Exception as e:
+                print(f"[更新检查] 异常: {e}")
+                import traceback
+                traceback.print_exc()
+                self.update_info['checking'] = False
+        
+        # 在后台线程中执行检查
+        import threading
+        thread = threading.Thread(target=check_updates_thread, daemon=True)
+        thread.start()
+
+    async def refresh_dashboard_ui(self):
+        """异步刷新 dashboard UI（用于显示更新徽章）"""
+        try:
+            if self.current_view == 'dashboard':
+                self.build_ui()
+        except Exception as e:
+            print(f"[UI刷新] 刷新失败: {e}")
 
     def get_commands(self):
         """动态获取所有命令类"""
@@ -376,42 +445,66 @@ class BlogManagerGUI:
         ], spacing=20)
 
         # 构建快速操作区域 - 扁平化网格设计
-        action_buttons = [
-            self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
-                            self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
-            self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE,
-                            self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
-            self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION,
-                            self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
-            self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD,
-                            self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
-            self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
-                            self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
-            self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE,
-                            self.show_update_framework_dialog, ft.Colors.DEEP_PURPLE_600, '更新框架'),
-        ]
-
-        # 编辑器按钮 - 根据状态显示不同的按钮
-        if self.editor_running:
+        action_buttons = []
+        
+        # 检查是否已初始化
+        is_initialized = self.is_blog_initialized()
+        
+        if not is_initialized:
+            # 未初始化：只显示初始化按钮（大号、醒目）
             action_buttons.append(
-                self.action_btn('打开编辑器', ft.Icons.OPEN_IN_BROWSER,
-                                self.open_editor_window, ft.Colors.PURPLE_600, '打开已运行的编辑器')
-            )
-            action_buttons.append(
-                self.action_btn('关闭编辑器', ft.Icons.STOP_CIRCLE,
-                                self.stop_editor, ft.Colors.RED_600, '停止编辑器服务')
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.Icons.ROCKET_LAUNCH, size=64, color=ft.Colors.WHITE),
+                        ft.Text(self.t('init_blog'), size=20, weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
+                        ft.Text("点击开始初始化博客框架", size=14, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
+                                text_align=ft.TextAlign.CENTER),
+                    ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=400,
+                    height=200,
+                    padding=30,
+                    bgcolor=ft.Colors.PURPLE_600,
+                    border_radius=16,
+                    shadow=ft.BoxShadow(
+                        blur_radius=20, color=ft.Colors.with_opacity(0.3, ft.Colors.PURPLE_600)),
+                    on_click=self.exec_init,
+                    animate=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
+                )
             )
         else:
-            action_buttons.append(
-                self.action_btn('启动编辑器', ft.Icons.EDIT,
-                                self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器')
-            )
+            # 已初始化：显示所有功能按钮
+            action_buttons = [
+                self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
+                                self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
+                self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE,
+                                self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
+                self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION,
+                                self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
+                self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD,
+                                self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
+                self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
+                                self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
+                self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE,
+                                self.show_update_framework_dialog, ft.Colors.DEEP_PURPLE_600, '更新框架',
+                                badge=self.update_info['commits_behind'] if self.update_info['has_updates'] else None),
+            ]
 
-        if not self.is_blog_initialized():
-            action_buttons.append(
-                self.action_btn(self.t('init_blog'), ft.Icons.ROCKET_LAUNCH,
-                                self.exec_init, ft.Colors.PURPLE_600, '初始化')
-            )
+            # 编辑器按钮 - 根据状态显示不同的按钮
+            if self.editor_running:
+                action_buttons.append(
+                    self.action_btn('打开编辑器', ft.Icons.OPEN_IN_BROWSER,
+                                    self.open_editor_window, ft.Colors.PURPLE_600, '打开已运行的编辑器')
+                )
+                action_buttons.append(
+                    self.action_btn('关闭编辑器', ft.Icons.STOP_CIRCLE,
+                                    self.stop_editor, ft.Colors.RED_600, '停止编辑器服务')
+                )
+            else:
+                action_buttons.append(
+                    self.action_btn('启动编辑器', ft.Icons.EDIT,
+                                    self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器')
+                )
 
         actions_content = ft.Column([
             ft.Text(self.t('quick_actions'), size=22,
@@ -462,8 +555,17 @@ class BlogManagerGUI:
             expand=True,
         )
 
-    def action_btn(self, text, icon, onclick, color, desc=""):
-        """操作按钮 - 改进版"""
+    def action_btn(self, text, icon, onclick, color, desc="", badge=None):
+        """操作按钮 - 改进版（支持徽章）
+        
+        Args:
+            text: 按钮文本
+            icon: 图标
+            onclick: 点击事件
+            color: 背景颜色
+            desc: 描述文本
+            badge: 徽章数字（如果 > 0 则显示红色徽章）
+        """
         def on_hover(e):
             if e.data == "true":
                 e.control.shadow = ft.BoxShadow(
@@ -476,14 +578,43 @@ class BlogManagerGUI:
                 e.control.scale = 1.0
             e.control.update()
 
+        # 按钮内容
+        button_content = ft.Column([
+            ft.Icon(icon, size=36, color=ft.Colors.WHITE),
+            ft.Text(text, size=14, weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
+            ft.Text(desc, size=11, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
+                    text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
+        ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+        # 如果有徽章，使用 Stack 叠加徽章
+        if badge and badge > 0:
+            content = ft.Stack([
+                button_content,
+                ft.Container(
+                    content=ft.Text(
+                        str(badge) if badge < 100 else "99+",
+                        size=11,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.WHITE,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    bgcolor=ft.Colors.RED_600,
+                    border_radius=12,
+                    padding=ft.Padding(6, 2, 6, 2),
+                    right=5,
+                    top=5,
+                    shadow=ft.BoxShadow(
+                        blur_radius=4,
+                        color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK)
+                    ),
+                ),
+            ])
+        else:
+            content = button_content
+
         return ft.Container(
-            content=ft.Column([
-                ft.Icon(icon, size=36, color=ft.Colors.WHITE),
-                ft.Text(text, size=14, weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
-                ft.Text(desc, size=11, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
-                        text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
-            ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            content=content,
             width=160,
             height=120,
             padding=15,
@@ -1533,6 +1664,11 @@ class BlogManagerGUI:
         self.page.overlay.append(snack_bar)
         self.page.update()
 
+    def close_dialog(self, dialog):
+        """关闭对话框的辅助方法"""
+        dialog.open = False
+        self.page.update()
+
     def show_add_dialog(self, e):
         """添加文章对话框"""
         post = ft.TextField(label=self.t('post_name'), width=350)
@@ -1679,13 +1815,120 @@ class BlogManagerGUI:
             self.snack(f"{self.t('error')}: {e}", True)
 
     def exec_init(self, e):
-        """初始化博客"""
-        try:
-            self.commands['InitBlog']().execute()
-            self.snack(self.t('operation_success'))
-            self.build_ui()
-        except Exception as e:
-            self.snack(f"{self.t('error')}: {e}", True)
+        """初始化博客 - 带详细进度条"""
+        # 创建进度对话框
+        progress_bar = ft.ProgressBar(width=500, value=0)
+        status_text = ft.Text("准备初始化...", size=14, weight=ft.FontWeight.BOLD)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        log_text = ft.Text("", size=11, color=ft.Colors.GREY_700, selectable=True)
+
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text("初始化博客框架"),
+            content=ft.Container(
+                content=ft.Column([
+                    progress_bar,
+                    ft.Container(height=10),
+                    status_text,
+                    detail_text,
+                    ft.Container(height=10),
+                    ft.Container(
+                        content=ft.Column([log_text], scroll=ft.ScrollMode.AUTO),
+                        height=200,
+                        bgcolor=ft.Colors.GREY_100,
+                        border_radius=5,
+                        padding=10,
+                    ),
+                ], tight=True, spacing=5),
+                width=600,
+            ),
+            modal=True,
+        )
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        def init_task():
+            """在后台线程执行初始化"""
+            try:
+                import time
+                
+                # 创建一个自定义的 print 函数来捕获输出
+                original_print = __builtins__.print
+                
+                def custom_print(*args, **kwargs):
+                    """捕获 print 输出并显示在对话框中"""
+                    message = ' '.join(str(arg) for arg in args)
+                    log_text.value += message + '\n'
+                    self.page.update()
+                    original_print(*args, **kwargs)
+                
+                # 替换 print 函数
+                __builtins__.print = custom_print
+                
+                try:
+                    # 阶段1: 环境检查 (0-20%)
+                    progress_bar.value = 0.05
+                    status_text.value = "检查环境..."
+                    detail_text.value = "检查 Git 和 Node.js"
+                    self.page.update()
+                    
+                    # 执行初始化命令
+                    from mainTools.commands import InitBlog
+                    init_cmd = InitBlog()
+                    
+                    # 模拟进度更新（因为 InitBlog 内部有多个阶段）
+                    def update_progress(stage, progress, message, detail=""):
+                        progress_bar.value = progress
+                        status_text.value = message
+                        detail_text.value = detail
+                        self.page.update()
+                    
+                    # 开始执行
+                    update_progress(1, 0.1, "检查环境...", "Git 和 Node.js")
+                    time.sleep(0.3)
+                    
+                    # 执行初始化（这会输出到 custom_print）
+                    result = init_cmd.execute()
+                    
+                    # 完成
+                    progress_bar.value = 1.0
+                    status_text.value = "初始化完成！"
+                    detail_text.value = ""
+                    self.page.update()
+                    
+                    time.sleep(1)
+                    
+                finally:
+                    # 恢复原始 print 函数
+                    __builtins__.print = original_print
+                
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                
+                # 显示成功消息
+                self.snack(self.t('operation_success'))
+                
+                # 刷新UI以显示所有功能
+                self.build_ui()
+                
+            except Exception as ex:
+                # 恢复原始 print 函数
+                __builtins__.print = original_print
+                
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                
+                # 显示错误消息
+                self.snack(f"{self.t('error')}: {ex}", True)
+                import traceback
+                traceback.print_exc()
+
+        # 使用Flet的run_thread在后台执行
+        import threading
+        threading.Thread(target=lambda: self.page.run_thread(
+            init_task), daemon=True).start()
 
     def exec_build(self, e):
         """构建项目"""
@@ -1821,7 +2064,21 @@ class BlogManagerGUI:
                 detail_text.value = "npm run dev"
                 self.page.update()
                 
-                base_path = os.path.dirname(os.path.abspath(__file__))
+                # 使用 path_utils 中的函数获取正确的基础路径
+                from mainTools.path_utils import get_base_path
+                base_path = get_base_path()
+                
+                print(f"[Editor] Base path: {base_path}")
+                
+                # 检查 package.json 是否存在
+                package_json_path = os.path.join(base_path, 'package.json')
+                if not os.path.exists(package_json_path):
+                    raise Exception(f"未找到 package.json，请确保在博客根目录运行\n路径: {package_json_path}")
+                
+                # 检查 node_modules 是否存在
+                node_modules_path = os.path.join(base_path, 'node_modules')
+                if not os.path.exists(node_modules_path):
+                    raise Exception(f"未找到 node_modules，请先运行 'npm install'\n路径: {node_modules_path}")
                 
                 # 启动开发服务器
                 if os.name == 'nt':
@@ -1905,90 +2162,134 @@ class BlogManagerGUI:
                 detail_text.value = "FastAPI server"
                 self.page.update()
                 
-                info_file = tempfile.NamedTemporaryFile(
-                    mode='w', 
-                    delete=False, 
-                    suffix='.json'
-                )
-                info_path = info_file.name
-                info_file.close()
+                # 生成端口和 token
+                import secrets
+                import socket
                 
-                # 获取 editor_server.py 路径
-                if getattr(sys, 'frozen', False):
-                    # 打包后：在临时目录
-                    server_script = os.path.join(
-                        sys._MEIPASS,
-                        'mainTools', 
-                        'editor_server.py'
-                    )
-                else:
-                    # 开发环境
-                    server_script = os.path.join(
-                        os.path.dirname(__file__), 
-                        'mainTools', 
-                        'editor_server.py'
-                    )
+                def find_free_port():
+                    """查找可用端口"""
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.bind(('', 0))
+                        s.listen(1)
+                        port = s.getsockname()[1]
+                    return port
                 
-                import sys
-                python_exe = sys.executable
+                self.editor_port = find_free_port()
+                self.editor_token = secrets.token_urlsafe(32)
                 
-                self.editor_server = subprocess.Popen(
-                    [python_exe, server_script, "--info-file", info_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
+                print(f"[Editor] Backend port: {self.editor_port}")
+                print(f"[Editor] Auth token: {self.editor_token[:16]}...")
                 
-                print(f"[Editor] Server process started with PID: {self.editor_server.pid}")
+                # 用于捕获服务器启动错误
+                server_error = []
                 
-                # 启动服务器日志输出线程
-                def output_server_logs():
+                # 在独立线程启动 uvicorn（不使用 Flet 的 run_thread）
+                def start_uvicorn_server():
                     try:
-                        for line in iter(self.editor_server.stdout.readline, ''):
-                            if line:
-                                print(f"[SERVER] {line.rstrip()}")
+                        print(f"[SERVER] Thread started")
+                        
+                        # 确保 mainTools 在路径中
+                        maintools_path = os.path.join(
+                            sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(__file__),
+                            'mainTools'
+                        )
+                        if maintools_path not in sys.path:
+                            sys.path.insert(0, maintools_path)
+                        
+                        print(f"[SERVER] Importing editor_server...")
+                        
+                        # 导入 editor_server 模块
+                        from mainTools import editor_server
+                        
+                        # 设置全局变量
+                        editor_server.SERVER_PORT = self.editor_port
+                        editor_server.AUTH_TOKEN = self.editor_token
+                        
+                        print(f"[SERVER] Configuration set")
+                        print(f"[SERVER] Starting uvicorn on port {self.editor_port}...")
+                        
+                        # 启动 uvicorn
+                        import uvicorn
+                        
+                        # 创建配置
+                        config = uvicorn.Config(
+                            editor_server.app,
+                            host="127.0.0.1",
+                            port=self.editor_port,
+                            log_level="info",
+                            loop="asyncio",
+                            access_log=False,
+                        )
+                        
+                        server = uvicorn.Server(config)
+                        
+                        print(f"[SERVER] Uvicorn server created, starting...")
+                        
+                        # 启动服务器（阻塞调用）
+                        server.run()
+                        
                     except Exception as e:
-                        print(f"[Editor] Log thread error: {e}")
+                        error_msg = f"Server startup error: {e}"
+                        print(f"[SERVER] ❌ {error_msg}")
+                        import traceback
+                        traceback.print_exc()
+                        server_error.append(error_msg)
                 
-                log_thread = threading.Thread(target=output_server_logs, daemon=True)
-                log_thread.start()
+                # 启动服务器线程（使用标准 threading，不依赖 Flet）
+                print(f"[Editor] Creating server thread...")
+                server_thread = threading.Thread(target=start_uvicorn_server, daemon=True)
+                server_thread.start()
+                self.editor_server_thread = server_thread
                 
-                # 阶段4: 等待服务器就绪
+                print(f"[Editor] Server thread started, waiting for it to be ready...")
+                
+                # 阶段5: 等待服务器就绪
                 progress_bar.value = 0.7
                 status_text.value = "等待后端服务器就绪..."
-                detail_text.value = "读取服务器信息"
+                detail_text.value = "检查健康状态"
                 self.page.update()
                 
-                max_wait = 20
-                server_info = None
+                # 等待服务器启动（通过健康检查）
+                max_wait = 30  # 增加等待时间到 15 秒
+                server_ready = False
                 
+                import requests
                 for i in range(max_wait):
+                    # 检查是否有服务器启动错误
+                    if server_error:
+                        raise Exception(f"服务器启动失败: {server_error[0]}")
+                    
                     time.sleep(0.5)
                     
-                    if self.editor_server.poll() is not None:
-                        raise Exception(f"服务器进程意外退出 (退出码: {self.editor_server.returncode})")
-                    
-                    if os.path.exists(info_path) and os.path.getsize(info_path) > 0:
-                        try:
-                            with open(info_path, 'r') as f:
-                                server_info = json.load(f)
-                            print(f"[Editor] Server info loaded: port={server_info['port']}")
+                    try:
+                        # 尝试访问健康检查端点
+                        print(f"[Editor] Health check attempt {i+1}/{max_wait} on port {self.editor_port}")
+                        response = requests.get(
+                            f"http://127.0.0.1:{self.editor_port}/api/health",
+                            headers={"X-Auth-Token": self.editor_token},
+                            timeout=2
+                        )
+                        if response.status_code == 200:
+                            server_ready = True
+                            print(f"[Editor] ✅ Server is ready! Response: {response.json()}")
                             break
-                        except json.JSONDecodeError:
-                            if i < max_wait - 1:
-                                continue
-                            else:
-                                raise Exception("服务器信息文件格式错误")
+                        else:
+                            print(f"[Editor] Health check returned status {response.status_code}")
+                    except requests.exceptions.ConnectionError as e:
+                        # 服务器还未启动，继续等待
+                        if i % 4 == 0:  # 每2秒打印一次
+                            print(f"[Editor] Server not ready yet, waiting... ({i+1}/{max_wait})")
+                        continue
+                    except Exception as e:
+                        print(f"[Editor] Health check error: {type(e).__name__}: {e}")
+                        if i % 4 == 0:  # 每2秒打印一次
+                            print(f"[Editor] Waiting for server... ({i+1}/{max_wait})")
+                        continue
                 
-                if server_info is None:
+                if not server_ready:
                     raise Exception("等待服务器启动超时")
                 
-                self.editor_port = server_info['port']
-                self.editor_token = server_info['token']
-                
-                # 阶段5: 打开浏览器
+                # 阶段6: 打开浏览器
                 progress_bar.value = 0.9
                 status_text.value = "打开浏览器..."
                 detail_text.value = ""
@@ -2028,7 +2329,105 @@ class BlogManagerGUI:
                 progress_dlg.open = False
                 self.page.update()
                 
-                self.snack(f"启动编辑器失败: {ex}", True)
+                # 生成详细的错误信息
+                error_msg = str(ex)
+                error_details = []
+                
+                # 分析错误类型并提供解决方案
+                if "开发服务器启动失败" in error_msg:
+                    returncode = self.dev_server_process.returncode if hasattr(self, 'dev_server_process') and self.dev_server_process else None
+                    
+                    if returncode == 4294963238 or returncode == -1073741515:
+                        error_details = [
+                            "❌ npm 命令未找到或无法执行",
+                            "",
+                            "可能的原因：",
+                            "1. Node.js/npm 未安装",
+                            "2. npm 不在系统 PATH 中",
+                            "3. 权限不足",
+                            "",
+                            "解决方案：",
+                            "1. 安装 Node.js (https://nodejs.org/)",
+                            "2. 重启电脑使 PATH 生效",
+                            "3. 以管理员身份运行",
+                            "",
+                            "验证安装：在命令行运行",
+                            "  node --version",
+                            "  npm --version"
+                        ]
+                    else:
+                        error_details = [
+                            f"❌ 开发服务器启动失败 (退出码: {returncode})",
+                            "",
+                            "请检查：",
+                            "1. 是否运行了 'npm install'",
+                            "2. package.json 是否存在",
+                            "3. 端口 5173 是否被占用",
+                            "",
+                            "手动测试：在博客目录运行",
+                            "  npm run dev"
+                        ]
+                
+                elif "未找到 package.json" in error_msg:
+                    error_details = [
+                        "❌ 博客框架未正确初始化",
+                        "",
+                        "解决方案：",
+                        "1. 点击 '初始化博客框架' 按钮",
+                        "2. 或确保 exe 在博客根目录中",
+                        "",
+                        "正确的目录结构：",
+                        "  KMBlog/",
+                        "  ├── KMblogManager.exe",
+                        "  ├── package.json",
+                        "  ├── node_modules/",
+                        "  └── src/"
+                    ]
+                
+                elif "未找到 node_modules" in error_msg:
+                    error_details = [
+                        "❌ 依赖未安装",
+                        "",
+                        "解决方案：",
+                        "在博客目录运行：",
+                        "  npm install",
+                        "",
+                        "或点击 '初始化博客框架' 按钮"
+                    ]
+                
+                else:
+                    error_details = [
+                        f"❌ {error_msg}",
+                        "",
+                        "请查看控制台输出获取详细信息",
+                        "或参考 EDITOR_TROUBLESHOOTING.md"
+                    ]
+                
+                # 显示详细错误对话框
+                error_text = "\n".join(error_details)
+                
+                error_dlg = ft.AlertDialog(
+                    title=ft.Text("启动编辑器失败", color=ft.Colors.RED_700),
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Text(
+                                error_text,
+                                size=13,
+                                selectable=True,
+                            ),
+                        ], scroll=ft.ScrollMode.AUTO),
+                        width=500,
+                        height=400,
+                    ),
+                    actions=[
+                        ft.TextButton("关闭", on_click=lambda e: self.close_dialog(error_dlg)),
+                    ],
+                )
+                
+                self.page.overlay.append(error_dlg)
+                error_dlg.open = True
+                self.page.update()
+                
                 print(f"[Editor] Error: {ex}")
                 import traceback
                 traceback.print_exc()
@@ -2080,24 +2479,19 @@ class BlogManagerGUI:
                         except:
                             pass
                 
-                # 停止后端服务器
-                if hasattr(self, 'editor_server') and self.editor_server:
-                    print("[Editor] Stopping backend server...")
-                    try:
-                        self.editor_server.terminate()
-                        self.editor_server.wait(timeout=5)
-                        print("[Editor] Backend server stopped")
-                    except:
-                        try:
-                            self.editor_server.kill()
-                        except:
-                            pass
+                # 停止后端服务器线程（uvicorn 在 daemon 线程中，会自动结束）
+                # 注意：uvicorn 运行在 daemon 线程中，主程序退出时会自动停止
+                # 这里只需要标记状态
+                if hasattr(self, 'editor_server_thread') and self.editor_server_thread:
+                    print("[Editor] Backend server thread will stop automatically")
                 
                 # 重置状态
                 self.editor_running = False
                 self.editor_url = None
                 self.dev_server_process = None
-                self.editor_server = None
+                self.editor_server_thread = None
+                self.editor_port = None
+                self.editor_token = None
                 
                 # 刷新UI
                 self.build_ui()
