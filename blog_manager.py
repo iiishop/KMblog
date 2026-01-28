@@ -49,7 +49,7 @@ class BlogManagerGUI:
     def setup_page(self):
         """设置页面属性"""
         self.page.title = "KMBlog Manager"
-        self.page.window.width = 1400
+        self.page.window.width = 1280
         self.page.window.height = 900
         self.page.padding = 0
         self.page.bgcolor = ft.Colors.GREY_50
