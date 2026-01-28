@@ -153,6 +153,18 @@ class BlogManagerGUI:
                 'migrate_failed': '迁移失败',
                 'migrate_complete': '迁移完成',
                 'migrate_start': '开始迁移',
+                'update_framework': '更新框架',
+                'update_framework_title': '更新 KMBlog 框架',
+                'update_framework_desc': '从 GitHub 同步最新框架代码\n\n更新内容：\n• 自动备份用户数据（文章、配置、图片）\n• 拉取最新框架代码\n• 恢复用户数据\n• 生成配置差异报告\n\n注意：\n• 需要 Git 环境\n• 更新前会自动备份\n• 配置文件变化需手动确认',
+                'update_confirm': '开始更新',
+                'updating': '正在更新...',
+                'update_success': '更新成功',
+                'update_failed': '更新失败',
+                'checking_git': '检查 Git 状态...',
+                'backing_up': '备份用户文件...',
+                'pulling_code': '拉取最新代码...',
+                'restoring_files': '恢复用户文件...',
+                'generating_report': '生成更新报告...',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -226,6 +238,18 @@ class BlogManagerGUI:
                 'migrate_failed': 'Migration Failed',
                 'migrate_complete': 'Migration Complete',
                 'migrate_start': 'Start Migration',
+                'update_framework': 'Update Framework',
+                'update_framework_title': 'Update KMBlog Framework',
+                'update_framework_desc': 'Sync latest framework code from GitHub\n\nUpdate includes:\n• Auto backup user data (posts, config, images)\n• Pull latest framework code\n• Restore user data\n• Generate config diff report\n\nNote:\n• Requires Git environment\n• Auto backup before update\n• Config changes need manual confirmation',
+                'update_confirm': 'Start Update',
+                'updating': 'Updating...',
+                'update_success': 'Update Success',
+                'update_failed': 'Update Failed',
+                'checking_git': 'Checking Git status...',
+                'backing_up': 'Backing up user files...',
+                'pulling_code': 'Pulling latest code...',
+                'restoring_files': 'Restoring user files...',
+                'generating_report': 'Generating update report...',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -357,6 +381,8 @@ class BlogManagerGUI:
                             self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
             self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
                             self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
+            self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE,
+                            self.show_update_framework_dialog, ft.Colors.DEEP_PURPLE_600, '更新框架'),
         ]
 
         # 编辑器按钮 - 根据状态显示不同的按钮
@@ -2288,6 +2314,207 @@ class BlogManagerGUI:
         import threading
         threading.Thread(target=lambda: self.page.run_thread(
             migrate_task), daemon=True).start()
+
+    def show_update_framework_dialog(self, e):
+        """显示更新框架对话框"""
+        content = ft.Column([
+            ft.Text(self.t('update_framework_title'), size=20,
+                    weight=ft.FontWeight.BOLD),
+            ft.Container(height=10),
+            ft.Text(self.t('update_framework_desc'), size=13, color=ft.Colors.GREY_700),
+        ], tight=True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(""),
+            content=content,
+            actions=[
+                ft.TextButton(self.t('cancel'),
+                              on_click=lambda e: self.close_dlg(dlg)),
+                ft.Button(self.t('update_confirm'),
+                          on_click=lambda e: self.confirm_update_framework(dlg),
+                          bgcolor=ft.Colors.DEEP_PURPLE_600,
+                          color=ft.Colors.WHITE),
+            ],
+        )
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+
+    def confirm_update_framework(self, dlg):
+        """确认更新框架，开始执行"""
+        self.close_dlg(dlg)
+
+        # 创建进度对话框
+        progress_bar = ft.ProgressBar(width=400, value=0)
+        status_text = ft.Text(self.t('updating'), size=14)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        log_text = ft.Text("", size=11, color=ft.Colors.GREY_500, selectable=True)
+
+        progress_dlg = ft.AlertDialog(
+            title=ft.Text(self.t('update_framework_title')),
+            content=ft.Container(
+                content=ft.Column([
+                    progress_bar,
+                    ft.Container(height=10),
+                    status_text,
+                    detail_text,
+                    ft.Container(height=10),
+                    ft.Container(
+                        content=log_text,
+                        height=150,
+                        bgcolor=ft.Colors.GREY_100,
+                        border_radius=5,
+                        padding=10,
+                    ),
+                ], tight=True, spacing=5),
+                width=600,
+            ),
+            modal=True,
+        )
+        self.page.overlay.append(progress_dlg)
+        progress_dlg.open = True
+        self.page.update()
+
+        def update_task():
+            try:
+                from mainTools.update_framework import FrameworkUpdater
+                updater = FrameworkUpdater()
+                
+                # 1. 检查 Git 状态
+                status_text.value = self.t('checking_git')
+                progress_bar.value = 0.1
+                detail_text.value = "检查 Git 仓库状态..."
+                self.page.update()
+                
+                git_status = updater.check_git_status()
+                if not git_status['success']:
+                    raise Exception(git_status.get('message', 'Git 检查失败'))
+                
+                if not git_status['is_git_repo']:
+                    raise Exception('当前目录不是 Git 仓库')
+                
+                log_text.value += f"✓ Git 状态检查完成\n"
+                log_text.value += f"  分支: {git_status.get('current_branch', 'unknown')}\n"
+                if git_status.get('has_changes'):
+                    log_text.value += f"  警告: 检测到未提交的更改\n"
+                self.page.update()
+                
+                # 2. 备份用户文件
+                status_text.value = self.t('backing_up')
+                progress_bar.value = 0.2
+                detail_text.value = "备份用户数据..."
+                self.page.update()
+                
+                backup_result = updater.backup_user_files()
+                if not backup_result['success']:
+                    raise Exception(backup_result.get('message', '备份失败'))
+                
+                log_text.value += f"\n✓ 备份完成\n"
+                log_text.value += f"  位置: {backup_result['backup_path']}\n"
+                log_text.value += f"  文件数: {len(backup_result['backed_up_files'])}\n"
+                self.page.update()
+                
+                # 3. 拉取最新代码
+                status_text.value = self.t('pulling_code')
+                progress_bar.value = 0.5
+                detail_text.value = "从 GitHub 拉取最新代码..."
+                self.page.update()
+                
+                pull_result = updater.pull_latest_code()
+                if not pull_result['success']:
+                    log_text.value += f"\n✗ 代码拉取失败，正在恢复备份...\n"
+                    self.page.update()
+                    updater.restore_user_files(backup_result['backup_path'])
+                    raise Exception(pull_result.get('message', '拉取代码失败'))
+                
+                log_text.value += f"\n✓ 代码拉取成功\n"
+                self.page.update()
+                
+                # 4. 恢复用户文件
+                status_text.value = self.t('restoring_files')
+                progress_bar.value = 0.7
+                detail_text.value = "恢复用户数据..."
+                self.page.update()
+                
+                restore_result = updater.restore_user_files(backup_result['backup_path'])
+                if not restore_result['success']:
+                    raise Exception(restore_result.get('message', '恢复文件失败'))
+                
+                log_text.value += f"\n✓ 用户文件恢复完成\n"
+                self.page.update()
+                
+                # 5. 比较配置差异
+                status_text.value = self.t('generating_report')
+                progress_bar.value = 0.9
+                detail_text.value = "分析配置差异..."
+                self.page.update()
+                
+                compare_result = updater.compare_configs(backup_result['backup_path'])
+                differences = compare_result.get('differences', {}) if compare_result['success'] else {}
+                
+                if differences:
+                    log_text.value += f"\n⚠ 检测到配置变化:\n"
+                    for file_name, diff in differences.items():
+                        new_fields = diff.get('new_fields', [])
+                        modified_fields = diff.get('modified_fields', [])
+                        if new_fields:
+                            log_text.value += f"  {file_name}: 新增 {len(new_fields)} 个字段\n"
+                        if modified_fields:
+                            log_text.value += f"  {file_name}: 修改 {len(modified_fields)} 个字段\n"
+                else:
+                    log_text.value += f"\n✓ 无配置文件变化\n"
+                self.page.update()
+                
+                # 6. 生成更新报告
+                report_result = updater.generate_update_report(backup_result['backup_path'], differences)
+                if report_result['success']:
+                    log_text.value += f"\n✓ 更新报告已生成\n"
+                    log_text.value += f"  位置: UPDATE_REPORT.md\n"
+                
+                # 更新完成
+                progress_bar.value = 1.0
+                status_text.value = self.t('update_success')
+                detail_text.value = "框架更新完成！请查看 UPDATE_REPORT.md"
+                log_text.value += f"\n{'='*40}\n"
+                log_text.value += f"✓ 更新完成！\n"
+                log_text.value += f"\n下一步:\n"
+                log_text.value += f"1. 运行 npm install 安装依赖\n"
+                log_text.value += f"2. 运行 npm run dev 测试博客\n"
+                log_text.value += f"3. 检查 UPDATE_REPORT.md 了解详情\n"
+                self.page.update()
+
+                import time
+                time.sleep(2)
+
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+
+                # 显示成功消息
+                self.snack(self.t('update_success'))
+
+            except Exception as ex:
+                # 更新失败
+                progress_bar.value = 0
+                status_text.value = self.t('update_failed')
+                detail_text.value = str(ex)
+                log_text.value += f"\n✗ 错误: {ex}\n"
+                self.page.update()
+                
+                import time
+                time.sleep(3)
+                
+                # 关闭进度对话框
+                progress_dlg.open = False
+                self.page.update()
+                
+                # 显示错误消息
+                self.snack(f"{self.t('update_failed')}: {ex}", True)
+
+        # 使用Flet的run_thread在后台执行
+        import threading
+        threading.Thread(target=lambda: self.page.run_thread(
+            update_task), daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""
