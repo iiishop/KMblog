@@ -26,6 +26,53 @@
 - 完整的代码高亮和智能提示
 - 支持实时预览和自动保存
 
+**革命性的 Markdown 内嵌 Block**
+
+这是 KMblog 最独特的功能！在 Markdown 中直接嵌入丰富的交互式内容：
+
+````markdown
+<!-- B站视频播放器 -->
+```bilibili-video
+https://www.bilibili.com/video/BV1xx411c7mD
+```
+
+<!-- Steam 游戏卡片 -->
+```steam-game
+https://store.steampowered.com/app/730/
+```
+
+<!-- Bangumi 番剧信息 -->
+```bangumi
+https://bgm.tv/subject/12345
+```
+
+<!-- GitHub 仓库卡片 -->
+```github-repo
+https://github.com/iiishop/KMblog
+```
+
+<!-- 小红书笔记 -->
+```xiaohongshu
+https://www.xiaohongshu.com/explore/xxxxx
+```
+
+<!-- Mermaid 流程图 -->
+```mermaid
+graph TD
+    A[开始] --> B[写作]
+    B --> C[发布]
+```
+````
+
+无需插件，无需额外配置，直接在 Markdown 代码块中使用！这让你的文章不再局限于纯文本，可以嵌入：
+- 视频播放器（B站、YouTube 等）
+- 游戏信息卡片（Steam）
+- 番剧/动画信息（Bangumi）
+- 代码仓库展示（GitHub）
+- 社交媒体内容（小红书等）
+- 流程图和图表（Mermaid）
+- 任何你能想到的自定义组件
+
 **强大的内容组织**
 - 合集系统：将系列文章组织成专题，方便读者系统学习
 - 加密文章：保护私密内容，只对特定读者开放
@@ -99,6 +146,63 @@ python blog_manager.py
 - 数学公式渲染（KaTeX）
 - Mermaid 图表支持
 - 任务列表支持
+- **Markdown 内嵌 Block** - 在文章中直接使用 Vue 组件
+
+### Markdown 内嵌 Block 详解
+
+KMblog 支持在 Markdown 代码块中直接嵌入 Vue 组件，让你的文章更加生动：
+
+**内置 Block 组件：**
+
+1. **B站视频播放器** - 嵌入 B站视频
+   ````markdown
+   ```bilibili-video
+   https://www.bilibili.com/video/BV1xx411c7mD
+   ```
+   ````
+
+2. **Steam 游戏卡片** - 展示游戏信息、评分、价格
+   ````markdown
+   ```steam-game
+   https://store.steampowered.com/app/730/
+   ```
+   ````
+
+3. **Bangumi 番剧卡片** - 展示动画、漫画、游戏信息
+   ````markdown
+   ```bangumi
+   https://bgm.tv/subject/12345
+   ```
+   ````
+
+4. **GitHub 仓库卡片** - 展示仓库信息、Star 数、语言
+   ````markdown
+   ```github-repo
+   https://github.com/iiishop/KMblog
+   ```
+   ````
+
+5. **小红书笔记** - 嵌入小红书内容
+   ````markdown
+   ```xiaohongshu
+   https://www.xiaohongshu.com/explore/xxxxx
+   ```
+   ````
+
+6. **Mermaid 图表** - 流程图、时序图、甘特图等
+   ````markdown
+   ```mermaid
+   graph LR
+       A[开始] --> B[处理]
+       B --> C[结束]
+   ```
+   ````
+
+**使用方式：**
+- 使用标准 Markdown 代码块语法（三个反引号）
+- 指定 block 类型（如 `bilibili-video`、`steam-game`）
+- 在代码块内填入对应的 URL 或配置
+- 组件自动懒加载，不影响页面性能
 
 ### 内容组织
 
@@ -132,6 +236,7 @@ python blog_manager.py
 | 文章编辑 | 内置编辑器 + 实时预览 | 外部编辑器 |
 | 配置管理 | 可视化界面 | 手动编辑 YAML |
 | 部署方式 | 一键部署 | 命令行操作 |
+| Markdown 扩展 | **内嵌 Vue 组件** | 需要插件 |
 | 合集管理 | 原生支持 | 需要插件 |
 | 加密文章 | 内置功能 | 需要插件 |
 | 主题切换 | 运行时切换 | 需要重新构建 |
@@ -226,8 +331,7 @@ git subtree push --prefix dist origin gh-pages
 ### 添加自定义组件
 
 1. 在 `src/components/` 创建组件文件
-2. 在 `src/config.js` 中注册组件名称
-3. 将组件添加到对应的列表配置中
+2. 将组件添加到对应的列表配置中
 
 示例：
 
@@ -238,6 +342,63 @@ InfoListUp: [
   'YourCustomPanel',  // 添加你的组件
 ],
 ```
+
+### 添加自定义 Markdown Block
+
+1. 在 `src/components/MarkdownPanelComps/` 创建 Block 组件：
+
+```vue
+<!-- YourCustomBlock.vue -->
+<template>
+  <div class="your-custom-block">
+    <h3>{{ title }}</h3>
+    <p>{{ content }}</p>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  customUrl: String  // 从 URL 中解析参数
+});
+</script>
+```
+
+2. 在 `MarkdownPanel.vue` 中注册：
+
+```javascript
+const YourCustomBlock = defineAsyncComponent(() => 
+  import('./MarkdownPanelComps/YourCustomBlock.vue')
+);
+
+// 在 renderDynamicComponents 中添加
+renderDynamicComponents(container, {
+  'yourcustomblock': YourCustomBlock,
+  // ... 其他组件
+});
+```
+
+3. 在 `MarkdownRenender.js` 中添加解析规则：
+
+```javascript
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const info = token.info.trim();
+    const content = token.content.trim();
+
+    if (info === 'your-custom') {
+        return `<YourCustomBlock :customUrl="'${content}'" ></YourCustomBlock>`;
+    }
+    // ... 其他规则
+};
+```
+
+4. 在 Markdown 中使用：
+
+````markdown
+```your-custom
+https://example.com/your-content
+```
+````
 
 ### 自定义主题
 
@@ -295,18 +456,25 @@ npm run test:ui
 
 ### 计划中功能
 
-- 音乐播放模块
-- 搜索功能增强
-- 文章推荐系统
-- 访问统计
-- 更多主题预设
+- 音乐播放模块 - 在文章中嵌入音乐播放器
+- 全文搜索功能 - 基于客户端的文章搜索
+- 更多主题预设 - 提供更多开箱即用的主题
+- RSS 订阅生成 - 自动生成 RSS feed
+- 站点地图生成 - SEO 优化
 
 ### 考虑中功能
 
-- 评论系统集成
-- 多语言支持
-- RSS 订阅
-- 站点地图生成
+- 评论系统集成 - 集成第三方评论服务（如 Giscus）
+- 多语言支持 - 国际化界面
+- 文章推荐 - 基于标签的相关文章推荐
+- 阅读进度条 - 显示文章阅读进度
+- 目录导航 - 自动生成文章目录
+
+### 不会实现的功能
+
+- 访问统计 - 静态博客无法实现真正的统计，建议使用 Google Analytics 等第三方服务
+- 用户系统 - 静态博客不需要用户登录
+- 实时评论 - 需要后端支持，建议使用第三方评论系统
 
 ## 贡献
 
