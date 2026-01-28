@@ -51,19 +51,19 @@ jobs:
 
       - name: Create virtual environment
         run: uv venv .venv
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
 
       - name: Install dependencies
         run: uv pip install -r requirements.txt
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
 
       - name: Verify PyInstaller
         run: ${{ matrix.pyinstaller }} --version
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
 
       - name: Build executable
         run: ${{ matrix.pyinstaller }} --clean --noconfirm KMblogManager.spec
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.platform == 'windows' && 'pwsh' || 'bash' }}
 
       - name: Verify build (Windows)
         if: matrix.platform == 'windows'
