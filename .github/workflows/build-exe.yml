@@ -14,8 +14,6 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         include:
@@ -34,6 +32,8 @@ jobs:
             ext: ""
             pyinstaller: .venv/bin/pyinstaller
             shell: bash
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
