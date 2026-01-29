@@ -460,9 +460,15 @@ class InitBlog(Command):
         posts_path = get_posts_path()
         markdowns_path = os.path.join(posts_path, 'Markdowns')
         images_path = os.path.join(posts_path, 'Images')
+        waterfall_path = os.path.join(posts_path, 'WaterfallGraph')
         
         os.makedirs(markdowns_path, exist_ok=True)
         os.makedirs(images_path, exist_ok=True)
+        os.makedirs(waterfall_path, exist_ok=True)
+        
+        print(f"[初始化] ✓ 创建目录: {markdowns_path}")
+        print(f"[初始化] ✓ 创建目录: {images_path}")
+        print(f"[初始化] ✓ 创建目录: {waterfall_path}")
         
         # 6. 创建示例文章（如果不存在）
         hello_world_path = os.path.join(markdowns_path, 'Helloworld.md')
