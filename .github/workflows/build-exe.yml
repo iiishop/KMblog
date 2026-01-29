@@ -234,5 +234,19 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## 📦 KMBlog Manager Release
+            
+            ### 下载说明
+            - **Windows**: 下载 `KMblogManager-*-windows.zip`
+            - **macOS**: 下载 `KMblogManager-*-macos.tar.gz`
+            - **Linux**: 下载 `KMblogManager-*-linux.tar.gz`
+            
+            ### 安装方法
+            1. 下载对应平台的压缩包
+            2. 解压到任意目录
+            3. 运行 `KMblogManager` 可执行文件
+            
+            ---
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
