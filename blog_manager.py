@@ -2780,7 +2780,7 @@ class BlogManagerGUI:
                         ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400),
                     ], spacing=15),
                     padding=15,
-                    border=ft.border.all(1, ft.Colors.GREY_300),
+                    border=ft.Border.all(1, ft.Colors.GREY_300),
                     border_radius=8,
                     bgcolor=ft.Colors.WHITE,
                     on_click=lambda e: self.close_and_show_framework_update(dlg),
@@ -2802,7 +2802,7 @@ class BlogManagerGUI:
                         ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.GREY_400),
                     ], spacing=15),
                     padding=15,
-                    border=ft.border.all(1, ft.Colors.GREY_300),
+                    border=ft.Border.all(1, ft.Colors.GREY_300),
                     border_radius=8,
                     bgcolor=ft.Colors.WHITE,
                     on_click=lambda e: self.close_and_show_manager_update(dlg),
@@ -2853,8 +2853,8 @@ class BlogManagerGUI:
         self.close_dlg(dlg)
         import time
         time.sleep(0.1)  # 短暂延迟，确保对话框关闭
-        # 直接调用管理工具更新
-        self.check_manager_update()
+        # 直接调用管理工具更新（强制显示）
+        self.check_manager_update(force_show=True)
 
     def show_update_framework_dialog(self, e):
         """显示更新框架对话框"""
@@ -3126,15 +3126,29 @@ class BlogManagerGUI:
         time.sleep(0.1)
         self.check_manager_update()
 
-    def check_manager_update(self):
-        """检查管理工具更新"""
+    def check_manager_update(self, force_show=False):
+        """检查管理工具更新
+        
+        Args:
+            force_show: 是否强制显示对话框（即使没有更新）
+        """
         try:
             from mainTools.update_manager import ManagerUpdater
             updater = ManagerUpdater()
             
             # 检查更新
             result = updater.check_for_updates()
-            if not result['success'] or not result['has_update']:
+            
+            if not result['success']:
+                if force_show:
+                    # 如果是用户主动点击，显示错误信息
+                    self.snack(f"检查更新失败: {result.get('message', '未知错误')}", True)
+                return
+            
+            if not result['has_update']:
+                if force_show:
+                    # 如果是用户主动点击，显示"已是最新版本"
+                    self.show_no_update_dialog(result['current_version'])
                 return
             
             # 显示更新对话框
@@ -3142,6 +3156,29 @@ class BlogManagerGUI:
             
         except Exception as e:
             print(f"[管理工具更新] 检查失败: {e}")
+            if force_show:
+                self.snack(f"检查更新失败: {e}", True)
+    
+    def show_no_update_dialog(self, current_version):
+        """显示"已是最新版本"对话框"""
+        dlg = ft.AlertDialog(
+            title=ft.Text("管理工具更新"),
+            content=ft.Column([
+                ft.Icon(ft.Icons.CHECK_CIRCLE, size=64, color=ft.Colors.GREEN_600),
+                ft.Container(height=10),
+                ft.Text("已是最新版本", size=18, weight=ft.FontWeight.BOLD),
+                ft.Container(height=5),
+                ft.Text(f"当前版本: {current_version}", size=14, color=ft.Colors.GREY_600),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
+            actions=[
+                ft.Button("确定", on_click=lambda e: self.close_dlg(dlg)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+        )
+        
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
     
     def show_manager_update_dialog(self, update_info, updater):
         """显示管理工具更新对话框"""
@@ -3159,7 +3196,7 @@ class BlogManagerGUI:
                 ),
                 height=100,
                 padding=10,
-                border=ft.border.all(1, ft.Colors.GREY_300),
+                border=ft.Border.all(1, ft.Colors.GREY_300),
                 border_radius=5,
             ),
             ft.Container(height=10),
@@ -3191,45 +3228,88 @@ class BlogManagerGUI:
         self.close_dlg(dlg)
         
         # 显示下载进度对话框
-        progress_bar = ft.ProgressBar(width=400, value=0)
-        status_text = ft.Text("准备下载...", size=14)
+        progress_bar = ft.ProgressBar(width=450, value=0)
+        status_text = ft.Text("准备下载...", size=14, weight=ft.FontWeight.BOLD)
+        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        log_text = ft.Text("", size=11, color=ft.Colors.GREY_700, selectable=True)
         
         progress_dlg = ft.AlertDialog(
             title=ft.Text("更新管理工具"),
             content=ft.Container(
                 content=ft.Column([
                     status_text,
+                    ft.Container(height=5),
+                    detail_text,
                     ft.Container(height=10),
                     progress_bar,
-                ], tight=True),
-                width=400,
+                    ft.Container(height=10),
+                    ft.Container(
+                        content=ft.Column([log_text], scroll=ft.ScrollMode.AUTO),
+                        height=120,
+                        bgcolor=ft.Colors.GREY_100,
+                        border_radius=5,
+                        padding=10,
+                    ),
+                ], tight=True, spacing=0),
+                width=500,
             ),
             modal=True,
         )
         
-        self.page.dialog = progress_dlg
+        self.page.overlay.append(progress_dlg)
         progress_dlg.open = True
         self.page.update()
         
+        # 进度回调函数（在主线程中更新 UI）
+        def progress_callback(stage, progress, message):
+            """进度回调 - 线程安全的 UI 更新"""
+            try:
+                # 更新进度条
+                progress_bar.value = progress
+                
+                # 更新状态文本
+                stage_names = {
+                    'download': '下载中',
+                    'extract': '解压中',
+                    'install': '安装中'
+                }
+                status_text.value = stage_names.get(stage, stage)
+                detail_text.value = message
+                
+                # 添加日志
+                log_text.value += f"[{stage}] {message}\n"
+                
+                # 更新 UI（在主线程中）
+                self.page.update()
+            except Exception as e:
+                print(f"[UI更新] 错误: {e}")
+        
         def update_task():
             try:
-                status_text.value = "正在下载新版本..."
-                progress_bar.value = None  # 不确定进度
+                log_text.value += "开始更新流程...\n"
+                log_text.value += f"下载地址: {update_info['download_url']}\n"
+                log_text.value += f"文件名: {update_info['asset_name']}\n\n"
                 self.page.update()
                 
-                # 执行更新
+                # 执行更新（传入进度回调）
                 result = updater.download_and_update(
                     update_info['download_url'],
-                    update_info['asset_name']
+                    update_info['asset_name'],
+                    progress_callback=progress_callback
                 )
                 
                 if result['success']:
-                    status_text.value = "下载完成！程序即将关闭..."
+                    log_text.value += "\n✓ 下载完成！\n"
+                    status_text.value = "更新完成"
+                    detail_text.value = "程序即将关闭并自动重启..."
                     progress_bar.value = 1.0
                     self.page.update()
                     
                     import time
                     time.sleep(2)
+                    
+                    log_text.value += "正在关闭程序...\n"
+                    self.page.update()
                     
                     # 关闭程序
                     self.page.window_destroy()
@@ -3237,12 +3317,28 @@ class BlogManagerGUI:
                     raise Exception(result.get('message', '更新失败'))
                     
             except Exception as ex:
+                import traceback
+                error_details = traceback.format_exc()
+                
+                log_text.value += f"\n✗ 错误: {ex}\n"
+                log_text.value += f"\n详细信息:\n{error_details}\n"
+                status_text.value = "更新失败"
+                detail_text.value = str(ex)
+                progress_bar.value = 0
+                self.page.update()
+                
+                import time
+                time.sleep(3)
+                
                 progress_dlg.open = False
                 self.page.update()
                 self.snack(f"更新失败: {ex}", True)
+                
+                print(f"[管理工具更新] 错误详情:\n{error_details}")
         
+        # 使用 Flet 的 run_task 在后台执行（确保线程安全）
         import threading
-        threading.Thread(target=update_task, daemon=True).start()
+        threading.Thread(target=lambda: self.page.run_task(update_task), daemon=True).start()
 
     def confirm(self, title, msg, callback):
         """确认对话框"""

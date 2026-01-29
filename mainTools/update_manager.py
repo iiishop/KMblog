@@ -160,35 +160,59 @@ class ManagerUpdater:
             # 如果比较失败，保守起见返回 False
             return False
     
-    def download_and_update(self, download_url, asset_name):
+    def download_and_update(self, download_url, asset_name, progress_callback=None):
         """下载并更新管理工具
         
         Args:
             download_url: 下载地址
             asset_name: 文件名
+            progress_callback: 进度回调函数 callback(stage, progress, message)
+                - stage: 阶段名称 ('download', 'extract', 'install')
+                - progress: 进度 0.0-1.0
+                - message: 状态消息
             
         Returns:
             dict: 更新结果
         """
+        def report_progress(stage, progress, message):
+            """报告进度"""
+            print(f"[管理工具更新] [{stage}] {progress:.1%} - {message}")
+            if progress_callback:
+                try:
+                    progress_callback(stage, progress, message)
+                except Exception as e:
+                    print(f"[管理工具更新] 进度回调错误: {e}")
+        
         try:
+            print(f"[管理工具更新] 开始更新流程")
+            print(f"[管理工具更新] is_frozen: {self.is_frozen}")
+            print(f"[管理工具更新] current_exe: {self.current_exe}")
+            
             if not self.is_frozen:
                 return {
                     'success': False,
                     'message': '当前不是打包版本，无法自动更新'
                 }
             
-            print("[管理工具更新] 开始下载新版本...")
+            report_progress('download', 0.0, '准备下载...')
+            print(f"[管理工具更新] 下载地址: {download_url}")
+            print(f"[管理工具更新] 文件名: {asset_name}")
             
             # 创建临时目录
             temp_dir = tempfile.mkdtemp(prefix='kmblog_manager_update_')
+            print(f"[管理工具更新] 临时目录: {temp_dir}")
+            
             download_path = os.path.join(temp_dir, asset_name)
             
             # 下载文件
+            report_progress('download', 0.05, '连接服务器...')
             response = requests.get(download_url, stream=True, timeout=60)
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
+            
+            report_progress('download', 0.1, f'开始下载 ({total_size / 1024 / 1024:.1f} MB)...')
             
             with open(download_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -196,60 +220,81 @@ class ManagerUpdater:
                         f.write(chunk)
                         downloaded += len(chunk)
                         if total_size > 0:
-                            progress = (downloaded / total_size) * 100
-                            print(f"\r[管理工具更新] 下载进度: {progress:.1f}%", end='')
+                            # 下载进度占 10% - 60%
+                            progress = 0.1 + (downloaded / total_size) * 0.5
+                            report_progress('download', progress, 
+                                          f'下载中... {downloaded / 1024 / 1024:.1f} / {total_size / 1024 / 1024:.1f} MB')
             
-            print("\n[管理工具更新] 下载完成")
+            report_progress('download', 0.6, '下载完成')
+            print(f"[管理工具更新] 文件大小: {os.path.getsize(download_path)} bytes")
             
             # 解压文件
-            print("[管理工具更新] 解压文件...")
+            report_progress('extract', 0.65, '开始解压...')
             extract_dir = os.path.join(temp_dir, 'extracted')
             os.makedirs(extract_dir, exist_ok=True)
             
             if asset_name.endswith('.zip'):
+                print("[管理工具更新] 使用 ZIP 解压")
                 with zipfile.ZipFile(download_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
             elif asset_name.endswith('.tar.gz'):
+                print("[管理工具更新] 使用 TAR.GZ 解压")
                 import tarfile
                 with tarfile.open(download_path, 'r:gz') as tar_ref:
                     tar_ref.extractall(extract_dir)
             else:
                 return {
                     'success': False,
-                    'message': '不支持的压缩格式'
+                    'message': f'不支持的压缩格式: {asset_name}'
                 }
             
-            print("[管理工具更新] 解压完成")
+            report_progress('extract', 0.75, '解压完成')
+            
+            # 列出解压后的文件
+            print("[管理工具更新] 解压后的文件:")
+            for root, dirs, files in os.walk(extract_dir):
+                level = root.replace(extract_dir, '').count(os.sep)
+                indent = ' ' * 2 * level
+                print(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 2 * (level + 1)
+                for file in files:
+                    print(f"{subindent}{file}")
             
             # 查找新的可执行文件
+            report_progress('install', 0.8, '查找可执行文件...')
             new_exe = self._find_executable(extract_dir)
             if not new_exe:
                 return {
                     'success': False,
-                    'message': '未找到可执行文件'
+                    'message': '未找到可执行文件（查找 KMblogManager 或 KMblogManager.exe）'
                 }
             
             print(f"[管理工具更新] 找到新版本: {new_exe}")
             
             # 创建更新脚本
+            report_progress('install', 0.9, '创建更新脚本...')
             update_script = self._create_update_script(new_exe, self.current_exe)
+            print(f"[管理工具更新] 更新脚本: {update_script}")
             
-            print("[管理工具更新] 准备替换文件...")
-            print("[管理工具更新] 将在 3 秒后关闭当前程序并执行更新...")
+            report_progress('install', 0.95, '准备执行更新...')
             
             # 执行更新脚本并退出当前程序
             if sys.platform == 'win32':
                 # Windows: 使用 cmd 执行批处理脚本
+                print("[管理工具更新] 启动 Windows 更新脚本")
                 subprocess.Popen(
                     ['cmd', '/c', update_script],
                     creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
                 )
             else:
                 # Unix: 使用 sh 执行脚本
+                print("[管理工具更新] 启动 Unix 更新脚本")
                 subprocess.Popen(
                     ['sh', update_script],
                     start_new_session=True
                 )
+            
+            report_progress('install', 1.0, '更新脚本已启动')
             
             return {
                 'success': True,
@@ -258,11 +303,17 @@ class ManagerUpdater:
             }
             
         except requests.RequestException as e:
+            print(f"[管理工具更新] 下载失败: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'success': False,
                 'message': f'下载失败: {str(e)}'
             }
         except Exception as e:
+            print(f"[管理工具更新] 更新失败: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'success': False,
                 'message': f'更新失败: {str(e)}'
