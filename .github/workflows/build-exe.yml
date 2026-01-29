@@ -24,13 +24,13 @@ jobs:
             ext: .exe
             pyinstaller: .venv\Scripts\pyinstaller.exe
             shell: pwsh
-          - os: macos-13
+          - os: macos-15-large
             platform: macos
             arch: x64
             ext: ""
             pyinstaller: .venv/bin/pyinstaller
             shell: bash
-          - os: macos-14
+          - os: macos-latest
             platform: macos
             arch: arm64
             ext: ""
@@ -38,6 +38,7 @@ jobs:
             shell: bash
           - os: ubuntu-latest
             platform: linux
+            arch: x64
             ext: ""
             pyinstaller: .venv/bin/pyinstaller
             shell: bash
@@ -285,9 +286,14 @@ jobs:
           else
             version="dev"
           fi
+          
+          arch="${{ matrix.arch }}"
+          if [ -z "$arch" ]; then
+            arch="x64"
+          fi
 
           cd release
-          tar -czf "../KMblogManager-$version-linux.tar.gz" *
+          tar -czf "../KMblogManager-$version-linux-$arch.tar.gz" *
         shell: bash
 
       - name: Upload artifact
@@ -333,9 +339,10 @@ jobs:
             
             ### 下载说明
             - **Windows**: 下载 `KMblogManager-*-windows.zip`
-            - **macOS (Apple Silicon / M1/M2/M3)**: 下载 `KMblogManager-*-macos-apple-silicon.dmg`
+            - **macOS (Apple Silicon / M1/M2/M3/M4)**: 下载 `KMblogManager-*-macos-apple-silicon.dmg`
             - **macOS (Intel)**: 下载 `KMblogManager-*-macos-intel.dmg`
-            - **Linux**: 下载 `KMblogManager-*-linux.tar.gz`
+            - **Linux (x64)**: 下载 `KMblogManager-*-linux-x64.tar.gz`
+              - 兼容 Ubuntu、Debian、Arch、Fedora、CentOS 等主流发行版
             
             ### 安装方法
             
@@ -352,8 +359,11 @@ jobs:
             
             #### Linux
             1. 下载 `.tar.gz` 文件
-            2. 解压: `tar -xzf KMblogManager-*-linux.tar.gz`
-            3. 运行: `./KMblogManager`
+            2. 解压: `tar -xzf KMblogManager-*-linux-x64.tar.gz`
+            3. 添加执行权限: `chmod +x KMblogManager`
+            4. 运行: `./KMblogManager`
+            
+            **注意**: Linux 版本在 Ubuntu 22.04 上构建，兼容大多数现代 Linux 发行版（glibc 2.31+）
             
             ---
         env:
