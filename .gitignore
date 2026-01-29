@@ -61,7 +61,7 @@ coverage/
 .env.production.local
 *.pem
 *.key
-github_config.json  # 你的特定配置文件
+github_config.json  
 public/assets/Crypto.json
 
 
