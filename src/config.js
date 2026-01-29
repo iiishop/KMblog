@@ -33,6 +33,7 @@ const config = {
     ],//Info列表，在页面默认添加的InfoList的上面出现
     InfoListDown: [
         'ClockPanel',
+        'CalendarPanel',
     ],//Info列表，在页面默认添加的InfoList的下面出现
     TipListUp: [
     ],//Tip列表，在页面默认添加的TipList的上面出现
@@ -43,6 +44,7 @@ const config = {
     MainListDown: [
     ],//Main列表，在页面默认添加的MainList的下面出现
     InfoListFloat: [
+        
     ],//Info浮动列表，开始时显示在InfoList的最下方，之后根据页面滚动位置自动调整位置
     TipListFloat: [
     ],//Tip浮动列表，开始时显示在TipList的最下方，之后根据页面滚动位置自动调整位置
