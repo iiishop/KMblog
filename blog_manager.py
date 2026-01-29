@@ -2990,7 +2990,24 @@ class BlogManagerGUI:
                 log_text.value += f"\n✓ 用户文件恢复完成\n"
                 self.page.update()
                 
-                # 5. 比较配置差异
+                # 5. 安装 npm 依赖
+                status_text.value = "安装依赖..."
+                progress_bar.value = 0.75
+                detail_text.value = "npm install（这可能需要几分钟）..."
+                self.page.update()
+                
+                log_text.value += f"\n开始安装 npm 依赖...\n"
+                self.page.update()
+                
+                npm_result = updater.install_dependencies()
+                if npm_result['success']:
+                    log_text.value += f"✓ npm 依赖安装完成\n"
+                else:
+                    log_text.value += f"⚠ npm 依赖安装失败: {npm_result.get('message', '未知错误')}\n"
+                    log_text.value += f"  请手动运行 'npm install'\n"
+                self.page.update()
+                
+                # 6. 比较配置差异
                 status_text.value = self.t('generating_report')
                 progress_bar.value = 0.9
                 detail_text.value = "分析配置差异..."
@@ -3012,7 +3029,7 @@ class BlogManagerGUI:
                     log_text.value += f"\n✓ 无配置文件变化\n"
                 self.page.update()
                 
-                # 6. 生成更新报告
+                # 7. 生成更新报告
                 report_result = updater.generate_update_report(backup_result['backup_path'], differences)
                 if report_result['success']:
                     log_text.value += f"\n✓ 更新报告已生成\n"
@@ -3021,13 +3038,18 @@ class BlogManagerGUI:
                 # 更新完成
                 progress_bar.value = 1.0
                 status_text.value = self.t('update_success')
-                detail_text.value = "框架更新完成！请查看 UPDATE_REPORT.md"
+                detail_text.value = "框架更新完成！"
                 log_text.value += f"\n{'='*40}\n"
                 log_text.value += f"✓ 更新完成！\n"
                 log_text.value += f"\n下一步:\n"
-                log_text.value += f"1. 运行 npm install 安装依赖\n"
-                log_text.value += f"2. 运行 npm run dev 测试博客\n"
-                log_text.value += f"3. 检查 UPDATE_REPORT.md 了解详情\n"
+                if npm_result['success']:
+                    log_text.value += f"1. ✓ npm 依赖已自动安装\n"
+                    log_text.value += f"2. 运行 npm run dev 测试博客\n"
+                    log_text.value += f"3. 检查 UPDATE_REPORT.md 了解详情\n"
+                else:
+                    log_text.value += f"1. 运行 npm install 安装依赖\n"
+                    log_text.value += f"2. 运行 npm run dev 测试博客\n"
+                    log_text.value += f"3. 检查 UPDATE_REPORT.md 了解详情\n"
                 self.page.update()
 
                 import time

@@ -433,8 +433,9 @@ class InitBlog(Command):
             except Exception as e:
                 raise Exception(f"代码拉取失败: {str(e)}")
         
-        # 4. 安装依赖
+        # 4. 安装依赖（无论是否已有 node_modules，都重新安装以确保依赖最新）
         print("[初始化] 正在安装 npm 依赖...")
+        print("[初始化] 提示: 这可能需要几分钟时间...")
         try:
             result = subprocess.run(
                 'npm install',
@@ -447,8 +448,13 @@ class InitBlog(Command):
                 check=True
             )
             print("[初始化] ✓ 依赖安装完成")
+            
+            # 显示安装的包数量（如果有）
+            if 'added' in result.stdout or 'updated' in result.stdout:
+                print(f"[初始化] npm 输出: {result.stdout.strip()}")
         except subprocess.CalledProcessError as e:
-            raise Exception(f"npm install 失败: {e.stderr}")
+            error_msg = e.stderr if e.stderr else str(e)
+            raise Exception(f"npm install 失败: {error_msg}\n\n请检查:\n1. Node.js 和 npm 是否正确安装\n2. 网络连接是否正常\n3. package.json 文件是否存在")
         
         # 5. 创建必要的目录结构
         posts_path = get_posts_path()

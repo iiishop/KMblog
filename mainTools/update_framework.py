@@ -615,7 +615,7 @@ class FrameworkUpdater:
                 
                 f.write("## 下一步操作\n\n")
                 f.write("1. 检查配置文件变化，确认是否需要手动调整\n")
-                f.write("2. 运行 `npm install` 安装新的依赖\n")
+                f.write("2. ✓ npm 依赖已自动安装\n")
                 f.write("3. 运行 `npm run dev` 测试更新后的博客\n")
                 f.write("4. 如有问题，可从备份目录恢复文件\n")
             
@@ -630,6 +630,63 @@ class FrameworkUpdater:
             return {
                 'success': False,
                 'message': f'生成报告失败: {str(e)}'
+            }
+    
+    def install_dependencies(self):
+        """安装 npm 依赖"""
+        try:
+            self.log("开始安装 npm 依赖...")
+            self.log("提示: 这可能需要几分钟时间...")
+            
+            result = subprocess.run(
+                ['npm', 'install'],
+                cwd=self.base_path,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=300  # 5分钟超时
+            )
+            
+            if result.returncode == 0:
+                self.log("✓ npm 依赖安装完成")
+                
+                # 显示安装的包数量（如果有）
+                if 'added' in result.stdout or 'updated' in result.stdout:
+                    # 提取关键信息
+                    import re
+                    match = re.search(r'(added|updated|removed)\s+\d+\s+package', result.stdout)
+                    if match:
+                        self.log(f"  {match.group(0)}")
+                
+                return {
+                    'success': True,
+                    'output': result.stdout
+                }
+            else:
+                self.log(f"✗ npm install 失败: {result.stderr}")
+                return {
+                    'success': False,
+                    'message': f'npm install 失败: {result.stderr}'
+                }
+                
+        except subprocess.TimeoutExpired:
+            self.log("✗ npm install 超时（超过5分钟）")
+            return {
+                'success': False,
+                'message': 'npm install 超时，请检查网络连接'
+            }
+        except FileNotFoundError:
+            self.log("✗ 未找到 npm 命令")
+            return {
+                'success': False,
+                'message': '未找到 npm 命令，请确保已安装 Node.js'
+            }
+        except Exception as e:
+            self.log(f"✗ npm install 失败: {str(e)}")
+            return {
+                'success': False,
+                'message': f'npm install 失败: {str(e)}'
             }
     
     def update(self):
@@ -671,11 +728,17 @@ class FrameworkUpdater:
         if not restore_result['success']:
             return restore_result
         
-        # 5. 比较配置差异
+        # 5. 安装 npm 依赖（更新后必须重新安装依赖）
+        npm_result = self.install_dependencies()
+        if not npm_result['success']:
+            self.log("警告: npm 依赖安装失败，但框架代码已更新")
+            self.log("请手动运行 'npm install' 安装依赖")
+        
+        # 6. 比较配置差异
         compare_result = self.compare_configs(backup_path)
         differences = compare_result.get('differences', {}) if compare_result['success'] else {}
         
-        # 6. 生成更新报告
+        # 7. 生成更新报告
         report_result = self.generate_update_report(backup_path, differences)
         
         self.log("=" * 60)
@@ -687,6 +750,7 @@ class FrameworkUpdater:
             'message': '框架更新成功',
             'backup_path': backup_path,
             'differences': differences,
+            'npm_installed': npm_result['success'],
             'report_path': report_result.get('report_path') if report_result['success'] else None,
             'log': self.update_log
         }
