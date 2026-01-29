@@ -137,37 +137,62 @@ echo "✓ Git 状态检查通过"
 
 # 检查 tag 是否已存在
 echo "检查标签是否存在..."
-tag_exists=false
+local_tag_exists=false
+remote_tag_exists=false
+
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-    tag_exists=true
+    local_tag_exists=true
 fi
 
-if [ "$tag_exists" = true ]; then
+if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+    remote_tag_exists=true
+fi
+
+if [ "$local_tag_exists" = true ] || [ "$remote_tag_exists" = true ]; then
     if [ "$FORCE" = true ]; then
         echo "⚠ Tag $TAG 已存在，将强制覆盖"
         
         # 删除本地 tag
-        echo "  删除本地标签..."
-        git tag -d "$TAG"
+        if [ "$local_tag_exists" = true ]; then
+            echo "  删除本地标签..."
+            git tag -d "$TAG"
+        fi
         
-        # 尝试删除远程 tag
-        echo "  删除远程标签..."
-        if git push origin ":refs/tags/$TAG" 2>/dev/null; then
-            echo "  ✓ 远程标签已删除"
-        else
-            echo "  ℹ 远程标签不存在或已删除"
+        # 删除远程 tag
+        if [ "$remote_tag_exists" = true ]; then
+            echo "  删除远程标签..."
+            if git push origin ":refs/tags/$TAG" 2>/dev/null; then
+                echo "  ✓ 远程标签已删除"
+            else
+                echo "  ⚠ 远程标签删除失败（可能需要手动删除）"
+            fi
         fi
     else
         echo ""
-        echo "错误: Tag $TAG 已存在"
-        echo ""
-        echo "选项 1: 使用 --force 参数强制覆盖"
-        echo "  ./scripts/release.sh $VERSION --force"
-        echo ""
-        echo "选项 2: 手动删除标签"
-        echo "  git tag -d $TAG"
-        echo "  git push origin :refs/tags/$TAG"
-        echo ""
+        if [ "$local_tag_exists" = true ] && [ "$remote_tag_exists" = false ]; then
+            echo "⚠ 检测到本地标签存在但远程不存在（可能是上次推送失败）"
+            echo ""
+            echo "选项 1: 使用 --force 参数重新创建并推送"
+            echo "  ./scripts/release.sh $VERSION --force -d \"$DESCRIPTION\""
+            echo ""
+            echo "选项 2: 直接推送现有标签"
+            echo "  git push origin $TAG"
+            echo ""
+            echo "选项 3: 手动删除本地标签后重试"
+            echo "  git tag -d $TAG"
+            echo "  ./scripts/release.sh $VERSION"
+            echo ""
+        else
+            echo "错误: Tag $TAG 已存在"
+            echo ""
+            echo "选项 1: 使用 --force 参数强制覆盖"
+            echo "  ./scripts/release.sh $VERSION --force"
+            echo ""
+            echo "选项 2: 手动删除标签"
+            echo "  git tag -d $TAG"
+            echo "  git push origin :refs/tags/$TAG"
+            echo ""
+        fi
         exit 1
     fi
 else
@@ -217,11 +242,44 @@ fi
 
 # 推送标签
 echo "4. 推送标签..."
-if [ "$FORCE" = true ]; then
-    git push origin "$TAG" --force
-else
-    git push origin "$TAG"
-fi
+max_retries=3
+retry_count=0
+
+while [ $retry_count -lt $max_retries ]; do
+    if [ "$FORCE" = true ]; then
+        if git push origin "$TAG" --force; then
+            echo "✓ 标签推送成功"
+            break
+        fi
+    else
+        if git push origin "$TAG"; then
+            echo "✓ 标签推送成功"
+            break
+        fi
+    fi
+    
+    retry_count=$((retry_count + 1))
+    if [ $retry_count -lt $max_retries ]; then
+        echo "⚠ 推送失败，重试 $retry_count/$max_retries..."
+        sleep 2
+    else
+        echo ""
+        echo "❌ 标签推送失败（已重试 $max_retries 次）"
+        echo ""
+        echo "可能的原因:"
+        echo "  1. 网络连接问题"
+        echo "  2. GitHub 访问受限"
+        echo ""
+        echo "解决方案:"
+        echo "  1. 检查网络连接后手动推送:"
+        echo "     git push origin $TAG"
+        echo ""
+        echo "  2. 或稍后重新运行脚本:"
+        echo "     ./scripts/release.sh $VERSION --force"
+        echo ""
+        exit 1
+    fi
+done
 
 # 生成 release notes
 echo "5. 准备 release notes..."

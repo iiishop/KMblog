@@ -132,44 +132,74 @@ Write-Host "Git status check passed" -ForegroundColor Green
 
 # Check if tag exists
 Write-Host "Checking if tag exists..." -ForegroundColor Yellow
-$tagExists = $false
+$localTagExists = $false
+$remoteTagExists = $false
+
 try {
     git rev-parse $Tag 2>$null | Out-Null
-    $tagExists = $true
+    $localTagExists = $true
 }
 catch {
-    $tagExists = $false
+    $localTagExists = $false
 }
 
-if ($tagExists) {
+try {
+    $remoteTags = git ls-remote --tags origin
+    $remoteTagExists = $remoteTags -match "refs/tags/$Tag`$"
+}
+catch {
+    $remoteTagExists = $false
+}
+
+if ($localTagExists -or $remoteTagExists) {
     if ($Force) {
         Write-Host "Tag $Tag exists, will force overwrite" -ForegroundColor Yellow
         
         # Delete local tag
-        Write-Host "  Deleting local tag..." -ForegroundColor Gray
-        git tag -d $Tag
-        
-        # Try to delete remote tag
-        Write-Host "  Deleting remote tag..." -ForegroundColor Gray
-        try {
-            git push origin ":refs/tags/$Tag" 2>$null
-            Write-Host "  Remote tag deleted" -ForegroundColor Green
+        if ($localTagExists) {
+            Write-Host "  Deleting local tag..." -ForegroundColor Gray
+            git tag -d $Tag
         }
-        catch {
-            Write-Host "  Remote tag not found or already deleted" -ForegroundColor Gray
+        
+        # Delete remote tag
+        if ($remoteTagExists) {
+            Write-Host "  Deleting remote tag..." -ForegroundColor Gray
+            try {
+                git push origin ":refs/tags/$Tag" 2>$null
+                Write-Host "  Remote tag deleted" -ForegroundColor Green
+            }
+            catch {
+                Write-Host "  Remote tag deletion failed (may need manual deletion)" -ForegroundColor Yellow
+            }
         }
     }
     else {
         Write-Host ""
-        Write-Host "Error: Tag $Tag already exists" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "Option 1: Use -Force parameter to overwrite" -ForegroundColor Cyan
-        Write-Host "  .\scripts\release.ps1 $Version -Force"
-        Write-Host ""
-        Write-Host "Option 2: Delete tag manually" -ForegroundColor Cyan
-        Write-Host "  git tag -d $Tag"
-        Write-Host "  git push origin :refs/tags/$Tag"
-        Write-Host ""
+        if ($localTagExists -and -not $remoteTagExists) {
+            Write-Host "Detected local tag exists but remote doesn't (possibly failed push)" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Option 1: Use -Force parameter to recreate and push" -ForegroundColor Cyan
+            Write-Host "  .\scripts\release.ps1 $Version -Force -Description `"$Description`""
+            Write-Host ""
+            Write-Host "Option 2: Push existing tag directly" -ForegroundColor Cyan
+            Write-Host "  git push origin $Tag"
+            Write-Host ""
+            Write-Host "Option 3: Delete local tag and retry" -ForegroundColor Cyan
+            Write-Host "  git tag -d $Tag"
+            Write-Host "  .\scripts\release.ps1 $Version"
+            Write-Host ""
+        }
+        else {
+            Write-Host "Error: Tag $Tag already exists" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "Option 1: Use -Force parameter to overwrite" -ForegroundColor Cyan
+            Write-Host "  .\scripts\release.ps1 $Version -Force"
+            Write-Host ""
+            Write-Host "Option 2: Delete tag manually" -ForegroundColor Cyan
+            Write-Host "  git tag -d $Tag"
+            Write-Host "  git push origin :refs/tags/$Tag"
+            Write-Host ""
+        }
         exit 1
     }
 }
@@ -223,11 +253,52 @@ else {
 
 # Push tag
 Write-Host "4. Pushing tag..." -ForegroundColor Yellow
-if ($Force) {
-    git push origin $Tag --force
+$maxRetries = 3
+$retryCount = 0
+$pushSuccess = $false
+
+while ($retryCount -lt $maxRetries) {
+    try {
+        if ($Force) {
+            git push origin $Tag --force 2>&1 | Out-Null
+        }
+        else {
+            git push origin $Tag 2>&1 | Out-Null
+        }
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Tag pushed successfully" -ForegroundColor Green
+            $pushSuccess = $true
+            break
+        }
+    }
+    catch {
+        # Continue to retry
+    }
+    
+    $retryCount++
+    if ($retryCount -lt $maxRetries) {
+        Write-Host "Push failed, retrying $retryCount/$maxRetries..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+    }
 }
-else {
-    git push origin $Tag
+
+if (-not $pushSuccess) {
+    Write-Host ""
+    Write-Host "Tag push failed (retried $maxRetries times)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Possible causes:" -ForegroundColor Yellow
+    Write-Host "  1. Network connection issue"
+    Write-Host "  2. GitHub access restricted"
+    Write-Host ""
+    Write-Host "Solutions:" -ForegroundColor Cyan
+    Write-Host "  1. Check network and push manually:"
+    Write-Host "     git push origin $Tag"
+    Write-Host ""
+    Write-Host "  2. Or rerun script later:"
+    Write-Host "     .\scripts\release.ps1 $Version -Force"
+    Write-Host ""
+    exit 1
 }
 
 # Generate release notes
