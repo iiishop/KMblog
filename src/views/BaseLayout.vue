@@ -295,7 +295,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    align-items: center;
     max-width: calc(100% - 50rem - 8rem);
     min-width: 30rem;
     height: 100%;

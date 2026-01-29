@@ -4,7 +4,8 @@
         <FileTreeSidebar v-model:visible="fileTreeVisible" v-model:width="fileTreeWidth" :files="fileTree"
             :current-file="currentFile" @file-select="handleFileSelect" @file-create="handleFileCreate"
             @file-delete="handleFileDelete" @file-move="handleFileMove" @file-rename="handleFileRename"
-            @folder-create="handleFolderCreate" @folder-delete="handleFolderDelete" />
+            @folder-create="handleFolderCreate" @folder-delete="handleFolderDelete"
+            @image-file-select="handleImageFileSelect" />
 
         <!-- Main Editor Area -->
         <div class="main-editor">
@@ -434,6 +435,109 @@ const handleFileSelect = async (file) => {
             alert(`加载文件失败\n\n${errorMessage}\n\n文件: ${file.name}`);
         }
     }
+};
+
+// Handle image file select (Task 35)
+const handleImageFileSelect = async ({ imagePath, mdPath, exists, imageNode }) => {
+    console.log('[EditorPage] Image file selected:', imagePath);
+    console.log('[EditorPage] Associated .md path:', mdPath);
+
+    // Cancel previous file load request if still pending
+    if (currentLoadRequest) {
+        console.log('[EditorPage] Cancelling previous file load request');
+        currentLoadRequest.cancel('New image file selected');
+        currentLoadRequest = null;
+    }
+
+    // Check for unsaved changes
+    if (saveStatus.value === 'unsaved') {
+        const shouldSave = confirm('当前文件有未保存的更改,是否保存?');
+        if (shouldSave) {
+            await handleSave();
+        }
+    }
+
+    // Task 35.2: 通过后端 API 检查 .md 文件是否存在
+    const normalizedPath = normalizePathForAPI(mdPath);
+    console.log('[EditorPage] Checking if .md file exists:', mdPath, '-> API path:', normalizedPath);
+
+    try {
+        // 尝试读取 .md 文件
+        const { request, cancel } = createTrackedRequest({
+            method: 'get',
+            url: '/files/read',
+            params: { path: normalizedPath }
+        });
+
+        currentLoadRequest = { cancel };
+        const response = await request;
+
+        // Task 35.3: 如果存在则加载 .md 文件
+        console.log('[EditorPage] .md file exists, loading...');
+
+        // Create a virtual file node for the .md file
+        const mdFile = {
+            path: mdPath,
+            name: mdPath.split('/').pop(),
+            type: 'file'
+        };
+
+        currentFile.value = mdFile;
+        currentFileName.value = mdFile.name;
+        content.value = response.data.content;
+        currentFileVersion.value = response.data.version;
+        saveStatus.value = 'saved';
+        currentLoadRequest = null;
+
+        console.log('[EditorPage] .md file loaded successfully');
+    } catch (error) {
+        currentLoadRequest = null;
+
+        // 如果是 404 错误，说明文件不存在，创建模板
+        if (error.response && error.response.status === 404) {
+            // Task 35.4: 如果不存在则创建模板
+            console.log('[EditorPage] .md file does not exist (404), creating template');
+
+            // Generate template
+            const template = generateImageDescriptionTemplate(imagePath, imageNode);
+
+            // Create a virtual file node for the new .md file
+            const mdFile = {
+                path: mdPath,
+                name: mdPath.split('/').pop(),
+                type: 'file'
+            };
+
+            currentFile.value = mdFile;
+            currentFileName.value = mdFile.name;
+            content.value = template;
+            currentFileVersion.value = null; // New file, no version yet
+            saveStatus.value = 'unsaved'; // Mark as unsaved since it's a new file
+
+            console.log('[EditorPage] Template created for image description');
+
+            // Show notification
+            alert(`✨ 已为图片创建描述模板\n\n图片: ${imageNode.name}\n描述文件: ${mdFile.name}\n\n请编辑并保存以创建描述文件。`);
+        } else {
+            // 其他错误
+            const errorMessage = handleApiError(error, 'Load Image Description');
+            if (errorMessage) {
+                alert(`加载图片描述文件失败\n\n${errorMessage}\n\n文件: ${mdPath}`);
+            }
+        }
+    }
+
+    // Task 35.5: 在预览区显示图片
+    // Note: This would require adding image preview functionality to the preview panel
+    // For now, the markdown preview will show the image when the template is rendered
+};
+
+// Generate image description template (Task 36)
+const generateImageDescriptionTemplate = (imagePath, imageNode) => {
+    // 返回空白内容，让用户自由编辑
+    const filename = imageNode.name;
+    console.log('[EditorPage] Generated empty template for image:', filename);
+    return '';
 };
 
 // Handle file create

@@ -31,8 +31,15 @@
             </div>
 
             <!-- 文件图标 -->
-            <div v-else class="node-icon file-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div v-else class="node-icon file-icon" :class="{ 'is-image': isImageFile }">
+                <!-- 34.1 创建图片文件 SVG 图标 -->
+                <svg v-if="isImageFile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <!-- 普通文件图标 -->
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -55,7 +62,8 @@
                 <FileTreeNode v-for="child in node.children" :key="child.path" :node="child" :current-file="currentFile"
                     :depth="depth + 1" @select="$emit('select', $event)" @create="$emit('create', $event)"
                     @delete="$emit('delete', $event)" @move="$emit('move', $event)" @rename="$emit('rename', $event)"
-                    @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)" />
+                    @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)"
+                    @image-file-select="$emit('image-file-select', $event)" />
             </div>
         </transition>
 
@@ -147,7 +155,10 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete']);
+const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete', 'image-file-select']);
+
+// 33.1 定义图片文件扩展名常量
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif'];
 
 // State
 const isExpanded = ref(false);
@@ -161,12 +172,50 @@ const isCurrentFile = computed(() => {
     return props.currentFile && props.currentFile.path === props.node.path;
 });
 
-// Handle click
-const handleClick = () => {
+// 33.2 创建 isImageFile 判断函数
+const isImageFile = computed(() => {
+    if (props.node.type !== 'file') return false;
+    const ext = props.node.name.substring(props.node.name.lastIndexOf('.')).toLowerCase();
+    return IMAGE_EXTENSIONS.includes(ext);
+});
+
+// 33.4 创建 checkMdFileExists 函数
+async function checkMdFileExists(mdPath) {
+    // 简化：直接返回 false，让后端 API 来检查文件是否存在
+    // 这样可以避免前端的跨域和路径问题
+    // EditorPage 会通过后端 API 来加载文件，如果文件不存在会创建模板
+    return false;
+}
+
+// 33.3 修改 handleFileSelect 处理图片文件
+const handleClick = async () => {
     if (props.node.type === 'folder') {
         isExpanded.value = !isExpanded.value;
     } else if (props.node.type === 'file') {
-        emit('select', props.node);
+        // 检查是否为图片文件
+        if (isImageFile.value) {
+            console.log('[FileTreeNode] Image file clicked:', props.node.name);
+
+            // 33.5 触发 image-file-select 事件
+            const mdFileName = props.node.name.replace(/\.[^.]+$/, '.md');
+            const mdFilePath = props.node.path.replace(props.node.name, mdFileName);
+
+            console.log('[FileTreeNode] Image path:', props.node.path);
+            console.log('[FileTreeNode] MD path:', mdFilePath);
+
+            // 简化：总是假设 .md 文件不存在，让 EditorPage 通过 API 检查
+            const exists = false;
+
+            emit('image-file-select', {
+                imagePath: props.node.path,
+                mdPath: mdFilePath,
+                exists: exists,
+                imageNode: props.node
+            });
+        } else {
+            // 普通文件 - 正常打开
+            emit('select', props.node);
+        }
     }
 };
 
@@ -506,9 +555,20 @@ onBeforeUnmount(() => {
     transition: all 0.2s;
 }
 
+/* 34.3 为图片图标添加特殊样式 */
+.file-icon.is-image svg {
+    color: #10b981;
+}
+
 .node-content:hover .file-icon svg {
     color: var(--theme-panel-text);
     transform: scale(1.1);
+}
+
+/* 34.4 实现图标悬停效果 */
+.node-content:hover .file-icon.is-image svg {
+    color: #059669;
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.3));
 }
 
 .node-content.is-current .file-icon svg {

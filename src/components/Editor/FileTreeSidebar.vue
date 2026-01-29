@@ -17,7 +17,8 @@
                 @select="$emit('file-select', $event)" @create="$emit('file-create', $event)"
                 @delete="$emit('file-delete', $event)" @move="$emit('file-move', $event)"
                 @rename="$emit('file-rename', $event)" @folder-create="$emit('folder-create', $event)"
-                @folder-delete="$emit('folder-delete', $event)" />
+                @folder-delete="$emit('folder-delete', $event)"
+                @image-file-select="$emit('image-file-select', $event)" />
 
             <!-- 空状态提示 -->
             <div v-if="files.length === 0" class="empty-state">
@@ -94,7 +95,8 @@ const emit = defineEmits([
     'file-move',
     'file-rename',
     'folder-create',
-    'folder-delete'
+    'folder-delete',
+    'image-file-select'
 ]);
 
 // Tree context menu state

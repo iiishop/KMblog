@@ -1,9 +1,101 @@
 /* src/color.css - Comprehensive Theme Variable System */
 
+/* === Font Imports === */
+/* Playfair Display - Hero Typography (Serif) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+/* Inter Variable - Body Typography (Sans-serif) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+/* JetBrains Mono - Metadata Typography (Monospace) */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 /* === Theme Transition Configuration === */
 :root {
   --theme-transition-duration: 300ms;
   --theme-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Gallery Font System === */
+:root {
+  /* Font Families */
+  --gallery-font-hero: 'Playfair Display', 'Noto Serif SC', serif;
+  --gallery-font-body: 'Inter', 'Noto Sans SC', sans-serif;
+  --gallery-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Hero Typography (Titles/Headings) */
+  --gallery-hero-size: clamp(2.5rem, 5vw, 4rem);
+  --gallery-hero-weight: 900;
+  --gallery-hero-line-height: 1.1;
+  --gallery-hero-letter-spacing: -0.03em;
+  
+  /* Body Typography (Content) */
+  --gallery-body-size: clamp(0.95rem, 1.5vw, 1.1rem);
+  --gallery-body-weight: 450;
+  --gallery-body-line-height: 1.8;
+  --gallery-body-letter-spacing: 0.01em;
+  
+  /* Metadata Typography (Technical Info) */
+  --gallery-meta-size: 0.85rem;
+  --gallery-meta-weight: 500;
+  --gallery-meta-line-height: 1.5;
+  --gallery-meta-letter-spacing: 0.05em;
+  --gallery-meta-transform: uppercase;
+  
+  /* Heading Sizes */
+  --gallery-h1-size: 2rem;
+  --gallery-h2-size: 1.5rem;
+  --gallery-h3-size: 1.25rem;
+  --gallery-h4-size: 1.1rem;
+  
+  /* Font Weights */
+  --gallery-weight-light: 300;
+  --gallery-weight-regular: 400;
+  --gallery-weight-medium: 500;
+  --gallery-weight-semibold: 600;
+  --gallery-weight-bold: 700;
+  --gallery-weight-extrabold: 800;
+  --gallery-weight-black: 900;
+}
+
+/* === Gallery Spatial Proportion System === */
+:root {
+  /* Base Unit */
+  --space-unit: 0.5rem;
+  
+  /* Golden Ratio Spacing Sequence (φ ≈ 1.618) */
+  --space-xs: calc(var(--space-unit) * 1);      /* 0.5rem = 8px */
+  --space-sm: calc(var(--space-unit) * 1.618);  /* 0.809rem ≈ 13px */
+  --space-md: calc(var(--space-unit) * 2.618);  /* 1.309rem ≈ 21px */
+  --space-lg: calc(var(--space-unit) * 4.236);  /* 2.118rem ≈ 34px */
+  --space-xl: calc(var(--space-unit) * 6.854);  /* 3.427rem ≈ 55px */
+  --space-2xl: calc(var(--space-unit) * 11.09); /* 5.545rem ≈ 89px */
+  
+  /* Card Spacing Variables */
+  --card-gap-base: var(--space-md);             /* Base gap between cards: 1.309rem */
+  --card-gap-variance: 0.3rem;                  /* Random offset range: ±0.3rem */
+  --card-padding: var(--space-lg);              /* Internal card padding: 2.118rem */
+  --card-margin: var(--space-sm);               /* Card margin: 0.809rem */
+  
+  /* Organic Offset Variables */
+  --organic-offset-min: calc(var(--card-gap-variance) * -1); /* -0.3rem */
+  --organic-offset-max: var(--card-gap-variance);             /* 0.3rem */
+  --organic-offset-scale: 1;                                  /* Multiplier for offset intensity */
+}
+
+/* === Gallery Animation System === */
+:root {
+  /* Easing Curves - Physics-based motion */
+  --ease-fluid: cubic-bezier(0.23, 1, 0.32, 1);           /* Fluid motion - smooth and natural */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);  /* Elastic feedback - playful bounce */
+  --ease-magnetic: cubic-bezier(0.34, 1.56, 0.64, 1);     /* Magnetic attraction - pull effect */
+  --ease-organic: cubic-bezier(0.4, 0, 0.2, 1);           /* Organic transition - subtle ease */
+  
+  /* Animation Duration Scale - Choreographed timing */
+  --duration-instant: 150ms;   /* Micro-interactions - immediate feedback */
+  --duration-quick: 300ms;     /* Hover feedback - responsive feel */
+  --duration-smooth: 600ms;    /* State transitions - balanced motion */
+  --duration-dramatic: 1200ms; /* Page transitions - cinematic impact */
 }
 
 /* === Prevent Flash on Initial Load === */
@@ -166,6 +258,27 @@
                             color var(--theme-transition-duration) var(--theme-transition-easing),
                             border-color var(--theme-transition-duration) var(--theme-transition-easing),
                             box-shadow var(--theme-transition-duration) var(--theme-transition-easing);
+  
+  /* === Gallery-Specific Variables === */
+  /* Primary Colors (Purple Palette) */
+  --gallery-primary: hsl(250, 60%, 65%);
+  --gallery-primary-light: hsl(250, 70%, 75%);
+  --gallery-primary-dark: hsl(250, 50%, 45%);
+  
+  /* Accent Colors (Pink Palette) */
+  --gallery-accent: hsl(340, 85%, 65%);
+  --gallery-accent-glow: hsl(340, 100%, 75%);
+  
+  /* Neutral Colors (Deep Gray Palette) */
+  --gallery-surface: hsl(250, 20%, 12%);
+  --gallery-surface-elevated: hsl(250, 18%, 18%);
+  --gallery-text: hsl(250, 10%, 95%);
+  --gallery-text-muted: hsl(250, 8%, 65%);
+  
+  /* Dynamic Colors (Image-based) */
+  --image-dominant-hue: 0;
+  --card-glow: hsl(var(--image-dominant-hue), 70%, 60%);
+  --card-border: hsl(var(--image-dominant-hue), 50%, 50%);
 }
 
 /* === Dark Theme Palette === */
@@ -284,6 +397,27 @@
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.3);
   --theme-collection-text: #b0b0b0;
+  
+  /* === Gallery-Specific Variables === */
+  /* Primary Colors (Purple Palette - adjusted for dark theme) */
+  --gallery-primary: hsl(250, 55%, 70%);
+  --gallery-primary-light: hsl(250, 65%, 80%);
+  --gallery-primary-dark: hsl(250, 45%, 50%);
+  
+  /* Accent Colors (Pink Palette) */
+  --gallery-accent: hsl(340, 80%, 70%);
+  --gallery-accent-glow: hsl(340, 95%, 80%);
+  
+  /* Neutral Colors (Deep Gray Palette) */
+  --gallery-surface: hsl(250, 15%, 15%);
+  --gallery-surface-elevated: hsl(250, 13%, 22%);
+  --gallery-text: hsl(250, 10%, 92%);
+  --gallery-text-muted: hsl(250, 8%, 60%);
+  
+  /* Dynamic Colors (Image-based) */
+  --image-dominant-hue: 0;
+  --card-glow: hsl(var(--image-dominant-hue), 65%, 65%);
+  --card-border: hsl(var(--image-dominant-hue), 45%, 55%);
 }
 
 /* === Night Theme Palette === */
@@ -402,6 +536,27 @@
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.5);
   --theme-collection-text: #9ca8c0;
+  
+  /* === Gallery-Specific Variables === */
+  /* Primary Colors (Purple Palette - adjusted for night theme) */
+  --gallery-primary: hsl(250, 50%, 75%);
+  --gallery-primary-light: hsl(250, 60%, 85%);
+  --gallery-primary-dark: hsl(250, 40%, 55%);
+  
+  /* Accent Colors (Pink Palette) */
+  --gallery-accent: hsl(340, 75%, 75%);
+  --gallery-accent-glow: hsl(340, 90%, 85%);
+  
+  /* Neutral Colors (Deep Gray Palette) */
+  --gallery-surface: hsl(220, 30%, 10%);
+  --gallery-surface-elevated: hsl(220, 25%, 16%);
+  --gallery-text: hsl(220, 15%, 90%);
+  --gallery-text-muted: hsl(220, 12%, 58%);
+  
+  /* Dynamic Colors (Image-based) */
+  --image-dominant-hue: 0;
+  --card-glow: hsl(var(--image-dominant-hue), 60%, 70%);
+  --card-border: hsl(var(--image-dominant-hue), 40%, 60%);
 }
 
 /* === Bright Theme Palette === */
@@ -520,6 +675,27 @@
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.08);
   --theme-collection-text: #6b7280;
+  
+  /* === Gallery-Specific Variables === */
+  /* Primary Colors (Purple Palette - adjusted for bright theme) */
+  --gallery-primary: hsl(250, 65%, 60%);
+  --gallery-primary-light: hsl(250, 75%, 70%);
+  --gallery-primary-dark: hsl(250, 55%, 40%);
+  
+  /* Accent Colors (Pink Palette) */
+  --gallery-accent: hsl(340, 90%, 60%);
+  --gallery-accent-glow: hsl(340, 100%, 70%);
+  
+  /* Neutral Colors (Light Gray Palette for bright theme) */
+  --gallery-surface: hsl(0, 0%, 98%);
+  --gallery-surface-elevated: hsl(0, 0%, 100%);
+  --gallery-text: hsl(0, 0%, 10%);
+  --gallery-text-muted: hsl(0, 0%, 45%);
+  
+  /* Dynamic Colors (Image-based) */
+  --image-dominant-hue: 0;
+  --card-glow: hsl(var(--image-dominant-hue), 75%, 55%);
+  --card-border: hsl(var(--image-dominant-hue), 55%, 45%);
 }
 
 /* === Apply Transitions to All Themed Elements === */
@@ -611,4 +787,135 @@
   --clock-panel-background-color: var(--theme-clock-bg);
   --clock-panel-shadow-color: var(--theme-clock-shadow);
   --clock-panel-text-color: var(--theme-clock-text);
+}
+
+/* === Gallery Font Utility Classes === */
+
+/* Font Family Classes */
+.gallery-font-hero {
+  font-family: var(--gallery-font-hero);
+}
+
+.gallery-font-body {
+  font-family: var(--gallery-font-body);
+}
+
+.gallery-font-mono {
+  font-family: var(--gallery-font-mono);
+}
+
+/* Typography Style Classes */
+.gallery-hero-text {
+  font-family: var(--gallery-font-hero);
+  font-size: var(--gallery-hero-size);
+  font-weight: var(--gallery-hero-weight);
+  line-height: var(--gallery-hero-line-height);
+  letter-spacing: var(--gallery-hero-letter-spacing);
+}
+
+.gallery-body-text {
+  font-family: var(--gallery-font-body);
+  font-size: var(--gallery-body-size);
+  font-weight: var(--gallery-body-weight);
+  line-height: var(--gallery-body-line-height);
+  letter-spacing: var(--gallery-body-letter-spacing);
+}
+
+.gallery-meta-text {
+  font-family: var(--gallery-font-mono);
+  font-size: var(--gallery-meta-size);
+  font-weight: var(--gallery-meta-weight);
+  line-height: var(--gallery-meta-line-height);
+  letter-spacing: var(--gallery-meta-letter-spacing);
+  text-transform: var(--gallery-meta-transform);
+}
+
+/* Heading Classes */
+.gallery-h1 {
+  font-family: var(--gallery-font-hero);
+  font-size: var(--gallery-h1-size);
+  font-weight: var(--gallery-weight-bold);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.gallery-h2 {
+  font-family: var(--gallery-font-hero);
+  font-size: var(--gallery-h2-size);
+  font-weight: var(--gallery-weight-bold);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.gallery-h3 {
+  font-family: var(--gallery-font-hero);
+  font-size: var(--gallery-h3-size);
+  font-weight: var(--gallery-weight-semibold);
+  line-height: 1.4;
+}
+
+.gallery-h4 {
+  font-family: var(--gallery-font-body);
+  font-size: var(--gallery-h4-size);
+  font-weight: var(--gallery-weight-semibold);
+  line-height: 1.5;
+}
+
+/* Font Weight Classes */
+.gallery-weight-light {
+  font-weight: var(--gallery-weight-light);
+}
+
+.gallery-weight-regular {
+  font-weight: var(--gallery-weight-regular);
+}
+
+.gallery-weight-medium {
+  font-weight: var(--gallery-weight-medium);
+}
+
+.gallery-weight-semibold {
+  font-weight: var(--gallery-weight-semibold);
+}
+
+.gallery-weight-bold {
+  font-weight: var(--gallery-weight-bold);
+}
+
+.gallery-weight-extrabold {
+  font-weight: var(--gallery-weight-extrabold);
+}
+
+.gallery-weight-black {
+  font-weight: var(--gallery-weight-black);
+}
+
+/* Text Transform Classes */
+.gallery-uppercase {
+  text-transform: uppercase;
+}
+
+.gallery-lowercase {
+  text-transform: lowercase;
+}
+
+.gallery-capitalize {
+  text-transform: capitalize;
+}
+
+/* Letter Spacing Classes */
+.gallery-tracking-tight {
+  letter-spacing: -0.03em;
+}
+
+.gallery-tracking-normal {
+  letter-spacing: 0;
+}
+
+.gallery-tracking-wide {
+  letter-spacing: 0.05em;
+}
+
+.gallery-tracking-wider {
+  letter-spacing: 0.1em;
 }

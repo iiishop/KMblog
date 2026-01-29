@@ -355,6 +355,9 @@ async def get_file_tree(authorized: bool = Depends(verify_token)):
             """递归构建文件树"""
             items = []
             
+            # 定义图片文件扩展名
+            IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif')
+            
             try:
                 entries = sorted(os.listdir(directory))
             except PermissionError:
@@ -379,6 +382,13 @@ async def get_file_tree(authorized: bool = Depends(verify_token)):
                     })
                 elif entry.endswith('.md'):
                     # Markdown文件节点
+                    items.append({
+                        "name": entry,
+                        "type": "file",
+                        "path": f"/Posts/{rel_path}"
+                    })
+                elif entry.lower().endswith(IMAGE_EXTENSIONS):
+                    # 图片文件节点
                     items.append({
                         "name": entry,
                         "type": "file",
