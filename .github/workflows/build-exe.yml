@@ -198,7 +198,18 @@ jobs:
             arch_name="intel"
           fi
           
-          # 创建 .app 包结构
+          # 首先创建 tar.gz（Unix 风格）
+          echo "创建 tar.gz 版本..."
+          mkdir -p release
+          cp dist/KMblogManager release/
+          cp dist/BUILD_INFO.txt release/
+          cp README.md release/ 2>/dev/null || true
+          cd release
+          tar -czf "../KMblogManager-$version-macos-$arch_name.tar.gz" *
+          cd ..
+          
+          # 然后创建 .app 包和 DMG
+          echo "创建 DMG 版本..."
           app_name="KMblogManager.app"
           app_dir="dist/$app_name"
           
@@ -264,13 +275,9 @@ jobs:
             hdiutil create -volname "KMblogManager" -srcfolder "dist/$app_name" -ov -format UDZO "$dmg_name"
           fi
           
-          # 同时创建 tar.gz 作为备份
-          mkdir -p release
-          cp dist/KMblogManager release/
-          cp dist/BUILD_INFO.txt release/
-          cp README.md release/ 2>/dev/null || true
-          cd release
-          tar -czf "../KMblogManager-$version-macos-$arch_name.tar.gz" *
+          echo "构建完成："
+          echo "  - tar.gz: KMblogManager-$version-macos-$arch_name.tar.gz"
+          echo "  - DMG: $dmg_name"
         shell: bash
 
       - name: Package release (Linux)
@@ -333,38 +340,69 @@ jobs:
           files: release/*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          # 不生成自动 notes，也不设置 body
+          # 这样会保留 release.sh 脚本创建的 notes
+          # 如果 release 不存在，会创建一个空的（但通常 release.sh 已经创建了）
+          fail_on_unmatched_files: false
+          append_body: true
           body: |
-            ## 📦 KMBlog Manager Release
             
-            ### 下载说明
-            - **Windows**: 下载 `KMblogManager-*-windows.zip`
-            - **macOS (Apple Silicon / M1/M2/M3/M4)**: 下载 `KMblogManager-*-macos-apple-silicon.dmg`
-            - **macOS (Intel)**: 下载 `KMblogManager-*-macos-intel.dmg`
-            - **Linux (x64)**: 下载 `KMblogManager-*-linux-x64.tar.gz`
+            ---
+            
+            ## 下载说明
+            
+            ### macOS 用户
+            - **推荐**: 下载 `.dmg` 文件（图形化安装）
+              - Apple Silicon (M1/M2/M3/M4): `KMblogManager-*-macos-apple-silicon.dmg`
+              - Intel: `KMblogManager-*-macos-intel.dmg`
+            - **命令行用户**: 下载 `.tar.gz` 文件
+              - Apple Silicon: `KMblogManager-*-macos-apple-silicon.tar.gz`
+              - Intel: `KMblogManager-*-macos-intel.tar.gz`
+            
+            ### 其他平台
+            - **Windows**: `KMblogManager-*-windows.zip`
+            - **Linux (x64)**: `KMblogManager-*-linux-x64.tar.gz`
               - 兼容 Ubuntu、Debian、Arch、Fedora、CentOS 等主流发行版
             
-            ### 安装方法
+            ---
             
-            #### Windows
-            1. 下载 `.zip` 文件
-            2. 解压到任意目录
-            3. 运行 `KMblogManager.exe`
+            ## 安装方法
             
-            #### macOS
+            ### macOS (DMG 方式 - 推荐)
             1. 下载对应架构的 `.dmg` 文件
             2. 双击打开 DMG
             3. 将 `KMblogManager.app` 拖到 Applications 文件夹
             4. 首次运行可能需要在"系统偏好设置 > 安全性与隐私"中允许
             
-            #### Linux
-            1. 下载 `.tar.gz` 文件
-            2. 解压: `tar -xzf KMblogManager-*-linux-x64.tar.gz`
-            3. 添加执行权限: `chmod +x KMblogManager`
-            4. 运行: `./KMblogManager`
+            ### macOS (命令行方式)
+            ```bash
+            # 下载并解压
+            tar -xzf KMblogManager-*-macos-*.tar.gz
+            
+            # 添加执行权限
+            chmod +x KMblogManager
+            
+            # 运行
+            ./KMblogManager
+            ```
+            
+            ### Windows
+            1. 下载 `.zip` 文件
+            2. 解压到任意目录
+            3. 运行 `KMblogManager.exe`
+            
+            ### Linux
+            ```bash
+            # 解压
+            tar -xzf KMblogManager-*-linux-x64.tar.gz
+            
+            # 添加执行权限
+            chmod +x KMblogManager
+            
+            # 运行
+            ./KMblogManager
+            ```
             
             **注意**: Linux 版本在 Ubuntu 22.04 上构建，兼容大多数现代 Linux 发行版（glibc 2.31+）
-            
-            ---
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
