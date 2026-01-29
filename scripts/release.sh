@@ -1,22 +1,41 @@
 #!/bin/bash
 # 自动发布脚本
-# 用法: ./scripts/release.sh [版本号] [--force]
-# 如果不提供版本号，脚本会自动推荐下一个版本
+# 用法: ./scripts/release.sh [版本号] [选项]
+# 选项:
+#   --force         强制覆盖已存在的标签
+#   -d "描述"       指定 release notes（支持多行）
+#   --changelog     从 git log 自动生成 changelog
+# 
+# 示例:
+#   ./scripts/release.sh 1.0.1
+#   ./scripts/release.sh 1.0.1 -d "修复了若干 bug"
+#   ./scripts/release.sh 1.0.1 --changelog
+#   ./scripts/release.sh 1.0.1 -d "新功能：\n- 添加了编辑器\n- 优化了性能"
 
 set -e
 
 # 解析参数
 VERSION=""
 FORCE=false
+DESCRIPTION=""
+USE_CHANGELOG=false
 
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    case $1 in
         --force)
             FORCE=true
             shift
             ;;
+        -d)
+            DESCRIPTION="$2"
+            shift 2
+            ;;
+        --changelog)
+            USE_CHANGELOG=true
+            shift
+            ;;
         *)
-            VERSION="$arg"
+            VERSION="$1"
             shift
             ;;
     esac
@@ -204,6 +223,71 @@ else
     git push origin "$TAG"
 fi
 
+# 生成 release notes
+echo "5. 准备 release notes..."
+RELEASE_NOTES=""
+
+if [ -n "$DESCRIPTION" ]; then
+    # 使用用户提供的描述
+    RELEASE_NOTES="$DESCRIPTION"
+    echo "   使用自定义描述"
+elif [ "$USE_CHANGELOG" = true ]; then
+    # 从 git log 生成 changelog
+    echo "   从 git log 生成 changelog..."
+    
+    # 获取上一个 tag
+    PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+    
+    if [ -n "$PREV_TAG" ]; then
+        echo "   对比版本: $PREV_TAG -> $TAG"
+        RELEASE_NOTES="## Changes since $PREV_TAG\n\n"
+        RELEASE_NOTES+=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+    else
+        echo "   未找到上一个 tag，生成完整 changelog"
+        RELEASE_NOTES="## Initial Release\n\n"
+        RELEASE_NOTES+=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+    fi
+else
+    # 默认描述
+    RELEASE_NOTES="Release $VERSION\n\nSee commits for details."
+    echo "   使用默认描述"
+fi
+
+# 创建 GitHub Release
+echo "6. 创建 GitHub Release..."
+
+# 检查是否安装了 gh CLI
+if command -v gh &> /dev/null; then
+    echo "   使用 GitHub CLI 创建 release..."
+    
+    # 将 \n 转换为真正的换行符
+    RELEASE_NOTES_FORMATTED=$(echo -e "$RELEASE_NOTES")
+    
+    # 创建 release
+    if gh release create "$TAG" \
+        --title "Release $VERSION" \
+        --notes "$RELEASE_NOTES_FORMATTED" \
+        --verify-tag; then
+        echo "   ✓ GitHub Release 创建成功"
+    else
+        echo "   ⚠ GitHub Release 创建失败（可能需要手动创建）"
+        echo ""
+        echo "   Release Notes:"
+        echo "   ----------------------------------------"
+        echo -e "$RELEASE_NOTES_FORMATTED"
+        echo "   ----------------------------------------"
+    fi
+else
+    echo "   ⚠ 未安装 GitHub CLI (gh)"
+    echo "   请手动在 GitHub 上创建 release，或安装 gh CLI:"
+    echo "   https://cli.github.com/"
+    echo ""
+    echo "   Release Notes:"
+    echo "   ----------------------------------------"
+    echo -e "$RELEASE_NOTES"
+    echo "   ----------------------------------------"
+fi
+
 echo ""
 echo "=========================================="
 echo "✓ 版本 $VERSION 发布成功！"
@@ -211,4 +295,5 @@ echo "=========================================="
 echo ""
 echo "GitHub Actions 将自动构建并发布新版本"
 echo "查看构建进度: https://github.com/iiishop/KMblog/actions"
+echo "查看 Release: https://github.com/iiishop/KMblog/releases/tag/$TAG"
 echo ""

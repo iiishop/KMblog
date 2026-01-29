@@ -1,12 +1,28 @@
 # Auto release script (Windows PowerShell)
-# Usage: .\scripts\release.ps1 [version] [-Force]
+# Usage: .\scripts\release.ps1 [version] [options]
+# Options:
+#   -Force          Force overwrite existing tag
+#   -Description    Specify release notes (supports multiline)
+#   -Changelog      Auto-generate changelog from git log
+#
+# Examples:
+#   .\scripts\release.ps1 1.0.1
+#   .\scripts\release.ps1 1.0.1 -Description "Fixed several bugs"
+#   .\scripts\release.ps1 1.0.1 -Changelog
+#   .\scripts\release.ps1 1.0.1 -Description "New features:`n- Added editor`n- Improved performance"
 
 param(
     [Parameter(Mandatory = $false)]
     [string]$Version,
     
     [Parameter(Mandatory = $false)]
-    [switch]$Force
+    [switch]$Force,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$Description = "",
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$Changelog
 )
 
 $ErrorActionPreference = "Stop"
@@ -214,6 +230,92 @@ else {
     git push origin $Tag
 }
 
+# Generate release notes
+Write-Host "5. Preparing release notes..." -ForegroundColor Yellow
+$releaseNotes = ""
+
+if ($Description) {
+    # Use user-provided description
+    $releaseNotes = $Description
+    Write-Host "   Using custom description" -ForegroundColor Gray
+}
+elseif ($Changelog) {
+    # Generate changelog from git log
+    Write-Host "   Generating changelog from git log..." -ForegroundColor Gray
+    
+    # Get previous tag
+    $prevTag = ""
+    try {
+        $prevTag = git describe --tags --abbrev=0 HEAD^ 2>$null
+    }
+    catch {
+        $prevTag = ""
+    }
+    
+    if ($prevTag) {
+        Write-Host "   Comparing: $prevTag -> $Tag" -ForegroundColor Gray
+        $releaseNotes = "## Changes since $prevTag`n`n"
+        $commits = git log "$prevTag..HEAD" --pretty=format:"- %s (%h)" --no-merges
+        $releaseNotes += $commits -join "`n"
+    }
+    else {
+        Write-Host "   No previous tag found, generating full changelog" -ForegroundColor Gray
+        $releaseNotes = "## Initial Release`n`n"
+        $commits = git log --pretty=format:"- %s (%h)" --no-merges | Select-Object -First 20
+        $releaseNotes += $commits -join "`n"
+    }
+}
+else {
+    # Default description
+    $releaseNotes = "Release $Version`n`nSee commits for details."
+    Write-Host "   Using default description" -ForegroundColor Gray
+}
+
+# Create GitHub Release
+Write-Host "6. Creating GitHub Release..." -ForegroundColor Yellow
+
+# Check if gh CLI is installed
+$ghInstalled = $false
+try {
+    gh --version | Out-Null
+    $ghInstalled = $true
+}
+catch {
+    $ghInstalled = $false
+}
+
+if ($ghInstalled) {
+    Write-Host "   Using GitHub CLI to create release..." -ForegroundColor Gray
+    
+    try {
+        # Create release
+        gh release create $Tag `
+            --title "Release $Version" `
+            --notes $releaseNotes `
+            --verify-tag
+        
+        Write-Host "   GitHub Release created successfully" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "   GitHub Release creation failed (may need manual creation)" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "   Release Notes:" -ForegroundColor Cyan
+        Write-Host "   ----------------------------------------" -ForegroundColor Gray
+        Write-Host $releaseNotes
+        Write-Host "   ----------------------------------------" -ForegroundColor Gray
+    }
+}
+else {
+    Write-Host "   GitHub CLI (gh) not installed" -ForegroundColor Yellow
+    Write-Host "   Please create release manually on GitHub, or install gh CLI:" -ForegroundColor Cyan
+    Write-Host "   https://cli.github.com/" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "   Release Notes:" -ForegroundColor Cyan
+    Write-Host "   ----------------------------------------" -ForegroundColor Gray
+    Write-Host $releaseNotes
+    Write-Host "   ----------------------------------------" -ForegroundColor Gray
+}
+
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "Version $Version released successfully!" -ForegroundColor Green
@@ -221,4 +323,5 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "GitHub Actions will automatically build and publish the new version" -ForegroundColor Cyan
 Write-Host "View build progress: https://github.com/iiishop/KMblog/actions" -ForegroundColor Cyan
+Write-Host "View Release: https://github.com/iiishop/KMblog/releases/tag/$Tag" -ForegroundColor Cyan
 Write-Host ""
