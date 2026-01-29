@@ -47,3 +47,11 @@ src/router/index.js
 __pycache__/
 src/views/EditorPage.vue
 .claude/
+.kmblog_backup/
+UPDATE_REPORT.md
+src/assets/Categories.json
+src/assets/PostDirectory.json
+src/assets/Tags.json
+BUILD_INFO.txt
+KMblogManager
+KMblogManager.exe
