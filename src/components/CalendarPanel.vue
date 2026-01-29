@@ -38,9 +38,8 @@
 
     <!-- 展开模式 - 使用 Teleport -->
     <Teleport to="body">
-      <div v-if="isExpanded" class="calendar-expanded-wrapper">
-        <div class="calendar-overlay" @click="collapse"></div>
-        <div class="calendar-expanded-panel">
+      <div v-if="isExpanded" class="calendar-expanded-wrapper" @click.self="collapse">
+        <div class="calendar-expanded-panel" @click.stop>
           <div class="expanded-header">
             <h2>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -339,16 +338,17 @@ export default {
 </script>
 
 <style scoped>
-/* 基础面板 */
+/* 基础面板 - 使用主题变量 */
 .CalendarPanel {
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  background: var(--theme-panel-bg);
   width: 100%;
   border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  color: #e5e5e5;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px var(--theme-panel-shadow);
+  color: var(--theme-panel-text);
+  border: 1px solid var(--theme-panel-border);
   position: relative;
   overflow: hidden;
+  transition: var(--theme-transition-colors);
 }
 
 .CalendarPanel::before {
@@ -358,13 +358,18 @@ export default {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #4ade80, #2a2a2a, #4ade80);
+  background: linear-gradient(90deg, var(--theme-primary), var(--theme-panel-bg), var(--theme-primary));
 }
 
 /* 紧凑模式 */
 .compact-mode {
   padding: 1.25rem;
   cursor: pointer;
+  transition: var(--theme-transition-colors);
+}
+
+.compact-mode:hover {
+  background: var(--theme-surface-hover);
 }
 
 .month-header {
@@ -373,20 +378,20 @@ export default {
   gap: 0.75rem;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+  border-bottom: 1px solid var(--theme-border-light);
 }
 
 .month-header .icon {
   width: 24px;
   height: 24px;
-  color: #4ade80;
+  color: var(--theme-primary);
 }
 
 .month-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #4ade80;
-  font-family: 'Orbitron', monospace;
+  color: var(--theme-primary);
+  font-family: var(--gallery-font-mono);
 }
 
 .mini-calendar {
@@ -404,7 +409,7 @@ export default {
   text-align: center;
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(74, 222, 128, 0.6);
+  color: var(--theme-meta-text);
   padding: 4px 0;
 }
 
@@ -420,10 +425,11 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--theme-surface-default);
   border-radius: 6px;
   font-size: 0.85rem;
   position: relative;
+  transition: var(--theme-transition-colors);
 }
 
 .mini-day.other-month {
@@ -431,9 +437,9 @@ export default {
 }
 
 .mini-day.today {
-  background: rgba(74, 222, 128, 0.2);
-  border: 1px solid #4ade80;
-  color: #4ade80;
+  background: var(--theme-nav-active-bg);
+  border: 1px solid var(--theme-primary);
+  color: var(--theme-primary);
   font-weight: 700;
 }
 
@@ -443,8 +449,8 @@ export default {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 4px rgba(74, 222, 128, 0.8);
+  background: var(--theme-primary);
+  box-shadow: 0 0 4px var(--theme-primary);
 }
 
 .today-summary {
@@ -452,21 +458,21 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(74, 222, 128, 0.1);
+  background: var(--theme-nav-active-bg);
   border-radius: 12px;
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  border: 1px solid var(--theme-border-light);
 }
 
 .summary-label {
   font-size: 0.9rem;
-  color: rgba(74, 222, 128, 0.8);
+  color: var(--theme-meta-text);
 }
 
 .summary-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #4ade80;
-  font-family: 'Orbitron', monospace;
+  color: var(--theme-primary);
+  font-family: var(--gallery-font-mono);
 }
 
 /* 展开模式 */
@@ -480,14 +486,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.calendar-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
 }
@@ -497,14 +495,13 @@ export default {
   width: 95%;
   max-width: 1400px;
   height: 90vh;
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  background: var(--theme-panel-bg);
   border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 20px 60px var(--theme-shadow-xl);
+  border: 1px solid var(--theme-panel-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 1;
 }
 
 .expanded-header {
@@ -512,8 +509,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
-  background: linear-gradient(145deg, #2f2f2f, #252525);
+  border-bottom: 1px solid var(--theme-border-light);
+  background: var(--theme-surface-hover);
   flex-shrink: 0;
 }
 
@@ -521,7 +518,7 @@ export default {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #4ade80;
+  color: var(--theme-primary);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -533,8 +530,8 @@ export default {
 }
 
 .close-btn {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--theme-surface-default);
+  border: 1px solid var(--theme-border-light);
   border-radius: 12px;
   width: 40px;
   height: 40px;
@@ -542,12 +539,12 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: #ef4444;
+  transition: var(--theme-transition-colors);
+  color: var(--theme-error);
 }
 
 .close-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--theme-surface-hover);
   transform: scale(1.1);
 }
 
@@ -570,10 +567,11 @@ export default {
 .week-timeline {
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--theme-surface-default);
   border-radius: 16px;
   padding: 1rem;
   overflow: hidden;
+  border: 1px solid var(--theme-border-light);
 }
 
 .timeline-header {
@@ -582,19 +580,19 @@ export default {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+  border-bottom: 1px solid var(--theme-border-light);
 }
 
 .week-range {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #4ade80;
-  font-family: 'Orbitron', monospace;
+  color: var(--theme-primary);
+  font-family: var(--gallery-font-mono);
 }
 
 .nav-btn {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: var(--theme-surface-default);
+  border: 1px solid var(--theme-border-light);
   border-radius: 8px;
   width: 32px;
   height: 32px;
@@ -602,13 +600,13 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: #4ade80;
+  transition: var(--theme-transition-colors);
+  color: var(--theme-primary);
   font-size: 1.2rem;
 }
 
 .nav-btn:hover {
-  background: rgba(74, 222, 128, 0.2);
+  background: var(--theme-nav-hover-bg);
 }
 
 .timeline-grid {
@@ -636,8 +634,8 @@ export default {
   justify-content: flex-end;
   padding-right: 8px;
   font-size: 0.75rem;
-  color: rgba(74, 222, 128, 0.6);
-  font-family: 'SF Mono', monospace;
+  color: var(--theme-meta-text);
+  font-family: var(--gallery-font-mono);
 }
 
 .day-column {
@@ -647,7 +645,7 @@ export default {
 }
 
 .day-column.is-today {
-  background: rgba(74, 222, 128, 0.05);
+  background: var(--theme-nav-active-bg);
   border-radius: 8px;
 }
 
@@ -658,35 +656,36 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--theme-surface-hover);
   border-radius: 8px;
   margin-bottom: 8px;
   flex-shrink: 0;
   position: relative;
+  border: 1px solid var(--theme-border-light);
 }
 
 .day-column.is-today .day-header {
-  background: rgba(74, 222, 128, 0.2);
-  border: 1px solid #4ade80;
+  background: var(--theme-nav-active-bg);
+  border-color: var(--theme-primary);
 }
 
 .day-name {
   font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(74, 222, 128, 0.8);
+  color: var(--theme-primary);
 }
 
 .day-date {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--theme-meta-text);
 }
 
 .day-count {
   position: absolute;
   top: 4px;
   right: 4px;
-  background: #4ade80;
-  color: #0a1a0f;
+  background: var(--theme-primary);
+  color: var(--theme-button-text);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 6px;
@@ -700,7 +699,7 @@ export default {
 
 .hour-slot {
   height: 60px;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.1);
+  border-bottom: 1px solid var(--theme-border-light);
 }
 
 .timeline-event {
@@ -710,9 +709,15 @@ export default {
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 0.75rem;
-  color: white;
+  color: var(--theme-button-text);
   overflow: hidden;
   cursor: pointer;
+  box-shadow: 0 2px 8px var(--theme-shadow-md);
+  transition: transform 0.2s ease;
+}
+
+.timeline-event:hover {
+  transform: scale(1.05);
 }
 
 .event-time {
@@ -731,10 +736,11 @@ export default {
 .month-calendar {
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--theme-surface-default);
   border-radius: 16px;
   padding: 1rem;
   overflow-y: auto;
+  border: 1px solid var(--theme-border-light);
 }
 
 .calendar-nav {
@@ -743,12 +749,12 @@ export default {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+  border-bottom: 1px solid var(--theme-border-light);
 }
 
 .calendar-nav button {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: var(--theme-surface-default);
+  border: 1px solid var(--theme-border-light);
   border-radius: 8px;
   width: 32px;
   height: 32px;
@@ -756,15 +762,20 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #4ade80;
+  color: var(--theme-primary);
   font-size: 1.2rem;
+  transition: var(--theme-transition-colors);
+}
+
+.calendar-nav button:hover {
+  background: var(--theme-nav-hover-bg);
 }
 
 .calendar-month {
   font-size: 1rem;
   font-weight: 700;
-  color: #4ade80;
-  font-family: 'Orbitron', monospace;
+  color: var(--theme-primary);
+  font-family: var(--gallery-font-mono);
 }
 
 .calendar-grid {
@@ -778,7 +789,7 @@ export default {
   text-align: center;
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(74, 222, 128, 0.6);
+  color: var(--theme-meta-text);
   padding: 6px 0;
 }
 
@@ -788,18 +799,18 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface-hover);
+  border: 1px solid var(--theme-border-light);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--theme-transition-colors);
   position: relative;
   padding: 4px;
 }
 
 .calendar-day:hover {
-  background: rgba(74, 222, 128, 0.1);
-  border-color: rgba(74, 222, 128, 0.3);
+  background: var(--theme-nav-hover-bg);
+  border-color: var(--theme-primary);
 }
 
 .calendar-day.other-month {
@@ -807,14 +818,16 @@ export default {
 }
 
 .calendar-day.today {
-  background: rgba(74, 222, 128, 0.2);
-  border-color: #4ade80;
+  background: var(--theme-nav-active-bg);
+  border-color: var(--theme-primary);
   font-weight: 700;
+  color: var(--theme-primary);
 }
 
 .calendar-day.selected {
-  background: rgba(74, 222, 128, 0.3);
-  border-color: #4ade80;
+  background: var(--theme-primary);
+  color: var(--theme-button-text);
+  border-color: var(--theme-primary);
 }
 
 .day-number {
@@ -836,19 +849,21 @@ export default {
 .selected-day-events {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(74, 222, 128, 0.2);
+  border-top: 1px solid var(--theme-border-light);
 }
 
 .selected-day-events h3 {
   margin: 0 0 0.75rem 0;
   font-size: 1rem;
-  color: #4ade80;
+  color: var(--theme-primary);
 }
 
 .events-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .event-item {
@@ -856,8 +871,14 @@ export default {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--theme-surface-hover);
   border-radius: 8px;
+  border: 1px solid var(--theme-border-light);
+  transition: var(--theme-transition-colors);
+}
+
+.event-item:hover {
+  background: var(--theme-nav-hover-bg);
 }
 
 .event-color {
@@ -869,22 +890,38 @@ export default {
 
 .event-info {
   flex: 1;
+  min-width: 0;
 }
 
 .event-name {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #e5e5e5;
+  color: var(--theme-panel-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-time-range {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--theme-meta-text);
 }
 
 @media (max-width: 1200px) {
   .expanded-content {
     grid-template-columns: 1fr;
+  }
+  
+  .month-calendar {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-expanded-panel {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
   }
 }
 </style>
