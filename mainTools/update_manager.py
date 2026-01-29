@@ -73,9 +73,24 @@ class ManagerUpdater:
             
             for asset in release_data.get('assets', []):
                 asset_name = asset.get('name', '').lower()
-                if platform in asset_name and ('zip' in asset_name or 'tar.gz' in asset_name):
-                    download_url = asset.get('browser_download_url')
-                    break
+                # 检查平台和文件类型匹配
+                if platform in asset_name:
+                    # Windows: .zip
+                    # macOS: .dmg 优先，.tar.gz 作为备选
+                    # Linux: .tar.gz
+                    if sys.platform == 'win32' and 'zip' in asset_name:
+                        download_url = asset.get('browser_download_url')
+                        break
+                    elif sys.platform == 'darwin':
+                        if 'dmg' in asset_name:
+                            download_url = asset.get('browser_download_url')
+                            break
+                        elif 'tar.gz' in asset_name and not download_url:
+                            # 如果没找到 DMG，使用 tar.gz 作为备选
+                            download_url = asset.get('browser_download_url')
+                    elif sys.platform == 'linux' and 'tar.gz' in asset_name:
+                        download_url = asset.get('browser_download_url')
+                        break
             
             if not download_url:
                 return {
@@ -113,11 +128,17 @@ class ManagerUpdater:
             }
     
     def _get_platform(self):
-        """获取当前平台"""
+        """获取当前平台和架构"""
         if sys.platform == 'win32':
             return 'windows'
         elif sys.platform == 'darwin':
-            return 'macos'
+            # macOS: 检测架构
+            import platform
+            machine = platform.machine().lower()
+            if machine == 'arm64' or machine == 'aarch64':
+                return 'macos-apple-silicon'
+            else:
+                return 'macos-intel'
         else:
             return 'linux'
     
@@ -237,6 +258,50 @@ class ManagerUpdater:
                 print("[管理工具更新] 使用 ZIP 解压")
                 with zipfile.ZipFile(download_path, 'r') as zip_ref:
                     zip_ref.extractall(extract_dir)
+            elif asset_name.endswith('.dmg'):
+                print("[管理工具更新] 处理 DMG 文件 (macOS)")
+                # macOS DMG 需要挂载后提取
+                report_progress('extract', 0.7, '挂载 DMG...')
+                
+                # 挂载 DMG
+                mount_point = os.path.join(temp_dir, 'dmg_mount')
+                os.makedirs(mount_point, exist_ok=True)
+                
+                result = subprocess.run(
+                    ['hdiutil', 'attach', download_path, '-mountpoint', mount_point, '-nobrowse'],
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode != 0:
+                    return {
+                        'success': False,
+                        'message': f'挂载 DMG 失败: {result.stderr}'
+                    }
+                
+                try:
+                    # 查找 .app 文件
+                    app_name = None
+                    for item in os.listdir(mount_point):
+                        if item.endswith('.app'):
+                            app_name = item
+                            break
+                    
+                    if not app_name:
+                        return {
+                            'success': False,
+                            'message': '在 DMG 中未找到 .app 文件'
+                        }
+                    
+                    # 复制 .app 到临时目录
+                    app_source = os.path.join(mount_point, app_name)
+                    app_dest = os.path.join(extract_dir, app_name)
+                    shutil.copytree(app_source, app_dest)
+                    
+                finally:
+                    # 卸载 DMG
+                    subprocess.run(['hdiutil', 'detach', mount_point], capture_output=True)
+                
             elif asset_name.endswith('.tar.gz'):
                 print("[管理工具更新] 使用 TAR.GZ 解压")
                 import tarfile
@@ -331,6 +396,16 @@ class ManagerUpdater:
                         full_path = os.path.join(root, file)
                         if os.access(full_path, os.X_OK):
                             return full_path
+            
+            # macOS: 查找 .app 包
+            if sys.platform == 'darwin':
+                for dir_name in dirs:
+                    if dir_name.endswith('.app'):
+                        app_path = os.path.join(root, dir_name)
+                        exe_path = os.path.join(app_path, 'Contents', 'MacOS', 'KMblogManager')
+                        if os.path.exists(exe_path):
+                            return app_path  # 返回 .app 路径
+        
         return None
     
     def _create_update_script(self, new_exe, old_exe):
@@ -363,8 +438,47 @@ rmdir /s /q "{os.path.dirname(new_exe)}"
 echo 更新完成！
 del "%~f0"
 """
+        elif sys.platform == 'darwin' and new_exe.endswith('.app'):
+            # macOS .app 更新脚本
+            script_path = os.path.join(tempfile.gettempdir(), 'kmblog_update.sh')
+            
+            # 获取当前 .app 的路径
+            if old_exe.endswith('.app'):
+                old_app = old_exe
+            else:
+                # 从可执行文件路径推导 .app 路径
+                old_app = old_exe
+                while old_app and not old_app.endswith('.app'):
+                    old_app = os.path.dirname(old_app)
+            
+            script_content = f"""#!/bin/bash
+echo "KMBlog Manager 更新脚本"
+echo "========================"
+
+echo "等待程序关闭..."
+sleep 3
+
+echo "备份旧版本..."
+if [ -d "{old_app}.backup" ]; then
+    rm -rf "{old_app}.backup"
+fi
+mv "{old_app}" "{old_app}.backup"
+
+echo "安装新版本..."
+cp -R "{new_exe}" "{old_app}"
+
+echo "启动新版本..."
+open "{old_app}"
+
+echo "清理临时文件..."
+sleep 2
+rm -rf "{os.path.dirname(new_exe)}"
+
+echo "更新完成！"
+rm "$0"
+"""
         else:
-            # Unix shell 脚本
+            # Unix shell 脚本（Linux 或 macOS 非 .app）
             script_path = os.path.join(tempfile.gettempdir(), 'kmblog_update.sh')
             
             script_content = f"""#!/bin/bash

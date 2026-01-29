@@ -24,8 +24,15 @@ jobs:
             ext: .exe
             pyinstaller: .venv\Scripts\pyinstaller.exe
             shell: pwsh
-          - os: macos-latest
+          - os: macos-13
             platform: macos
+            arch: x64
+            ext: ""
+            pyinstaller: .venv/bin/pyinstaller
+            shell: bash
+          - os: macos-14
+            platform: macos
+            arch: arm64
             ext: ""
             pyinstaller: .venv/bin/pyinstaller
             shell: bash
@@ -139,10 +146,17 @@ jobs:
           else
             version="dev-$(date +%Y%m%d)"
           fi
+          
+          arch="${{ matrix.arch }}"
+          if [ -z "$arch" ]; then
+            arch="x64"
+          fi
+          
           cat > dist/BUILD_INFO.txt << EOF
           KMBlog Manager - Build Info
           ============================
           Platform: ${{ matrix.platform }}
+          Architecture: $arch
           Version: $version
           Date: $(date '+%Y-%m-%d %H:%M:%S')
           Commit: $GITHUB_SHA
@@ -162,22 +176,100 @@ jobs:
           Compress-Archive -Path "release/*" -DestinationPath "KMblogManager-$version-windows.zip"
         shell: pwsh
 
+      - name: Install create-dmg (macOS)
+        if: matrix.platform == 'macos'
+        run: brew install create-dmg
+        shell: bash
+
       - name: Package release (macOS)
         if: matrix.platform == 'macos'
         run: |
-          mkdir -p release
-          cp dist/KMblogManager release/
-          cp dist/BUILD_INFO.txt release/
-          cp README.md release/ 2>/dev/null || true
-
           if [[ "$GITHUB_REF" =~ refs/tags/v(.*) ]]; then
             version="${BASH_REMATCH[1]}"
           else
             version="dev"
           fi
-
+          
+          arch="${{ matrix.arch }}"
+          if [ "$arch" == "arm64" ]; then
+            arch_name="apple-silicon"
+          else
+            arch_name="intel"
+          fi
+          
+          # 创建 .app 包结构
+          app_name="KMblogManager.app"
+          app_dir="dist/$app_name"
+          
+          mkdir -p "$app_dir/Contents/MacOS"
+          mkdir -p "$app_dir/Contents/Resources"
+          
+          # 复制可执行文件
+          cp dist/KMblogManager "$app_dir/Contents/MacOS/"
+          chmod +x "$app_dir/Contents/MacOS/KMblogManager"
+          
+          # 创建 Info.plist
+          cat > "$app_dir/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>KMblogManager</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.iiishop.kmblogmanager</string>
+              <key>CFBundleName</key>
+              <string>KMblogManager</string>
+              <key>CFBundleVersion</key>
+              <string>VERSION_PLACEHOLDER</string>
+              <key>CFBundleShortVersionString</key>
+              <string>VERSION_PLACEHOLDER</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+          
+          # 替换版本号
+          sed -i '' "s/VERSION_PLACEHOLDER/$version/g" "$app_dir/Contents/Info.plist"
+          
+          # 复制图标（如果存在）
+          if [ -f "public/favicon.ico" ]; then
+            cp "public/favicon.ico" "$app_dir/Contents/Resources/icon.ico"
+          fi
+          
+          # 创建 DMG
+          dmg_name="KMblogManager-$version-macos-$arch_name.dmg"
+          
+          create-dmg \
+            --volname "KMblogManager" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "KMblogManager.app" 175 120 \
+            --hide-extension "KMblogManager.app" \
+            --app-drop-link 425 120 \
+            "$dmg_name" \
+            "dist/$app_name" \
+            || true
+          
+          # 如果 create-dmg 失败，使用 hdiutil 创建简单的 DMG
+          if [ ! -f "$dmg_name" ]; then
+            echo "create-dmg 失败，使用 hdiutil..."
+            hdiutil create -volname "KMblogManager" -srcfolder "dist/$app_name" -ov -format UDZO "$dmg_name"
+          fi
+          
+          # 同时创建 tar.gz 作为备份
+          mkdir -p release
+          cp dist/KMblogManager release/
+          cp dist/BUILD_INFO.txt release/
+          cp README.md release/ 2>/dev/null || true
           cd release
-          tar -czf "../KMblogManager-$version-macos.tar.gz" *
+          tar -czf "../KMblogManager-$version-macos-$arch_name.tar.gz" *
         shell: bash
 
       - name: Package release (Linux)
@@ -201,8 +293,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KMblogManager-${{ matrix.platform }}
-          path: KMblogManager-*-${{ matrix.platform }}.*
+          name: KMblogManager-${{ matrix.platform }}-${{ matrix.arch || 'default' }}
+          path: |
+            KMblogManager-*-${{ matrix.platform }}*.*
+            !KMblogManager-*.app
           retention-days: 30
 
   release:
@@ -224,7 +318,7 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          find artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} release/ \;
+          find artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" \) -exec cp {} release/ \;
           ls -lh release/
 
       - name: Create Release
@@ -239,13 +333,27 @@ jobs:
             
             ### 下载说明
             - **Windows**: 下载 `KMblogManager-*-windows.zip`
-            - **macOS**: 下载 `KMblogManager-*-macos.tar.gz`
+            - **macOS (Apple Silicon / M1/M2/M3)**: 下载 `KMblogManager-*-macos-apple-silicon.dmg`
+            - **macOS (Intel)**: 下载 `KMblogManager-*-macos-intel.dmg`
             - **Linux**: 下载 `KMblogManager-*-linux.tar.gz`
             
             ### 安装方法
-            1. 下载对应平台的压缩包
+            
+            #### Windows
+            1. 下载 `.zip` 文件
             2. 解压到任意目录
-            3. 运行 `KMblogManager` 可执行文件
+            3. 运行 `KMblogManager.exe`
+            
+            #### macOS
+            1. 下载对应架构的 `.dmg` 文件
+            2. 双击打开 DMG
+            3. 将 `KMblogManager.app` 拖到 Applications 文件夹
+            4. 首次运行可能需要在"系统偏好设置 > 安全性与隐私"中允许
+            
+            #### Linux
+            1. 下载 `.tar.gz` 文件
+            2. 解压: `tar -xzf KMblogManager-*-linux.tar.gz`
+            3. 运行: `./KMblogManager`
             
             ---
         env:
