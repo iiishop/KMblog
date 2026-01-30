@@ -3322,29 +3322,36 @@ class BlogManagerGUI:
             force_show: 是否强制显示对话框（即使没有更新）
         """
         try:
+            print(f"[管理工具更新] 开始检查更新 (force_show={force_show})")
             from mainTools.update_manager import ManagerUpdater
             updater = ManagerUpdater()
             
             # 检查更新
             result = updater.check_for_updates()
+            print(f"[管理工具更新] 检查结果: {result}")
             
             if not result['success']:
+                print(f"[管理工具更新] 检查失败: {result.get('message', '未知错误')}")
                 if force_show:
                     # 如果是用户主动点击，显示错误信息
                     self.snack(f"检查更新失败: {result.get('message', '未知错误')}", True)
                 return
             
             if not result['has_update']:
+                print(f"[管理工具更新] 已是最新版本: {result.get('current_version', 'unknown')}")
                 if force_show:
                     # 如果是用户主动点击，显示"已是最新版本"
-                    self.show_no_update_dialog(result['current_version'])
+                    self.show_no_update_dialog(result.get('current_version', 'unknown'))
                 return
             
             # 显示更新对话框
+            print(f"[管理工具更新] 发现新版本，显示更新对话框")
             self.show_manager_update_dialog(result, updater)
             
         except Exception as e:
-            print(f"[管理工具更新] 检查失败: {e}")
+            print(f"[管理工具更新] 检查失败 - 异常: {e}")
+            import traceback
+            traceback.print_exc()
             if force_show:
                 self.snack(f"检查更新失败: {e}", True)
     
@@ -3371,46 +3378,69 @@ class BlogManagerGUI:
     
     def show_manager_update_dialog(self, update_info, updater):
         """显示管理工具更新对话框"""
-        content = ft.Column([
-            ft.Text("发现管理工具新版本", size=20, weight=ft.FontWeight.BOLD),
-            ft.Container(height=10),
-            ft.Text(f"最新版本: {update_info['latest_version']}", size=14),
-            ft.Container(height=10),
-            ft.Text("更新说明:", size=14, weight=ft.FontWeight.BOLD),
-            ft.Container(
-                content=ft.Text(
-                    update_info['release_notes'][:200] + "..." if len(update_info['release_notes']) > 200 else update_info['release_notes'],
-                    size=12,
-                    color=ft.Colors.GREY_700
+        try:
+            print(f"[管理工具更新] 显示更新对话框")
+            print(f"[管理工具更新] 更新信息: {update_info}")
+            
+            # 安全获取更新说明
+            release_notes = update_info.get('release_notes', '无更新说明')
+            if not release_notes or release_notes.strip() == '':
+                release_notes = '无更新说明'
+            
+            # 截断过长的更新说明
+            if len(release_notes) > 200:
+                display_notes = release_notes[:200] + "..."
+            else:
+                display_notes = release_notes
+            
+            content = ft.Column([
+                ft.Text("发现管理工具新版本", size=20, weight=ft.FontWeight.BOLD),
+                ft.Container(height=10),
+                ft.Text(f"当前版本: {update_info.get('current_version', 'unknown')}", size=14),
+                ft.Text(f"最新版本: {update_info.get('latest_version', 'unknown')}", size=14),
+                ft.Container(height=10),
+                ft.Text("更新说明:", size=14, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Text(
+                        display_notes,
+                        size=12,
+                        color=ft.Colors.GREY_700
+                    ),
+                    height=100,
+                    padding=10,
+                    border=ft.Border.all(1, ft.Colors.GREY_300),
+                    border_radius=5,
                 ),
-                height=100,
-                padding=10,
-                border=ft.Border.all(1, ft.Colors.GREY_300),
-                border_radius=5,
-            ),
-            ft.Container(height=10),
-            ft.Text("是否立即更新管理工具？", size=13, color=ft.Colors.GREY_700),
-            ft.Text("（程序将自动关闭并重启）", size=11, color=ft.Colors.ORANGE_700),
-        ], tight=True, scroll=ft.ScrollMode.AUTO)
-        
-        dlg = ft.AlertDialog(
-            title=ft.Text("管理工具更新"),
-            content=content,
-            actions=[
-                ft.TextButton("稍后更新", on_click=lambda e: self.close_dlg(dlg)),
-                ft.Button(
-                    "立即更新",
-                    on_click=lambda e: self.confirm_manager_update(dlg, update_info, updater),
-                    bgcolor=ft.Colors.BLUE_600,
-                    color=ft.Colors.WHITE
-                ),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-        
-        self.page.dialog = dlg
-        dlg.open = True
-        self.page.update()
+                ft.Container(height=10),
+                ft.Text("是否立即更新管理工具？", size=13, color=ft.Colors.GREY_700),
+                ft.Text("（程序将自动关闭并重启）", size=11, color=ft.Colors.ORANGE_700),
+            ], tight=True, scroll=ft.ScrollMode.AUTO)
+            
+            dlg = ft.AlertDialog(
+                title=ft.Text("管理工具更新"),
+                content=content,
+                actions=[
+                    ft.TextButton("稍后更新", on_click=lambda e: self.close_dlg(dlg)),
+                    ft.Button(
+                        "立即更新",
+                        on_click=lambda e: self.confirm_manager_update(dlg, update_info, updater),
+                        bgcolor=ft.Colors.BLUE_600,
+                        color=ft.Colors.WHITE
+                    ),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            
+            self.page.dialog = dlg
+            dlg.open = True
+            self.page.update()
+            print(f"[管理工具更新] 对话框已显示")
+            
+        except Exception as e:
+            print(f"[管理工具更新] 显示对话框失败: {e}")
+            import traceback
+            traceback.print_exc()
+            self.snack(f"显示更新对话框失败: {e}", True)
     
     def confirm_manager_update(self, dlg, update_info, updater):
         """确认更新管理工具"""

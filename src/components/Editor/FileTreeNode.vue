@@ -6,7 +6,8 @@
             'is-current': isCurrentFile,
             'is-expanded': isExpanded,
             'is-dragging': isDragging,
-            'is-drag-over': isDragOver
+            'is-drag-over': isDragOver,
+            'is-waterfall-folder': isWaterfallFolder
         }" @click="handleClick" @contextmenu.prevent="handleContextMenu" :draggable="node.type === 'file'"
             @dragstart="handleDragStart" @dragend="handleDragEnd" @dragover="handleDragOver"
             @dragleave="handleDragLeave" @drop="handleDrop">
@@ -63,7 +64,8 @@
                     :depth="depth + 1" @select="$emit('select', $event)" @create="$emit('create', $event)"
                     @delete="$emit('delete', $event)" @move="$emit('move', $event)" @rename="$emit('rename', $event)"
                     @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)"
-                    @image-file-select="$emit('image-file-select', $event)" />
+                    @image-file-select="$emit('image-file-select', $event)"
+                    @external-file-drop="$emit('external-file-drop', $event)" />
             </div>
         </transition>
 
@@ -155,10 +157,16 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete', 'image-file-select']);
+const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete', 'image-file-select', 'external-file-drop']);
 
 // 33.1 定义图片文件扩展名常量
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif'];
+
+// 检查是否为 WaterfallGraph 文件夹
+const isWaterfallFolder = computed(() => {
+    return props.node.type === 'folder' &&
+        (props.node.name === 'WaterfallGraph' || props.node.path.includes('WaterfallGraph'));
+});
 
 // State
 const isExpanded = ref(false);
@@ -323,7 +331,18 @@ const handleDragStart = (e) => {
 const handleDragOver = (e) => {
     if (props.node.type === 'folder') {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+
+        // 检查是否为外部文件拖入
+        const hasFiles = e.dataTransfer.types.includes('Files');
+
+        if (hasFiles && isWaterfallFolder.value) {
+            // WaterfallGraph 文件夹接受外部图片文件
+            e.dataTransfer.dropEffect = 'copy';
+        } else {
+            // 普通文件夹只接受内部移动
+            e.dataTransfer.dropEffect = 'move';
+        }
+
         isDragOver.value = true;
     }
 };
@@ -339,13 +358,45 @@ const handleDragLeave = (e) => {
     }
 };
 
-const handleDrop = (e) => {
+const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     isDragOver.value = false;
 
     if (props.node.type === 'folder') {
+        // 检查是否为外部文件拖入
+        const files = e.dataTransfer.files;
+
+        if (files && files.length > 0 && isWaterfallFolder.value) {
+            // 处理外部文件拖入到 WaterfallGraph 文件夹
+            console.log('[FileTreeNode] External files dropped:', files.length);
+
+            // 过滤出图片文件
+            const imageFiles = Array.from(files).filter(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                return IMAGE_EXTENSIONS.includes(ext);
+            });
+
+            if (imageFiles.length === 0) {
+                alert('⚠️ 只能上传图片文件\n\n支持的格式: PNG, JPG, JPEG, GIF, WEBP, SVG, AVIF');
+                return;
+            }
+
+            if (imageFiles.length !== files.length) {
+                alert(`⚠️ 已过滤掉 ${files.length - imageFiles.length} 个非图片文件\n\n将上传 ${imageFiles.length} 个图片文件`);
+            }
+
+            // 触发外部文件上传事件
+            emit('external-file-drop', {
+                files: imageFiles,
+                targetFolder: props.node
+            });
+
+            return;
+        }
+
+        // 处理内部文件移动
         try {
             const jsonData = e.dataTransfer.getData('application/json');
             let draggedNode;
@@ -598,6 +649,20 @@ onBeforeUnmount(() => {
     font-weight: 600;
 }
 
+/* WaterfallGraph 文件夹特殊样式 */
+.node-content.is-waterfall-folder .folder-svg {
+    color: #06b6d4;
+}
+
+.node-content.is-waterfall-folder:hover .folder-svg {
+    color: #0891b2;
+}
+
+.node-content.is-waterfall-folder.is-drag-over {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(8, 145, 178, 0.15) 100%);
+    border: 2px dashed #06b6d4;
+}
+
 /* 拖拽提示 */
 .drop-hint {
     position: absolute;
@@ -611,6 +676,10 @@ onBeforeUnmount(() => {
     justify-content: center;
     animation: bounce 0.6s ease-in-out infinite;
     z-index: 1;
+}
+
+.node-content.is-waterfall-folder.is-drag-over .drop-hint {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
 }
 
 .drop-hint svg {

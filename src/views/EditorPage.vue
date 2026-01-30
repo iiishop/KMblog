@@ -5,7 +5,7 @@
             :current-file="currentFile" @file-select="handleFileSelect" @file-create="handleFileCreate"
             @file-delete="handleFileDelete" @file-move="handleFileMove" @file-rename="handleFileRename"
             @folder-create="handleFolderCreate" @folder-delete="handleFolderDelete"
-            @image-file-select="handleImageFileSelect" />
+            @image-file-select="handleImageFileSelect" @external-file-drop="handleExternalFileDrop" />
 
         <!-- Main Editor Area -->
         <div class="main-editor">
@@ -768,6 +768,77 @@ const handleFolderDelete = async (folder) => {
         if (errorMessage) {
             alert(`删除文件夹失败\n\n${errorMessage}\n\n文件夹: ${folder.name}`);
         }
+    }
+};
+
+// Handle external file drop (for WaterfallGraph folder)
+const handleExternalFileDrop = async ({ files, targetFolder }) => {
+    console.log('[EditorPage] handleExternalFileDrop called');
+    console.log('[EditorPage] Files:', files.length);
+    console.log('[EditorPage] Target folder:', targetFolder);
+
+    if (!files || files.length === 0) {
+        console.warn('[EditorPage] No files to upload');
+        return;
+    }
+
+    // 确认上传
+    const confirmMessage = `📤 上传图片到 ${targetFolder.name}\n\n` +
+        `将上传 ${files.length} 个文件:\n` +
+        files.map(f => `• ${f.name}`).join('\n') +
+        `\n\n确认上传?`;
+
+    if (!confirm(confirmMessage)) {
+        console.log('[EditorPage] Upload cancelled by user');
+        return;
+    }
+
+    const normalizedPath = normalizePathForAPI(targetFolder.path);
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
+
+    // 显示上传进度
+    console.log('[EditorPage] Starting upload...');
+
+    for (const file of files) {
+        try {
+            console.log(`[EditorPage] Uploading: ${file.name}`);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', normalizedPath);
+
+            await apiClient.post('/files/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            successCount++;
+            console.log(`[EditorPage] ✓ Uploaded: ${file.name}`);
+        } catch (error) {
+            failCount++;
+            const errorMessage = handleApiError(error, `Upload ${file.name}`);
+            errors.push(`${file.name}: ${errorMessage || '未知错误'}`);
+            console.error(`[EditorPage] ✗ Failed: ${file.name}`, error);
+        }
+    }
+
+    // 显示结果
+    let resultMessage = `📊 上传完成\n\n`;
+    resultMessage += `✓ 成功: ${successCount} 个文件\n`;
+    if (failCount > 0) {
+        resultMessage += `✗ 失败: ${failCount} 个文件\n\n`;
+        resultMessage += `失败详情:\n${errors.join('\n')}`;
+    }
+
+    alert(resultMessage);
+
+    // 重新加载文件树
+    if (successCount > 0) {
+        console.log('[EditorPage] Reloading file tree...');
+        await loadFileTree();
     }
 };
 

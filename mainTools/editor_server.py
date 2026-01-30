@@ -1129,6 +1129,97 @@ async def upload_image_handler(
         )
 
 
+@app.post("/api/files/upload")
+async def upload_file_handler(
+    file: UploadFile = File(...),
+    path: str = Form(...),
+    authorized: bool = Depends(verify_token)
+):
+    """
+    上传文件到指定目录（用于 WaterfallGraph 等）
+    
+    接收multipart/form-data格式的文件
+    
+    Args:
+        file: 文件
+        path: 目标目录路径（相对于 Posts 目录）
+        
+    Returns:
+        dict: 包含上传结果的信息
+    """
+    try:
+        print(f"[API] FILE UPLOAD - Request received")
+        print(f"[API] FILE UPLOAD - Target path: {path}")
+        print(f"[API] FILE UPLOAD - File name: {file.filename}")
+        print(f"[API] FILE UPLOAD - Content type: {file.content_type}")
+        
+        # 验证文件类型（图片）
+        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif']
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type: {file.content_type}. Only image files are allowed."
+            )
+        
+        # 验证文件名
+        if not file.filename or '..' in file.filename or '/' in file.filename or '\\' in file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid filename"
+            )
+        
+        # 构建目标路径
+        posts_path = get_posts_path()
+        target_dir = os.path.join(posts_path, path.lstrip('/'))
+        
+        # 确保目标目录存在
+        os.makedirs(target_dir, exist_ok=True)
+        print(f"[API] FILE UPLOAD - Target directory: {target_dir}")
+        
+        # 构建完整文件路径
+        target_file_path = os.path.join(target_dir, file.filename)
+        
+        # 检查文件是否已存在
+        if os.path.exists(target_file_path):
+            # 生成新文件名（添加数字后缀）
+            base_name, ext = os.path.splitext(file.filename)
+            counter = 1
+            while os.path.exists(target_file_path):
+                new_filename = f"{base_name}_{counter}{ext}"
+                target_file_path = os.path.join(target_dir, new_filename)
+                counter += 1
+            print(f"[API] FILE UPLOAD - File exists, using new name: {os.path.basename(target_file_path)}")
+        
+        # 保存文件
+        content = await file.read()
+        with open(target_file_path, 'wb') as f:
+            f.write(content)
+        
+        print(f"[API] FILE UPLOAD - File saved successfully")
+        print(f"[API] FILE UPLOAD - File size: {len(content)} bytes")
+        print(f"[API] FILE UPLOAD - Final path: {target_file_path}")
+        
+        # 返回结果
+        return {
+            "success": True,
+            "message": "File uploaded successfully",
+            "filename": os.path.basename(target_file_path),
+            "path": os.path.join(path, os.path.basename(target_file_path)),
+            "size": len(content)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[API] FILE UPLOAD - Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload file: {str(e)}"
+        )
+
+
 # ==================== 服务器启动 ====================
 
 def main():
