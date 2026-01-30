@@ -26,6 +26,10 @@ from mainTools.commands import Command
 class BlogManagerGUI:
     def __init__(self, page: ft.Page):
         self.page = page
+        
+        # 初始化缩放因子（必须在 setup_page 之前）
+        self.scale_factor = 1.0
+        
         self.setup_page()
         self.commands = self.get_commands()
         self.current_lang = 'zh'
@@ -67,10 +71,69 @@ class BlogManagerGUI:
     def setup_page(self):
         """设置页面属性"""
         self.page.title = "KMBlog Manager"
-        self.page.window.width = 1280
-        self.page.window.height = 900
+        
+        # 获取屏幕分辨率并自适应窗口大小
+        try:
+            # 尝试获取屏幕尺寸
+            screen_width = self.page.window.width if hasattr(self.page.window, 'width') else 1920
+            screen_height = self.page.window.height if hasattr(self.page.window, 'height') else 1080
+            
+            # 如果无法获取，使用默认值
+            if not screen_width or screen_width == 0:
+                screen_width = 1920
+            if not screen_height or screen_height == 0:
+                screen_height = 1080
+            
+            print(f"[窗口] 检测到屏幕尺寸: {screen_width}x{screen_height}")
+            
+            # 根据屏幕分辨率计算合适的窗口大小
+            # 目标：窗口占屏幕的 80-85%
+            if screen_height <= 1080:
+                # 1080p 或更小：使用较小的窗口
+                window_width = min(1100, int(screen_width * 0.85))
+                window_height = min(750, int(screen_height * 0.85))
+                self.scale_factor = 0.85  # 缩放因子
+                print(f"[窗口] 使用 1080p 优化尺寸")
+            elif screen_height <= 1440:
+                # 2K (1440p)：使用中等窗口
+                window_width = min(1280, int(screen_width * 0.80))
+                window_height = min(900, int(screen_height * 0.80))
+                self.scale_factor = 1.0  # 标准尺寸
+                print(f"[窗口] 使用 2K 标准尺寸")
+            else:
+                # 4K 或更大：使用较大窗口
+                window_width = min(1600, int(screen_width * 0.75))
+                window_height = min(1100, int(screen_height * 0.75))
+                self.scale_factor = 1.15  # 放大因子
+                print(f"[窗口] 使用 4K 优化尺寸")
+            
+            self.page.window.width = window_width
+            self.page.window.height = window_height
+            
+            print(f"[窗口] 设置窗口尺寸: {window_width}x{window_height} (缩放: {self.scale_factor})")
+            
+        except Exception as e:
+            # 如果出错，使用默认值
+            print(f"[窗口] 无法检测屏幕尺寸，使用默认值: {e}")
+            self.page.window.width = 1280
+            self.page.window.height = 900
+            self.scale_factor = 1.0
+        
         self.page.padding = 0
         self.page.bgcolor = ft.Colors.GREY_50
+    
+    def scale(self, value):
+        """根据缩放因子调整数值
+        
+        Args:
+            value: 原始数值（基于 2K 分辨率）
+            
+        Returns:
+            调整后的数值
+        """
+        if isinstance(value, (int, float)):
+            return int(value * self.scale_factor)
+        return value
 
     def check_updates_on_startup(self):
         """启动时在后台检查更新"""
