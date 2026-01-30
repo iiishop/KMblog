@@ -258,54 +258,68 @@ $retryCount = 0
 $pushSuccess = $false
 
 while ($retryCount -lt $maxRetries) {
-    try {
-        $pushOutput = ""
-        $pushError = ""
-        
-        if ($Force) {
-            $pushOutput = git push origin $Tag --force 2>&1 | Out-String
-        }
-        else {
-            $pushOutput = git push origin $Tag 2>&1 | Out-String
-        }
-        
-        # Debug: Show output
-        if ($pushOutput) {
-            Write-Host "   Git output: $pushOutput" -ForegroundColor Gray
-        }
-        
-        # Check if push was successful
-        # Success cases: 
-        # 1. Exit code 0
-        # 2. "Everything up-to-date" message
-        # 3. Output contains "new tag" or "* [new tag]"
-        $isUpToDate = $pushOutput -match "Everything up-to-date"
-        $isNewTag = $pushOutput -match "\[new tag\]" -or $pushOutput -match "new tag"
-        $hasError = $pushOutput -match "error:" -or $pushOutput -match "fatal:"
-        
-        if (($LASTEXITCODE -eq 0 -or $isUpToDate -or $isNewTag) -and -not $hasError) {
-            if ($isUpToDate) {
-                Write-Host "Tag already exists on remote (up-to-date)" -ForegroundColor Green
-            }
-            elseif ($isNewTag) {
-                Write-Host "Tag pushed successfully (new tag created)" -ForegroundColor Green
-            }
-            else {
-                Write-Host "Tag pushed successfully" -ForegroundColor Green
-            }
-            $pushSuccess = $true
-            break
-        }
-        else {
-            # Show error details
-            if ($hasError) {
-                Write-Host "   Error detected in output" -ForegroundColor Red
-            }
-            Write-Host "   Exit code: $LASTEXITCODE" -ForegroundColor Gray
-        }
+    $pushOutput = ""
+    $pushError = ""
+    
+    # Use Start-Process to capture output properly
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "git"
+    if ($Force) {
+        $psi.Arguments = "push origin $Tag --force"
     }
-    catch {
-        Write-Host "   Exception: $_" -ForegroundColor Red
+    else {
+        $psi.Arguments = "push origin $Tag"
+    }
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $process.Start() | Out-Null
+    
+    $pushOutput = $process.StandardOutput.ReadToEnd()
+    $pushError = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+    
+    # Combine output and error for checking
+    $allOutput = $pushOutput + $pushError
+    
+    # Debug: Show output
+    if ($allOutput.Trim()) {
+        Write-Host "   Git output: $($allOutput.Trim())" -ForegroundColor Gray
+    }
+    
+    # Check if push was successful
+    # Success cases: 
+    # 1. Exit code 0
+    # 2. "Everything up-to-date" message
+    # 3. Output contains "new tag" or "* [new tag]"
+    $isUpToDate = $allOutput -match "Everything up-to-date"
+    $isNewTag = $allOutput -match "\[new tag\]" -or $allOutput -match "new tag"
+    $hasError = $allOutput -match "error:" -or $allOutput -match "fatal:"
+    
+    if (($exitCode -eq 0 -or $isUpToDate -or $isNewTag) -and -not $hasError) {
+        if ($isUpToDate) {
+            Write-Host "Tag already exists on remote (up-to-date)" -ForegroundColor Green
+        }
+        elseif ($isNewTag) {
+            Write-Host "Tag pushed successfully (new tag created)" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Tag pushed successfully" -ForegroundColor Green
+        }
+        $pushSuccess = $true
+        break
+    }
+    else {
+        # Show error details
+        if ($hasError) {
+            Write-Host "   Error detected in output" -ForegroundColor Red
+        }
+        Write-Host "   Exit code: $exitCode" -ForegroundColor Gray
     }
     
     $retryCount++
