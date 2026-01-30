@@ -259,15 +259,23 @@ $pushSuccess = $false
 
 while ($retryCount -lt $maxRetries) {
     try {
+        $pushOutput = ""
         if ($Force) {
-            git push origin $Tag --force 2>&1 | Out-Null
+            $pushOutput = git push origin $Tag --force 2>&1
         }
         else {
-            git push origin $Tag 2>&1 | Out-Null
+            $pushOutput = git push origin $Tag 2>&1
         }
         
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Tag pushed successfully" -ForegroundColor Green
+        # Check if push was successful
+        # Success cases: exit code 0, or "Everything up-to-date" message
+        if ($LASTEXITCODE -eq 0 -or $pushOutput -match "Everything up-to-date") {
+            if ($pushOutput -match "Everything up-to-date") {
+                Write-Host "Tag already exists on remote (up-to-date)" -ForegroundColor Green
+            }
+            else {
+                Write-Host "Tag pushed successfully" -ForegroundColor Green
+            }
             $pushSuccess = $true
             break
         }
