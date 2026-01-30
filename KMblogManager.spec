@@ -77,6 +77,7 @@ a = Analysis(
         'pip',
         'jupyter',
         'notebook',
+        
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
