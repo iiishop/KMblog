@@ -345,12 +345,19 @@ class ManagerUpdater:
             
             # 执行更新脚本并退出当前程序
             if sys.platform == 'win32':
-                # Windows: 使用 cmd 执行批处理脚本
+                # Windows: 使用 start 命令在新窗口中执行批处理脚本
                 print("[管理工具更新] 启动 Windows 更新脚本")
-                subprocess.Popen(
-                    ['cmd', '/c', update_script],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
-                )
+                # 使用 os.startfile 更可靠
+                try:
+                    import os
+                    os.startfile(update_script)
+                except Exception as e:
+                    print(f"[管理工具更新] os.startfile 失败，尝试备用方法: {e}")
+                    # 备用方法：使用 subprocess 但不等待
+                    subprocess.Popen(
+                        ['cmd', '/c', 'start', '/min', update_script],
+                        shell=True
+                    )
             else:
                 # Unix: 使用 sh 执行脚本
                 print("[管理工具更新] 启动 Unix 更新脚本")
@@ -414,7 +421,9 @@ class ManagerUpdater:
             # Windows 批处理脚本
             script_path = os.path.join(tempfile.gettempdir(), 'kmblog_update.bat')
             
+            # 使用短路径名避免空格问题
             script_content = f"""@echo off
+chcp 65001 >nul
 echo KMBlog Manager 更新脚本
 echo ========================
 
@@ -422,11 +431,19 @@ echo 等待程序关闭...
 timeout /t 3 /nobreak >nul
 
 echo 备份旧版本...
-if exist "{old_exe}.backup" del "{old_exe}.backup"
-move "{old_exe}" "{old_exe}.backup"
+if exist "{old_exe}.backup" del /f /q "{old_exe}.backup"
+move /y "{old_exe}" "{old_exe}.backup"
 
 echo 复制新版本...
-copy "{new_exe}" "{old_exe}"
+copy /y "{new_exe}" "{old_exe}"
+
+if errorlevel 1 (
+    echo 复制失败，恢复备份...
+    move /y "{old_exe}.backup" "{old_exe}"
+    echo 更新失败！
+    pause
+    exit /b 1
+)
 
 echo 启动新版本...
 start "" "{old_exe}"
@@ -436,7 +453,7 @@ timeout /t 2 /nobreak >nul
 rmdir /s /q "{os.path.dirname(new_exe)}"
 
 echo 更新完成！
-del "%~f0"
+del /f /q "%~f0"
 """
         elif sys.platform == 'darwin' and new_exe.endswith('.app'):
             # macOS .app 更新脚本
