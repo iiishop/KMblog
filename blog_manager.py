@@ -3512,7 +3512,7 @@ class BlogManagerGUI:
         
         # 显示下载进度对话框
         progress_bar = ft.ProgressBar(width=450, value=0)
-        status_text = ft.Text("准备下载...", size=14, weight=ft.FontWeight.BOLD)
+        status_text = ft.Text("正在下载...", size=14, weight=ft.FontWeight.BOLD)
         detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
         log_text = ft.Text("", size=11, color=ft.Colors.GREY_700, selectable=True)
         
@@ -3546,26 +3546,33 @@ class BlogManagerGUI:
         # 进度回调函数（在主线程中更新 UI）
         def progress_callback(stage, progress, message):
             """进度回调 - 线程安全的 UI 更新"""
+            def update_ui():
+                try:
+                    # 更新进度条
+                    progress_bar.value = progress
+                    
+                    # 更新状态文本
+                    stage_names = {
+                        'download': '下载中',
+                        'extract': '解压中',
+                        'install': '安装中'
+                    }
+                    status_text.value = stage_names.get(stage, stage)
+                    detail_text.value = message
+                    
+                    # 添加日志
+                    log_text.value += f"[{stage}] {message}\n"
+                    
+                    # 更新 UI
+                    self.page.update()
+                except Exception as e:
+                    print(f"[UI更新] 错误: {e}")
+            
+            # 使用 page.run_task 确保在主线程中更新 UI
             try:
-                # 更新进度条
-                progress_bar.value = progress
-                
-                # 更新状态文本
-                stage_names = {
-                    'download': '下载中',
-                    'extract': '解压中',
-                    'install': '安装中'
-                }
-                status_text.value = stage_names.get(stage, stage)
-                detail_text.value = message
-                
-                # 添加日志
-                log_text.value += f"[{stage}] {message}\n"
-                
-                # 更新 UI（在主线程中）
-                self.page.update()
+                self.page.run_task(update_ui)
             except Exception as e:
-                print(f"[UI更新] 错误: {e}")
+                print(f"[进度回调] 错误: {e}")
         
         async def update_task():
             try:

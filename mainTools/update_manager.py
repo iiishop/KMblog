@@ -215,7 +215,7 @@ class ManagerUpdater:
                     'message': '当前不是打包版本，无法自动更新'
                 }
             
-            report_progress('download', 0.0, '准备下载...')
+            report_progress('download', 0.0, '正在准备...')
             print(f"[管理工具更新] 下载地址: {download_url}")
             print(f"[管理工具更新] 文件名: {asset_name}")
             
@@ -226,14 +226,14 @@ class ManagerUpdater:
             download_path = os.path.join(temp_dir, asset_name)
             
             # 下载文件
-            report_progress('download', 0.05, '连接服务器...')
+            report_progress('download', 0.05, '正在连接...')
             response = requests.get(download_url, stream=True, timeout=60)
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
             
-            report_progress('download', 0.1, f'开始下载 ({total_size / 1024 / 1024:.1f} MB)...')
+            report_progress('download', 0.1, f'正在下载 ({total_size / 1024 / 1024:.1f} MB)')
             
             with open(download_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -244,7 +244,7 @@ class ManagerUpdater:
                             # 下载进度占 10% - 60%
                             progress = 0.1 + (downloaded / total_size) * 0.5
                             report_progress('download', progress, 
-                                          f'下载中... {downloaded / 1024 / 1024:.1f} / {total_size / 1024 / 1024:.1f} MB')
+                                          f'正在下载 {downloaded / 1024 / 1024:.1f} / {total_size / 1024 / 1024:.1f} MB')
             
             report_progress('download', 0.6, '下载完成')
             print(f"[管理工具更新] 文件大小: {os.path.getsize(download_path)} bytes")
