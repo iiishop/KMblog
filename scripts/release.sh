@@ -208,7 +208,16 @@ if [ "$needs_version_update" = true ]; then
     git add VERSION
     
     echo "2. 提交 VERSION 文件..."
-    git commit -m "chore: bump version to $VERSION"
+    
+    # 构建 commit message
+    commit_msg="chore: bump version to $VERSION"
+    if [ -n "$DESCRIPTION" ]; then
+        commit_msg="$commit_msg
+
+$DESCRIPTION"
+    fi
+    
+    git commit -m "$commit_msg"
     
     needs_push=true
 else

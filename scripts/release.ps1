@@ -216,7 +216,14 @@ if ($needsVersionUpdate) {
     git add VERSION
     
     Write-Host "2. Committing VERSION file..." -ForegroundColor Yellow
-    git commit -m "chore: bump version to $Version"
+    
+    # Build commit message
+    $commitMsg = "chore: bump version to $Version"
+    if ($Description) {
+        $commitMsg += "`n`n$Description"
+    }
+    
+    git commit -m $commitMsg
     
     $needsPush = $true
 }
