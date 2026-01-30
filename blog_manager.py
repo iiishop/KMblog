@@ -3431,10 +3431,11 @@ class BlogManagerGUI:
                 actions_alignment=ft.MainAxisAlignment.END,
             )
             
-            self.page.dialog = dlg
+            # 使用 overlay 而不是 dialog 属性，避免被其他对话框覆盖
+            self.page.overlay.append(dlg)
             dlg.open = True
             self.page.update()
-            print(f"[管理工具更新] 对话框已显示")
+            print(f"[管理工具更新] 对话框已添加到 overlay 并显示")
             
         except Exception as e:
             print(f"[管理工具更新] 显示对话框失败: {e}")
