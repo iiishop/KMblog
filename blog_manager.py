@@ -3567,7 +3567,7 @@ class BlogManagerGUI:
             except Exception as e:
                 print(f"[UI更新] 错误: {e}")
         
-        def update_task():
+        async def update_task():
             try:
                 log_text.value += "开始更新流程...\n"
                 log_text.value += f"下载地址: {update_info['download_url']}\n"
@@ -3619,9 +3619,8 @@ class BlogManagerGUI:
                 
                 print(f"[管理工具更新] 错误详情:\n{error_details}")
         
-        # 使用 Flet 的 run_task 在后台执行（确保线程安全）
-        import threading
-        threading.Thread(target=lambda: self.page.run_task(update_task), daemon=True).start()
+        # 直接使用 run_task 执行异步任务
+        self.page.run_task(update_task)
 
     def confirm(self, title, msg, callback):
         """确认对话框"""
