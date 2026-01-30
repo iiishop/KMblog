@@ -638,15 +638,33 @@ class FrameworkUpdater:
             self.log("开始安装 npm 依赖...")
             self.log("提示: 这可能需要几分钟时间...")
             
-            result = subprocess.run(
-                ['npm', 'install'],
-                cwd=self.base_path,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                timeout=300  # 5分钟超时
-            )
+            # Windows 需要使用 shell=True 来执行 npm.cmd
+            import platform
+            is_windows = platform.system() == 'Windows'
+            
+            if is_windows:
+                # Windows: 使用 shell=True
+                result = subprocess.run(
+                    'npm install',
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=300,  # 5分钟超时
+                    shell=True
+                )
+            else:
+                # Linux/macOS: 使用命令列表
+                result = subprocess.run(
+                    ['npm', 'install'],
+                    cwd=self.base_path,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=300  # 5分钟超时
+                )
             
             if result.returncode == 0:
                 self.log("✓ npm 依赖安装完成")
@@ -678,9 +696,10 @@ class FrameworkUpdater:
             }
         except FileNotFoundError:
             self.log("✗ 未找到 npm 命令")
+            self.log("提示: 请确保 Node.js 已安装并添加到系统 PATH")
             return {
                 'success': False,
-                'message': '未找到 npm 命令，请确保已安装 Node.js'
+                'message': '未找到 npm 命令，请确保已安装 Node.js 并添加到系统 PATH'
             }
         except Exception as e:
             self.log(f"✗ npm install 失败: {str(e)}")
