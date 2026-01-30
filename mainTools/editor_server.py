@@ -257,16 +257,36 @@ async def verify_token(x_auth_token: Optional[str] = Header(None)) -> bool:
 # ==================== CORS配置 ====================
 
 # 使用正则表达式匹配所有 localhost 端口
-# 这个配置允许所有来自 localhost 或 127.0.0.1 的任意端口的请求
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,  # 预检请求缓存1小时
-)
+# CORS配置 - 将在启动时根据 --allow-lan 参数动态配置
+# 默认只允许 localhost，如果启用 LAN 模式则允许所有来源
+ALLOW_LAN_MODE = False  # 将在 main() 中设置
+
+def configure_cors():
+    """配置CORS中间件"""
+    if ALLOW_LAN_MODE:
+        # LAN模式：允许所有来源
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+            max_age=3600,
+        )
+        print("[CORS] LAN mode enabled - allowing all origins")
+    else:
+        # 本地模式：只允许 localhost/127.0.0.1
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+            max_age=3600,
+        )
+        print("[CORS] Local mode - allowing only localhost")
 
 
 # ==================== Pydantic模型 ====================
@@ -1141,11 +1161,22 @@ def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Markdown Editor API Server')
     parser.add_argument('--info-file', type=str, help='Path to write server info JSON')
+    parser.add_argument('--allow-lan', action='store_true', help='Allow LAN access (bind to 0.0.0.0)')
     args = parser.parse_args()
+    
+    # 设置LAN模式
+    global ALLOW_LAN_MODE
+    ALLOW_LAN_MODE = args.allow_lan
+    
+    # 配置CORS
+    configure_cors()
     
     # 生成随机端口和token
     SERVER_PORT = find_free_port()
     AUTH_TOKEN = secrets.token_urlsafe(32)
+    
+    # 确定绑定地址
+    bind_host = "0.0.0.0" if args.allow_lan else "127.0.0.1"
     
     # 如果指定了info文件,写入服务器信息
     if args.info_file:
@@ -1160,6 +1191,8 @@ def main():
     print(f"=" * 60)
     print(f"Markdown Editor API Server")
     print(f"=" * 60)
+    print(f"Mode: {'LAN Access' if args.allow_lan else 'Local Only'}")
+    print(f"Bind: {bind_host}")
     print(f"Port: {SERVER_PORT}")
     print(f"Token: {AUTH_TOKEN}")
     print(f"Health Check: http://127.0.0.1:{SERVER_PORT}/api/health")
@@ -1175,7 +1208,7 @@ def main():
             # 完全最小化的配置，不使用任何日志系统
             uvicorn.run(
                 app,
-                host="127.0.0.1",
+                host=bind_host,
                 port=SERVER_PORT,
                 log_config=None,
                 access_log=False,
@@ -1189,7 +1222,7 @@ def main():
         print("[Server] Starting with standard configuration for development...")
         config = uvicorn.Config(
             app,
-            host="127.0.0.1",
+            host=bind_host,
             port=SERVER_PORT,
             log_config=None,  # 禁用日志配置
             access_log=False,  # 禁用访问日志
@@ -1205,7 +1238,7 @@ def main():
             # 最后的备用方案：完全最小化配置
             uvicorn.run(
                 app,
-                host="127.0.0.1",
+                host=bind_host,
                 port=SERVER_PORT,
             )
 

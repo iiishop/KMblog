@@ -125,7 +125,12 @@ console.log('URL Hash:', window.location.hash);
 console.log('Auth Token:', authToken ? 'Present' : 'Missing');
 console.log('API Port:', apiPort);
 
-const API_BASE = apiPort ? `http://127.0.0.1:${apiPort}/api` : 'http://127.0.0.1:8000/api';
+// Use current hostname instead of hardcoded 127.0.0.1
+// This allows LAN access to work properly
+const currentHost = window.location.hostname;
+const API_BASE = apiPort ? `http://${currentHost}:${apiPort}/api` : `http://${currentHost}:8000/api`;
+
+console.log('API Base URL:', API_BASE);
 
 // Create authenticated axios instance for backend API calls only
 const apiClient = axios.create({

@@ -2023,11 +2023,73 @@ class BlogManagerGUI:
             build_task), daemon=True).start()
 
     def start_editor(self, e):
-        """启动编辑器 - 带进度条"""
+        """启动编辑器 - 带进度条和局域网选项"""
         # 如果已经在运行，直接打开窗口
         if self.editor_running and self.editor_url:
             self.open_editor_window(e)
             return
+
+        # 创建局域网访问选择对话框
+        def on_lan_choice(allow_lan):
+            """用户选择是否允许局域网访问后的回调"""
+            choice_dlg.open = False
+            self.page.update()
+            self._start_editor_with_option(allow_lan)
+
+        choice_dlg = ft.AlertDialog(
+            title=ft.Text("启动编辑器"),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text("是否允许局域网内其他设备访问编辑器？", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Container(height=10),
+                    ft.Text("• 仅本机：只能在本机访问（127.0.0.1）", size=13, color=ft.Colors.GREY_700),
+                    ft.Text("• 局域网：局域网内设备可通过本机IP访问", size=13, color=ft.Colors.GREY_700),
+                    ft.Container(height=10),
+                    ft.Container(
+                        content=ft.Text("⚠️ 注意：允许局域网访问会暴露编辑器给局域网内所有设备", 
+                                       size=12, color=ft.Colors.ORANGE_700),
+                        bgcolor=ft.Colors.ORANGE_50,
+                        padding=10,
+                        border_radius=8,
+                    ),
+                ], spacing=5),
+                width=450,
+            ),
+            actions=[
+                ft.TextButton(
+                    "仅本机",
+                    on_click=lambda e: on_lan_choice(False),
+                    icon=ft.Icons.COMPUTER,
+                ),
+                ft.Button(
+                    "允许局域网",
+                    on_click=lambda e: on_lan_choice(True),
+                    icon=ft.Icons.WIFI,
+                    bgcolor=ft.Colors.BLUE_600,
+                    color=ft.Colors.WHITE,
+                ),
+            ],
+        )
+        self.page.overlay.append(choice_dlg)
+        choice_dlg.open = True
+        self.page.update()
+
+    def _start_editor_with_option(self, allow_lan=False):
+        """实际启动编辑器（带局域网选项）"""
+        # 如果已经在运行，直接打开窗口
+        if self.editor_running and self.editor_url:
+            self.open_editor_window(e)
+            return
+
+    def _start_editor_with_option(self, allow_lan=False):
+        """实际启动编辑器（带局域网选项）"""
+        # 如果已经在运行，直接打开窗口
+        if self.editor_running and self.editor_url:
+            self.open_editor_window(None)
+            return
+
+        # 保存局域网设置
+        self.editor_allow_lan = allow_lan
 
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
@@ -2107,9 +2169,12 @@ class BlogManagerGUI:
                     raise Exception(f"未找到 node_modules，请先运行 'npm install'\n路径: {node_modules_path}")
                 
                 # 启动开发服务器
+                # 根据 allow_lan 决定是否添加 --host 参数
+                dev_command = 'npm run dev -- --host 0.0.0.0' if allow_lan else 'npm run dev'
+                
                 if os.name == 'nt':
                     self.dev_server_process = subprocess.Popen(
-                        'npm run dev',
+                        dev_command,
                         cwd=base_path,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
@@ -2122,8 +2187,12 @@ class BlogManagerGUI:
                         errors='replace'
                     )
                 else:
+                    if allow_lan:
+                        cmd = ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
+                    else:
+                        cmd = ['npm', 'run', 'dev']
                     self.dev_server_process = subprocess.Popen(
-                        ['npm', 'run', 'dev'],
+                        cmd,
                         cwd=base_path,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
@@ -2135,6 +2204,7 @@ class BlogManagerGUI:
                     )
                 
                 print(f"[Editor] Dev server process started with PID: {self.dev_server_process.pid}")
+                print(f"[Editor] Command: {dev_command if os.name == 'nt' else cmd}")
                 
                 # 阶段3: 解析端口号
                 progress_bar.value = 0.3
@@ -2230,17 +2300,25 @@ class BlogManagerGUI:
                         # 设置全局变量
                         editor_server.SERVER_PORT = self.editor_port
                         editor_server.AUTH_TOKEN = self.editor_token
+                        editor_server.ALLOW_LAN_MODE = allow_lan
                         
-                        print(f"[SERVER] Configuration set")
+                        # 配置CORS
+                        editor_server.configure_cors()
+                        
+                        print(f"[SERVER] Configuration set (LAN mode: {allow_lan})")
                         print(f"[SERVER] Starting uvicorn on port {self.editor_port}...")
                         
                         # 启动 uvicorn
                         import uvicorn
                         
                         # 创建配置
+                        # 根据用户选择决定绑定地址
+                        bind_host = "0.0.0.0" if allow_lan else "127.0.0.1"
+                        print(f"[SERVER] Binding to {bind_host} (LAN: {allow_lan})")
+                        
                         config = uvicorn.Config(
                             editor_server.app,
-                            host="127.0.0.1",
+                            host=bind_host,
                             port=self.editor_port,
                             log_level="info",
                             loop="asyncio",
@@ -2321,7 +2399,112 @@ class BlogManagerGUI:
                 detail_text.value = ""
                 self.page.update()
                 
-                self.editor_url = f"http://localhost:{frontend_port}/#/editor?token={self.editor_token}&api_port={self.editor_port}"
+                # 构建访问URL
+                if allow_lan:
+                    # 获取本机局域网IP
+                    def get_local_ip():
+                        try:
+                            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                            s.connect(("8.8.8.8", 80))
+                            ip = s.getsockname()[0]
+                            s.close()
+                            return ip
+                        except:
+                            return "127.0.0.1"
+                    
+                    local_ip = get_local_ip()
+                    self.editor_url = f"http://{local_ip}:{frontend_port}/#/editor?token={self.editor_token}&api_port={self.editor_port}"
+                    
+                    # 自动配置防火墙的函数
+                    def configure_firewall(e):
+                        try:
+                            # 显示进度
+                            firewall_status = ft.Text("正在配置防火墙...", size=12, color=ft.Colors.BLUE)
+                            lan_info_dlg.content.content.controls.append(firewall_status)
+                            self.page.update()
+                            
+                            # Windows 防火墙规则
+                            if os.name == 'nt':
+                                # 添加前端端口规则
+                                cmd1 = f'netsh advfirewall firewall add rule name="KMBlog Editor Frontend (Port {frontend_port})" dir=in action=allow protocol=TCP localport={frontend_port}'
+                                result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True)
+                                
+                                # 添加后端端口规则
+                                cmd2 = f'netsh advfirewall firewall add rule name="KMBlog Editor Backend (Port {self.editor_port})" dir=in action=allow protocol=TCP localport={self.editor_port}'
+                                result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True)
+                                
+                                if result1.returncode == 0 and result2.returncode == 0:
+                                    firewall_status.value = "✅ 防火墙规则已添加成功！"
+                                    firewall_status.color = ft.Colors.GREEN
+                                else:
+                                    firewall_status.value = "❌ 添加失败，请以管理员身份运行程序"
+                                    firewall_status.color = ft.Colors.RED
+                            else:
+                                firewall_status.value = "⚠️ 仅支持 Windows 系统自动配置"
+                                firewall_status.color = ft.Colors.ORANGE
+                            
+                            self.page.update()
+                        except Exception as ex:
+                            firewall_status.value = f"❌ 配置失败: {str(ex)}"
+                            firewall_status.color = ft.Colors.RED
+                            self.page.update()
+                    
+                    # 显示局域网访问信息
+                    lan_info_dlg = ft.AlertDialog(
+                        title=ft.Text("✅ 编辑器已启动（局域网模式）"),
+                        content=ft.Container(
+                            content=ft.Column([
+                                ft.Text("本机访问地址：", size=14, weight=ft.FontWeight.BOLD),
+                                ft.Container(
+                                    content=ft.Text(
+                                        f"http://localhost:{frontend_port}/#/editor?token={self.editor_token}&api_port={self.editor_port}",
+                                        size=12,
+                                        selectable=True,
+                                    ),
+                                    bgcolor=ft.Colors.GREY_100,
+                                    padding=10,
+                                    border_radius=5,
+                                ),
+                                ft.Container(height=10),
+                                ft.Text("局域网访问地址：", size=14, weight=ft.FontWeight.BOLD),
+                                ft.Container(
+                                    content=ft.Text(
+                                        self.editor_url,
+                                        size=12,
+                                        selectable=True,
+                                    ),
+                                    bgcolor=ft.Colors.BLUE_50,
+                                    padding=10,
+                                    border_radius=5,
+                                ),
+                                ft.Container(height=15),
+                                ft.Text("📱 局域网内其他设备可使用上方地址访问", size=13, color=ft.Colors.BLUE_700),
+                                ft.Container(height=5),
+                                ft.Text("⚠️ 防火墙配置提示：", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_700),
+                                ft.Text(f"  • 前端端口：{frontend_port}", size=11, color=ft.Colors.ORANGE_600),
+                                ft.Text(f"  • 后端端口：{self.editor_port}", size=11, color=ft.Colors.ORANGE_600),
+                                ft.Text("  • 如果其他设备无法访问，请点击下方按钮配置防火墙", size=11, color=ft.Colors.ORANGE_600),
+                            ], spacing=5),
+                            width=650,
+                        ),
+                        actions=[
+                            ft.ElevatedButton(
+                                "🔧 自动配置防火墙",
+                                on_click=configure_firewall,
+                                bgcolor=ft.Colors.ORANGE_400,
+                                color=ft.Colors.WHITE,
+                            ),
+                            ft.TextButton("关闭", on_click=lambda e: self.close_dlg(lan_info_dlg)),
+                        ],
+                    )
+                    
+                    print(f"[Editor] LAN mode - Local IP: {local_ip}")
+                    print(f"[Editor] Frontend port: {frontend_port}")
+                    print(f"[Editor] Backend port: {self.editor_port}")
+                else:
+                    self.editor_url = f"http://localhost:{frontend_port}/#/editor?token={self.editor_token}&api_port={self.editor_port}"
+                    lan_info_dlg = None
+                
                 print(f"[Editor] Opening browser: {self.editor_url}")
                 webbrowser.open(self.editor_url)
                 
@@ -2344,6 +2527,12 @@ class BlogManagerGUI:
                 # 关闭进度对话框
                 progress_dlg.open = False
                 self.page.update()
+                
+                # 如果是局域网模式，显示访问信息对话框
+                if allow_lan and lan_info_dlg:
+                    self.page.dialog = lan_info_dlg
+                    lan_info_dlg.open = True
+                    self.page.update()
                 
                 # 刷新UI以显示新按钮
                 self.build_ui()
