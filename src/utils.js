@@ -39,8 +39,8 @@ function parsePostDirectory(postDirectoryData) {
   const result = {};
 
   for (const key in postDirectoryData) {
-    // 跳过最顶层的 "Markdowns" 字段
-    if (key === 'Markdowns') {
+    // 跳过最顶层的 "Markdowns" 和 "WaterfallGraph" 字段
+    if (key === 'Markdowns' || key === 'WaterfallGraph') {
       continue;
     }
 

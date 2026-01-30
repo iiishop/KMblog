@@ -4,7 +4,9 @@
     <div v-if="!isExpanded" class="compact-mode" @click="expand">
       <div class="month-header">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon">
-          <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clip-rule="evenodd" />
+          <path fill-rule="evenodd"
+            d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
+            clip-rule="evenodd" />
         </svg>
         <span class="month-title">{{ currentMonthYear }}</span>
       </div>
@@ -14,28 +16,17 @@
           <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
         </div>
         <div class="days-grid">
-          <div
-            v-for="day in calendarDays"
-            :key="day.date"
-            class="mini-day"
-            :class="{
-              'other-month': !day.isCurrentMonth,
-              'today': day.isToday,
-              'has-events': day.events.length > 0
-            }"
-          >
+          <div v-for="day in calendarDays" :key="day.date" class="mini-day" :class="{
+            'other-month': !day.isCurrentMonth,
+            'today': day.isToday,
+            'has-events': day.events.length > 0
+          }">
             <span class="day-num">{{ day.day }}</span>
             <div v-if="day.events.length > 0" class="event-bars">
-              <div
-                v-for="(event, idx) in day.events"
-                :key="idx"
-                class="event-bar"
-                :style="{
-                  backgroundColor: event.color,
-                  width: `${100 / day.events.length}%`
-                }"
-                :title="event.title"
-              ></div>
+              <div v-for="(event, idx) in day.events" :key="idx" class="event-bar" :style="{
+                backgroundColor: event.color,
+                width: `${100 / day.events.length}%`
+              }" :title="event.title"></div>
             </div>
           </div>
         </div>
@@ -54,13 +45,17 @@
           <div class="expanded-header">
             <h2>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clip-rule="evenodd" />
+                <path fill-rule="evenodd"
+                  d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
+                  clip-rule="evenodd" />
               </svg>
               日历与日程
             </h2>
             <button class="close-btn" @click="collapse">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                <path fill-rule="evenodd"
+                  d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
               </svg>
             </button>
           </div>
@@ -79,12 +74,7 @@
                     {{ String(hour - 1).padStart(2, '0') }}:00
                   </div>
                 </div>
-                <div
-                  v-for="day in weekDays"
-                  :key="day.date"
-                  class="day-column"
-                  :class="{ 'is-today': day.isToday }"
-                >
+                <div v-for="day in weekDays" :key="day.date" class="day-column" :class="{ 'is-today': day.isToday }">
                   <div class="day-header">
                     <div class="day-name">{{ day.weekday }}</div>
                     <div class="day-date">{{ day.dayMonth }}</div>
@@ -92,27 +82,22 @@
                   </div>
                   <div class="day-timeline">
                     <div v-for="hour in 24" :key="hour" class="hour-slot"></div>
-                    <div
-                      v-for="event in day.events"
-                      :key="event.id"
-                      class="timeline-event"
-                      :class="{
-                        'event-continuing': event.isContinuing,
-                        'event-first-day': event.isFirstDay,
-                        'event-last-day': event.isLastDay,
-                        'event-segmented': event.isSegmented
-                      }"
-                      :style="getEventStyle(event)"
-                      @click="navigateToArticle(event)"
-                      :title="`${event.title}${event.section ? ' - ' + event.section : ''}\n${event.timeRange}${event.isSegmented ? '\n(片段 ' + (event.segmentIndex + 1) + '/' + event.totalSegments + ')' : ''}`"
-                    >
+                    <div v-for="event in day.events" :key="event.id" class="timeline-event" :class="{
+                      'event-continuing': event.isContinuing,
+                      'event-first-day': event.isFirstDay,
+                      'event-last-day': event.isLastDay,
+                      'event-segmented': event.isSegmented,
+                      'event-auto-scheduled': event.isAutoScheduled,
+                      'event-conflict': event.hasConflict
+                    }" :style="getEventStyle(event)" @click="navigateToArticle(event)" :title="getEventTooltip(event)">
                       <div class="event-time">
                         <span v-if="event.isFirstDay && !event.isSegmented">{{ formatEventTime(event) }}</span>
                         <span v-else-if="event.isContinuing">继续</span>
                         <span v-else-if="event.isLastDay">结束</span>
                       </div>
                       <div class="event-title">{{ event.title }}</div>
-                      <div v-if="event.duration > 1 && !event.isSegmented" class="event-duration">{{ event.duration }}天</div>
+                      <div v-if="event.duration > 1 && !event.isSegmented" class="event-duration">{{ event.duration }}天
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -127,38 +112,24 @@
               </div>
               <div class="calendar-grid">
                 <div v-for="day in weekdays" :key="day" class="calendar-weekday">{{ day }}</div>
-                <div
-                  v-for="day in calendarDays"
-                  :key="day.date"
-                  class="calendar-day"
-                  :class="{
-                    'other-month': !day.isCurrentMonth,
-                    'today': day.isToday,
-                    'has-events': day.events.length > 0,
-                    'selected': day.date === selectedDate
-                  }"
-                  @click="selectDay(day)"
-                >
+                <div v-for="day in calendarDays" :key="day.date" class="calendar-day" :class="{
+                  'other-month': !day.isCurrentMonth,
+                  'today': day.isToday,
+                  'has-events': day.events.length > 0,
+                  'selected': day.date === selectedDate
+                }" @click="selectDay(day)">
                   <span class="day-number">{{ day.day }}</span>
                   <div v-if="day.events.length > 0" class="event-indicators">
-                    <span
-                      v-for="(event, idx) in day.events.slice(0, 3)"
-                      :key="idx"
-                      class="event-dot"
-                      :style="{ backgroundColor: event.color }"
-                    ></span>
+                    <span v-for="(event, idx) in day.events.slice(0, 3)" :key="idx" class="event-dot"
+                      :style="{ backgroundColor: event.color }"></span>
                   </div>
                 </div>
               </div>
               <div v-if="selectedDayData" class="selected-day-events">
                 <h3>{{ selectedDayData.dateFormatted }}</h3>
                 <div class="events-list">
-                  <div 
-                    v-for="event in selectedDayData.events" 
-                    :key="event.id" 
-                    class="event-item"
-                    @click="navigateToArticle(event)"
-                  >
+                  <div v-for="event in selectedDayData.events" :key="event.id" class="event-item"
+                    @click="navigateToArticle(event)">
                     <span class="event-color" :style="{ backgroundColor: event.color }"></span>
                     <div class="event-info">
                       <div class="event-name">{{ event.title }}</div>
@@ -239,7 +210,7 @@ export default {
       const days = []
       const today = this.formatDate(new Date())
       const prevMonthLastDay = new Date(year, month, 0).getDate()
-      
+
       // 上个月的日期
       for (let i = firstDayWeek - 1; i >= 0; i--) {
         const day = prevMonthLastDay - i
@@ -247,14 +218,14 @@ export default {
         const events = this.getUniqueEventsForDate(date)
         days.push({ day, date, isCurrentMonth: false, isToday: false, events })
       }
-      
+
       // 当前月的日期
       for (let day = 1; day <= daysInMonth; day++) {
         const date = this.formatDate(new Date(year, month, day))
         const events = this.getUniqueEventsForDate(date)
         days.push({ day, date, isCurrentMonth: true, isToday: date === today, events })
       }
-      
+
       // 下个月的日期
       const remainingDays = 42 - days.length
       for (let day = 1; day <= remainingDays; day++) {
@@ -262,31 +233,31 @@ export default {
         const events = this.getUniqueEventsForDate(date)
         days.push({ day, date, isCurrentMonth: false, isToday: false, events })
       }
-      
+
       return days
     },
     selectedDayData() {
       if (!this.selectedDate) return null
       const events = this.getEventsForDate(this.selectedDate)
-      
+
       // 合并分段事件：如果多个事件有相同的原始ID（去掉-segment-X后缀），只保留一个
       const uniqueEvents = []
       const seenIds = new Set()
-      
+
       events.forEach(event => {
         // 提取原始ID（移除 -segment-X 后缀）
         const originalId = event.id.replace(/-segment-\d+$/, '')
-        
+
         if (!seenIds.has(originalId)) {
           seenIds.add(originalId)
           // 使用原始事件数据（不是分段后的）
-          const originalEvent = event.isSegmented 
+          const originalEvent = event.isSegmented
             ? { ...event, id: originalId }
             : event
           uniqueEvents.push(originalEvent)
         }
       })
-      
+
       const date = new Date(this.selectedDate)
       return {
         dateFormatted: `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`,
@@ -309,18 +280,18 @@ export default {
     },
     getEventsForDate(dateStr) {
       const events = this.events.filter(event => this.isEventOnDate(event, dateStr))
-      
+
       // 为每个事件添加额外信息
       const enrichedEvents = events.map(event => {
         const eventStart = new Date(event.startDate)
         const eventEnd = new Date(event.endDate)
         const checkDate = new Date(dateStr)
-        
+
         // 判断是否是事件的第一天
         const isFirstDay = this.formatDate(eventStart) === dateStr
         // 判断是否是事件的最后一天
         const isLastDay = this.formatDate(eventEnd) === dateStr
-        
+
         return {
           ...event,
           timeRange: this.formatTimeRange(eventStart, eventEnd),
@@ -329,17 +300,17 @@ export default {
           isContinuing: !isFirstDay && !isLastDay
         }
       })
-      
+
       // 计算事件的布局位置（避免重叠）
       return this.calculateEventLayout(enrichedEvents, dateStr)
     },
     getUniqueEventsForDate(dateStr) {
       const events = this.getEventsForDate(dateStr)
-      
+
       // 合并分段事件
       const uniqueEvents = []
       const seenIds = new Set()
-      
+
       events.forEach(event => {
         const originalId = event.id.replace(/-segment-\d+$/, '')
         if (!seenIds.has(originalId)) {
@@ -347,108 +318,354 @@ export default {
           uniqueEvents.push(event)
         }
       })
-      
+
       return uniqueEvents
     },
     calculateEventLayout(events, dateStr) {
       if (events.length === 0) return events
-      
-      // 分离全天事件和时间段事件
-      const allDayEvents = []
-      const timedEvents = []
-      
-      events.forEach(event => {
-        const start = new Date(event.startDate)
-        const end = new Date(event.endDate)
-        const startHour = start.getHours()
-        const endHour = end.getHours()
-        const startMinute = start.getMinutes()
-        const endMinute = end.getMinutes()
-        
-        // 判断是否为全天事件（00:00 开始，23:59 结束，或跨度超过20小时）
-        const isAllDay = (startHour === 0 && startMinute === 0 && endHour === 23 && endMinute === 59) ||
-                         ((end - start) / (1000 * 60 * 60) > 20)
-        
-        if (isAllDay) {
-          allDayEvents.push(event)
-        } else {
-          timedEvents.push(event)
-        }
-      })
-      
-      // 时间段事件不需要列分配，直接占满宽度
-      const layoutTimedEvents = timedEvents.map(event => ({
-        ...event,
-        columnIndex: 0,
-        totalColumns: 1,
+
+      const checkDate = new Date(dateStr)
+      const dayStart = new Date(checkDate.setHours(0, 0, 0, 0))
+      const dayEnd = new Date(checkDate.setHours(23, 59, 59, 999))
+
+      // 按优先级分类事件
+      const timedEvents = events.filter(e => e.eventType === 'timed')
+      const timeRangedAllDayEvents = events.filter(e => e.eventType === 'time-ranged-allday')
+      const durationAllDayEvents = events.filter(e => e.eventType === 'duration-allday')
+      const regularAllDayEvents = events.filter(e => e.eventType === 'regular-allday')
+
+      // 1. 处理时间段事件（不再需要预先计算列，动态宽度会处理）
+      const layoutTimedEvents = timedEvents.map(e => ({
+        ...e,
         isAllDay: false
       }))
-      
-      // 处理全天事件：需要被时间段事件"打断"，并按比例分配宽度
-      const layoutAllDayEvents = []
-      allDayEvents.forEach((event, allDayIndex) => {
-        const checkDate = new Date(dateStr)
-        const dayStart = new Date(checkDate.setHours(0, 0, 0, 0))
-        const dayEnd = new Date(checkDate.setHours(23, 59, 59, 999))
-        
-        // 收集所有时间段事件的时间范围
-        const timedRanges = layoutTimedEvents.map(e => ({
-          start: new Date(e.startDate),
-          end: new Date(e.endDate)
-        })).sort((a, b) => a.start - b.start)
-        
-        // 如果没有时间段事件，全天事件正常显示
-        if (timedRanges.length === 0) {
-          layoutAllDayEvents.push({
+
+      // 2. 处理有时间范围的全天事件（被时间段事件截断）
+      const layoutTimeRangedEvents = []
+      timeRangedAllDayEvents.forEach((event, idx) => {
+        const eventStart = new Date(event.startDate)
+        const eventEnd = new Date(event.endDate)
+        const totalDuration = (eventEnd - eventStart) / (1000 * 60) // 分钟
+
+        // 找到与此事件重叠的时间段事件
+        const overlappingTimed = layoutTimedEvents.filter(te => {
+          const teStart = new Date(te.startDate)
+          const teEnd = new Date(te.endDate)
+          return teStart < eventEnd && teEnd > eventStart
+        })
+
+        if (overlappingTimed.length === 0) {
+          // 没有重叠，正常显示
+          layoutTimeRangedEvents.push({
             ...event,
-            columnIndex: allDayIndex,
-            totalColumns: allDayEvents.length,
+            columnIndex: idx,
+            totalColumns: timeRangedAllDayEvents.length,
             isAllDay: true
           })
         } else {
-          // 将全天事件分割成多个片段
+          // 有重叠，需要截断并保持总时长
           const segments = []
-          let currentStart = dayStart
-          
-          timedRanges.forEach(range => {
-            // 如果当前开始时间早于时间段事件，添加一个片段
-            if (currentStart < range.start) {
+          let currentStart = eventStart
+          let remainingDuration = totalDuration
+
+          // 按时间排序重叠事件
+          const sortedOverlapping = overlappingTimed
+            .map(e => ({ start: new Date(e.startDate), end: new Date(e.endDate) }))
+            .sort((a, b) => a.start - b.start)
+
+          sortedOverlapping.forEach(overlap => {
+            if (currentStart < overlap.start && remainingDuration > 0) {
+              const segmentEnd = new Date(Math.min(overlap.start, eventEnd))
+              const segmentDuration = (segmentEnd - currentStart) / (1000 * 60)
+
               segments.push({
                 startDate: currentStart.toISOString(),
-                endDate: range.start.toISOString()
+                endDate: segmentEnd.toISOString()
+              })
+
+              remainingDuration -= segmentDuration
+            }
+            currentStart = new Date(Math.max(currentStart, overlap.end))
+          })
+
+          // 如果还有剩余时长，添加到最后
+          if (remainingDuration > 0 && currentStart < dayEnd) {
+            const finalEnd = new Date(Math.min(currentStart.getTime() + remainingDuration * 60 * 1000, dayEnd))
+            segments.push({
+              startDate: currentStart.toISOString(),
+              endDate: finalEnd.toISOString()
+            })
+          }
+
+          segments.forEach((segment, segIdx) => {
+            layoutTimeRangedEvents.push({
+              ...event,
+              id: `${event.id}-segment-${segIdx}`,
+              startDate: segment.startDate,
+              endDate: segment.endDate,
+              columnIndex: idx,
+              totalColumns: timeRangedAllDayEvents.length,
+              isAllDay: true,
+              isSegmented: true,
+              segmentIndex: segIdx,
+              totalSegments: segments.length
+            })
+          })
+        }
+      })
+
+      // 3. 自动调度有时长的全天事件
+      const layoutDurationEvents = this.autoScheduleEvents(
+        durationAllDayEvents,
+        dateStr,
+        [...layoutTimedEvents, ...layoutTimeRangedEvents]
+      )
+
+      // 4. 处理普通全天事件（被所有其他事件截断）
+      const layoutRegularAllDayEvents = []
+      regularAllDayEvents.forEach((event, idx) => {
+        const allOtherEvents = [...layoutTimedEvents, ...layoutTimeRangedEvents, ...layoutDurationEvents]
+
+        const overlapping = allOtherEvents.filter(e => {
+          const eStart = new Date(e.startDate)
+          const eEnd = new Date(e.endDate)
+          return eStart < dayEnd && eEnd > dayStart
+        })
+
+        if (overlapping.length === 0) {
+          layoutRegularAllDayEvents.push({
+            ...event,
+            columnIndex: idx,
+            totalColumns: regularAllDayEvents.length,
+            isAllDay: true
+          })
+        } else {
+          const segments = []
+          let currentStart = dayStart
+
+          const sortedOverlapping = overlapping
+            .map(e => ({ start: new Date(e.startDate), end: new Date(e.endDate) }))
+            .sort((a, b) => a.start - b.start)
+
+          sortedOverlapping.forEach(overlap => {
+            if (currentStart < overlap.start) {
+              segments.push({
+                startDate: currentStart.toISOString(),
+                endDate: overlap.start.toISOString()
               })
             }
-            // 更新当前开始时间为时间段事件结束后
-            currentStart = range.end > currentStart ? range.end : currentStart
+            currentStart = new Date(Math.max(currentStart, overlap.end))
           })
-          
-          // 添加最后一个片段（如果还有剩余时间）
+
           if (currentStart < dayEnd) {
             segments.push({
               startDate: currentStart.toISOString(),
               endDate: dayEnd.toISOString()
             })
           }
-          
-          // 为每个片段创建事件，使用相同的列索引
-          segments.forEach((segment, idx) => {
-            layoutAllDayEvents.push({
+
+          segments.forEach((segment, segIdx) => {
+            layoutRegularAllDayEvents.push({
               ...event,
-              id: `${event.id}-segment-${idx}`,
+              id: `${event.id}-segment-${segIdx}`,
               startDate: segment.startDate,
               endDate: segment.endDate,
-              columnIndex: allDayIndex, // 每个全天事件有自己的列索引
-              totalColumns: allDayEvents.length, // 只在全天事件之间分配
+              columnIndex: idx,
+              totalColumns: regularAllDayEvents.length,
               isAllDay: true,
               isSegmented: true,
-              segmentIndex: idx,
+              segmentIndex: segIdx,
               totalSegments: segments.length
             })
           })
         }
       })
-      
-      return [...layoutTimedEvents, ...layoutAllDayEvents]
+
+      // 合并所有事件
+      const allEvents = [...layoutTimedEvents, ...layoutTimeRangedEvents, ...layoutDurationEvents, ...layoutRegularAllDayEvents]
+
+      // 应用动态宽度算法：只在重叠时分配列宽
+      return this.applyDynamicWidth(allEvents)
+    },
+
+    // 应用动态宽度：所有事件默认全宽，只在重叠区域按比例分配
+    applyDynamicWidth(events) {
+      if (events.length === 0) return []
+
+      // 按开始时间排序
+      const sortedEvents = events
+        .map(e => ({
+          ...e,
+          start: new Date(e.startDate),
+          end: new Date(e.endDate)
+        }))
+        .sort((a, b) => a.start - b.start || a.end - b.end)
+
+      // 为每个事件计算动态布局段
+      const result = []
+
+      sortedEvents.forEach(event => {
+        // 找到所有与此事件重叠的其他事件
+        const overlappingEvents = sortedEvents.filter(other =>
+          other !== event &&
+          other.start < event.end &&
+          other.end > event.start
+        )
+
+        if (overlappingEvents.length === 0) {
+          // 没有重叠，整个事件占满宽度
+          result.push({
+            ...event,
+            columnIndex: 0,
+            totalColumns: 1
+          })
+        } else {
+          // 创建时间点列表（所有重叠事件的开始和结束时间）
+          const timePoints = new Set([event.start.getTime(), event.end.getTime()])
+          overlappingEvents.forEach(other => {
+            if (other.start > event.start && other.start < event.end) {
+              timePoints.add(other.start.getTime())
+            }
+            if (other.end > event.start && other.end < event.end) {
+              timePoints.add(other.end.getTime())
+            }
+          })
+
+          const sortedTimePoints = Array.from(timePoints).sort((a, b) => a - b)
+
+          // 为每个时间段计算重叠数量和列位置
+          for (let i = 0; i < sortedTimePoints.length - 1; i++) {
+            const segmentStart = new Date(sortedTimePoints[i])
+            const segmentEnd = new Date(sortedTimePoints[i + 1])
+
+            // 找到在这个时间段内重叠的所有事件
+            const overlappingInSegment = sortedEvents.filter(e =>
+              e.start < segmentEnd && e.end > segmentStart
+            )
+
+            // 找到当前事件在重叠列表中的索引
+            const columnIndex = overlappingInSegment.findIndex(e => e.id === event.id)
+            const totalColumns = overlappingInSegment.length
+
+            result.push({
+              ...event,
+              id: `${event.id}-dyn-${i}`,
+              startDate: segmentStart.toISOString(),
+              endDate: segmentEnd.toISOString(),
+              columnIndex,
+              totalColumns,
+              isDynamicSegment: sortedTimePoints.length > 2,
+              dynamicSegmentIndex: i,
+              totalDynamicSegments: sortedTimePoints.length - 1
+            })
+          }
+        }
+      })
+
+      return result
+    },
+
+    // 自动调度有时长的全天事件
+    autoScheduleEvents(events, dateStr, existingEvents) {
+      if (events.length === 0) return []
+
+      const checkDate = new Date(dateStr)
+
+      // 计算起床和睡觉时间
+      let wakeTime = 8 // 默认8点起床
+      let sleepTime = 24 // 默认24点睡觉
+
+      existingEvents.forEach(e => {
+        const start = new Date(e.startDate)
+        const end = new Date(e.endDate)
+        const startHour = start.getHours() + start.getMinutes() / 60
+        const endHour = end.getHours() + end.getMinutes() / 60
+
+        if (startHour < wakeTime) wakeTime = Math.floor(startHour)
+        if (endHour > sleepTime) sleepTime = Math.ceil(endHour)
+      })
+
+      // 创建时间槽（以30分钟为单位）
+      const slots = []
+      for (let hour = wakeTime; hour < sleepTime; hour++) {
+        for (let half = 0; half < 2; half++) {
+          const slotStart = new Date(checkDate)
+          slotStart.setHours(hour, half * 30, 0, 0)
+          const slotEnd = new Date(slotStart)
+          slotEnd.setMinutes(slotEnd.getMinutes() + 30)
+
+          // 检查是否被占用
+          const isOccupied = existingEvents.some(e => {
+            const eStart = new Date(e.startDate)
+            const eEnd = new Date(e.endDate)
+            return eStart < slotEnd && eEnd > slotStart
+          })
+
+          slots.push({ start: slotStart, end: slotEnd, occupied: isOccupied })
+        }
+      }
+
+      // 为每个事件分配时间
+      const scheduledEvents = []
+
+      events.forEach((event, idx) => {
+        const durationHours = event.durationHours || 1
+        const slotsNeeded = Math.ceil(durationHours * 2) // 每小时2个槽
+
+        // 找到连续的空闲槽
+        let bestStart = -1
+        let consecutiveFree = 0
+
+        for (let i = 0; i < slots.length; i++) {
+          if (!slots[i].occupied) {
+            if (consecutiveFree === 0) bestStart = i
+            consecutiveFree++
+
+            if (consecutiveFree >= slotsNeeded) {
+              // 找到足够的空间，标记为占用
+              for (let j = bestStart; j < bestStart + slotsNeeded; j++) {
+                slots[j].occupied = true
+              }
+
+              scheduledEvents.push({
+                ...event,
+                startDate: slots[bestStart].start.toISOString(),
+                endDate: slots[bestStart + slotsNeeded - 1].end.toISOString(),
+                columnIndex: idx,
+                totalColumns: events.length,
+                isAllDay: false,
+                isAutoScheduled: true
+              })
+
+              break
+            }
+          } else {
+            consecutiveFree = 0
+            bestStart = -1
+          }
+        }
+
+        // 如果找不到空间，强制放置（会重叠）
+        if (bestStart === -1 || consecutiveFree < slotsNeeded) {
+          const fallbackStart = new Date(checkDate)
+          fallbackStart.setHours(wakeTime, 0, 0, 0)
+          const fallbackEnd = new Date(fallbackStart)
+          fallbackEnd.setHours(fallbackEnd.getHours() + durationHours)
+
+          scheduledEvents.push({
+            ...event,
+            startDate: fallbackStart.toISOString(),
+            endDate: fallbackEnd.toISOString(),
+            columnIndex: idx,
+            totalColumns: events.length,
+            isAllDay: false,
+            isAutoScheduled: true,
+            hasConflict: true
+          })
+        }
+      })
+
+      return scheduledEvents
     },
     formatTimeRange(start, end) {
       const formatTime = (date) => {
@@ -476,40 +693,75 @@ export default {
       const start = new Date(event.startDate)
       const startMinutes = start.getHours() * 60 + start.getMinutes()
       const top = (startMinutes / (24 * 60)) * 100
-      
-      // 计算事件持续时间（分钟）
+
       const end = new Date(event.endDate)
       const durationMinutes = (end - start) / (1000 * 60)
-      
-      // 如果是同一天的事件
+
       const isSameDay = this.formatDate(start) === this.formatDate(end)
       let height
-      
+
       if (isSameDay) {
-        // 同一天：按实际时长显示
         height = Math.max((durationMinutes / (24 * 60)) * 100, 3)
       } else {
-        // 跨天事件：显示到当天结束
         const endOfDay = new Date(start)
         endOfDay.setHours(23, 59, 59)
         const minutesToEndOfDay = (endOfDay - start) / (1000 * 60)
         height = (minutesToEndOfDay / (24 * 60)) * 100
       }
-      
-      // 计算宽度和左侧位置（用于并排显示）
+
       const totalColumns = event.totalColumns || 1
       const columnIndex = event.columnIndex || 0
       const width = 100 / totalColumns
       const left = (width * columnIndex)
-      
+
+      // 为自动调度的事件添加特殊样式
+      let borderStyle = `3px solid ${event.color}`
+      if (event.isAutoScheduled) {
+        borderStyle = `3px dashed ${event.color}`
+      }
+      if (event.hasConflict) {
+        borderStyle = `3px dotted ${event.color}`
+      }
+
       return {
         top: `${top}%`,
         height: `${height}%`,
         left: `${left}%`,
-        width: `${width - 1}%`, // 减1%留出间隙
+        width: `${width - 1}%`,
         backgroundColor: event.color,
-        borderLeft: `3px solid ${event.color}`
+        borderLeft: borderStyle,
+        opacity: event.hasConflict ? 0.7 : 1
       }
+    },
+    getEventTooltip(event) {
+      let tooltip = `${event.title}`
+      if (event.section) tooltip += ` - ${event.section}`
+      tooltip += `\n${event.timeRange}`
+
+      if (event.isSegmented) {
+        tooltip += `\n(片段 ${event.segmentIndex + 1}/${event.totalSegments})`
+      }
+
+      if (event.isAutoScheduled) {
+        tooltip += `\n⏰ 自动调度 (${event.durationHours}小时)`
+      }
+
+      if (event.hasConflict) {
+        tooltip += `\n⚠️ 时间冲突`
+      }
+
+      const typeLabels = {
+        'timed': '时间段事件',
+        'time-ranged-allday': '固定时间全天事件',
+        'duration-allday': '时长全天事件',
+        'regular-allday': '普通全天事件'
+      }
+
+      if (event.eventType) {
+        tooltip += `\n类型: ${typeLabels[event.eventType] || event.eventType}`
+      }
+
+      return tooltip
     },
     getWeekStart(date) {
       const d = new Date(date)
@@ -548,71 +800,157 @@ export default {
       this.currentWeekStart = newStart
     },
     navigateToArticle(event) {
-      if (!event.articlePath) return
-      
+      if (!event.articlePath) {
+        console.warn('事件缺少 articlePath:', event)
+        return
+      }
+
+      console.log('导航到文章:', event.articlePath)
+
       // 解析文章路径，例如: /Posts/Markdowns/Calendar-Example.md
       const pathMatch = event.articlePath.match(/\/Posts\/(.+)\/(.+)\.md$/)
       if (pathMatch) {
         const [, collection, mdName] = pathMatch
-        
+
         // 如果是 Markdowns 目录，不需要 collection 参数
         if (collection === 'Markdowns') {
           this.router.push({ name: 'PostPage', params: { mdName } })
         } else {
           this.router.push({ name: 'PostPage', params: { collection, mdName } })
         }
+      } else {
+        console.warn('无法解析文章路径:', event.articlePath)
       }
     },
     parseMermaidGantt(content, articlePath, articleDate) {
       const events = []
       const ganttBlocks = content.match(/```mermaid\s*gantt[\s\S]*?```/g)
-      
+
       if (!ganttBlocks) return events
-      
+
+      // 解析文章日期作为默认年份
+      let defaultYear = new Date().getFullYear()
+      let defaultMonth = new Date().getMonth() + 1
+      let defaultDay = new Date().getDate()
+
+      if (articleDate) {
+        const parsedDate = new Date(articleDate)
+        if (!isNaN(parsedDate.getTime())) {
+          defaultYear = parsedDate.getFullYear()
+          defaultMonth = parsedDate.getMonth() + 1
+          defaultDay = parsedDate.getDate()
+        }
+      }
+
       ganttBlocks.forEach((block, blockIndex) => {
-        const lines = block.split('\n').slice(1, -1) // 移除 ```mermaid 和 ```
+        const lines = block.split('\n').slice(1, -1)
         let dateFormat = 'YYYY-MM-DD'
         let currentSection = ''
-        let sectionTimeRange = null // 从 section 中提取的时间范围
+        let sectionTimeRange = null
+        let sectionDuration = null
         let eventId = 0
-        
+
+        // 智能日期解析函数
+        const parseSmartDate = (dateStr, isEndDate = false, startDateObj = null) => {
+          if (!dateStr) return null
+
+          // 如果已经是完整的 ISO 格式，直接解析
+          if (dateStr.match(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?/)) {
+            return dateStr
+          }
+
+          // 处理只有时间的情况 (HH:MM)
+          if (dateStr.match(/^\d{1,2}:\d{2}$/)) {
+            const baseDate = startDateObj ? new Date(startDateObj) : new Date(defaultYear, defaultMonth - 1, defaultDay)
+            return `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}T${dateStr.padStart(5, '0')}`
+          }
+
+          // 处理只有月日的情况 (MM-DD 或 M-D)
+          if (dateStr.match(/^\d{1,2}-\d{1,2}$/)) {
+            const [month, day] = dateStr.split('-').map(n => parseInt(n))
+            let year = defaultYear
+
+            // 如果是结束日期且月份小于开始日期的月份，说明跨年了
+            if (isEndDate && startDateObj) {
+              const startDate = new Date(startDateObj)
+              const startMonth = startDate.getMonth() + 1
+              if (month < startMonth) {
+                year = startDate.getFullYear() + 1
+              } else {
+                year = startDate.getFullYear()
+              }
+            }
+
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          }
+
+          // 处理只有月日和时间的情况 (MM-DD HH:MM)
+          if (dateStr.match(/^\d{1,2}-\d{1,2}\s+\d{1,2}:\d{2}$/)) {
+            const [datePart, timePart] = dateStr.split(/\s+/)
+            const [month, day] = datePart.split('-').map(n => parseInt(n))
+            let year = defaultYear
+
+            if (isEndDate && startDateObj) {
+              const startDate = new Date(startDateObj)
+              const startMonth = startDate.getMonth() + 1
+              if (month < startMonth) {
+                year = startDate.getFullYear() + 1
+              } else {
+                year = startDate.getFullYear()
+              }
+            }
+
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${timePart.padStart(5, '0')}`
+          }
+
+          // 默认返回原始字符串
+          return dateStr
+        }
+
         lines.forEach(line => {
           line = line.trim()
-          
-          // 解析 dateFormat
+
           if (line.startsWith('dateFormat')) {
             dateFormat = line.split(/\s+/)[1]
           }
-          
-          // 解析 section，检查是否包含时间范围
+
           else if (line.startsWith('section')) {
             currentSection = line.substring(7).trim()
-            // 检查 section 名称中是否包含时间范围 (HH:MM-HH:MM)
-            const sectionTimeMatch = currentSection.match(/(\d{2}:\d{2})-(\d{2}:\d{2})/)
-            if (sectionTimeMatch) {
+
+            // 检查时间范围 (HH:MM-HH:MM)
+            const timeRangeMatch = currentSection.match(/\((\d{1,2}:\d{2})-(\d{1,2}:\d{2})\)/i)
+            if (timeRangeMatch) {
               sectionTimeRange = {
-                startTime: sectionTimeMatch[1],
-                endTime: sectionTimeMatch[2]
+                startTime: timeRangeMatch[1].padStart(5, '0'),
+                endTime: timeRangeMatch[2].padStart(5, '0')
               }
-            } else {
-              sectionTimeRange = null
+              sectionDuration = null
+            }
+            // 检查时长 (3h)
+            else {
+              const durationMatch = currentSection.match(/\((\d+(?:\.\d+)?)\s*h\)/i)
+              if (durationMatch) {
+                sectionDuration = parseFloat(durationMatch[1])
+                sectionTimeRange = null
+              } else {
+                sectionTimeRange = null
+                sectionDuration = null
+              }
             }
           }
-          
-          // 解析任务行
+
           else if (line && !line.startsWith('title') && !line.startsWith('gantt')) {
             const taskMatch = line.match(/^(.+?)\s*:(.*)$/)
             if (taskMatch) {
               const [, title, taskData] = taskMatch
               const parts = taskData.split(',').map(p => p.trim())
-              
-              // 解析任务状态和日期
+
               let status = ''
               let taskId = ''
               let startDate = null
               let endDate = null
               let duration = null
-              
+
               parts.forEach(part => {
                 if (['done', 'active', 'crit', 'milestone'].includes(part)) {
                   status = part
@@ -628,31 +966,32 @@ export default {
                   duration = parseInt(part)
                 }
               })
-              
-              // 处理日期
+
               if (startDate) {
                 try {
-                  // 确定颜色
-                  let color = '#4ade80' // 默认绿色
-                  if (status === 'done') color = '#10b981' // 已完成 - 深绿
-                  else if (status === 'active') color = '#3b82f6' // 进行中 - 蓝色
-                  else if (status === 'crit') color = '#ef4444' // 重要 - 红色
-                  else if (status === 'milestone') color = '#f59e0b' // 里程碑 - 橙色
-                  
-                  // 如果 section 包含时间范围，且任务跨越多天，为每一天创建单独的事件
-                  if (sectionTimeRange && endDate) {
-                    const rangeStart = new Date(startDate + 'T00:00:00')
-                    const rangeEnd = new Date(endDate + 'T23:59:59')
+                  let color = '#4ade80'
+                  if (status === 'done') color = '#10b981'
+                  else if (status === 'active') color = '#3b82f6'
+                  else if (status === 'crit') color = '#ef4444'
+                  else if (status === 'milestone') color = '#f59e0b'
+
+                  // 使用智能日期解析
+                  const parsedStartDate = parseSmartDate(startDate, false)
+                  const parsedEndDate = endDate ? parseSmartDate(endDate, true, parsedStartDate) : null
+
+                  // 处理有时间范围的全天事件
+                  if (sectionTimeRange && parsedEndDate) {
+                    const rangeStart = new Date(parsedStartDate + 'T00:00:00')
+                    const rangeEnd = new Date(parsedEndDate + 'T23:59:59')
                     const daysDiff = Math.ceil((rangeEnd - rangeStart) / (1000 * 60 * 60 * 24))
-                    
-                    // 如果跨越多天（大于1天），创建每日重复事件
+
                     if (daysDiff > 1) {
                       const currentDate = new Date(rangeStart)
                       while (currentDate <= rangeEnd) {
                         const dateStr = currentDate.toISOString().split('T')[0]
                         const dayStart = new Date(`${dateStr}T${sectionTimeRange.startTime}:00`)
                         const dayEnd = new Date(`${dateStr}T${sectionTimeRange.endTime}:00`)
-                        
+
                         events.push({
                           id: `${articlePath}-${blockIndex}-${eventId++}`,
                           title: title.trim(),
@@ -663,55 +1002,140 @@ export default {
                           color,
                           articlePath,
                           duration: 1,
-                          isRecurring: true
+                          eventType: 'time-ranged-allday',
+                          priority: 2
                         })
-                        
+
                         currentDate.setDate(currentDate.getDate() + 1)
                       }
-                      return // 已处理，跳过普通事件创建
+                      return
                     }
                   }
-                  
+
+                  // 处理有时长的全天事件
+                  if (sectionDuration && parsedEndDate) {
+                    const rangeStart = new Date(parsedStartDate + 'T00:00:00')
+                    const rangeEnd = new Date(parsedEndDate + 'T23:59:59')
+                    const daysDiff = Math.ceil((rangeEnd - rangeStart) / (1000 * 60 * 60 * 24))
+
+                    if (daysDiff > 1) {
+                      const currentDate = new Date(rangeStart)
+                      while (currentDate <= rangeEnd) {
+                        const dateStr = currentDate.toISOString().split('T')[0]
+
+                        events.push({
+                          id: `${articlePath}-${blockIndex}-${eventId++}`,
+                          title: title.trim(),
+                          section: currentSection,
+                          startDate: new Date(`${dateStr}T00:00:00`).toISOString(),
+                          endDate: new Date(`${dateStr}T23:59:59`).toISOString(),
+                          status,
+                          color,
+                          articlePath,
+                          duration: 1,
+                          eventType: 'duration-allday',
+                          durationHours: sectionDuration,
+                          priority: 3,
+                          needsScheduling: true
+                        })
+
+                        currentDate.setDate(currentDate.getDate() + 1)
+                      }
+                      return
+                    }
+                  }
+
                   // 普通事件处理
                   let start, end
-                  
-                  // 解析开始日期
-                  if (dateFormat.includes('HH:mm')) {
-                    start = new Date(startDate)
+
+                  if (dateFormat.includes('HH:mm') || parsedStartDate.includes('T')) {
+                    start = new Date(parsedStartDate)
                   } else {
-                    start = new Date(startDate + 'T00:00:00')
+                    start = new Date(parsedStartDate + 'T00:00:00')
                   }
-                  
-                  // 解析结束日期
-                  if (endDate) {
-                    if (dateFormat.includes('HH:mm')) {
-                      end = new Date(endDate)
+
+                  if (parsedEndDate) {
+                    if (dateFormat.includes('HH:mm') || parsedEndDate.includes('T')) {
+                      end = new Date(parsedEndDate)
                     } else {
-                      end = new Date(endDate + 'T23:59:59')
+                      end = new Date(parsedEndDate + 'T23:59:59')
                     }
                   } else if (duration) {
                     end = new Date(start)
                     end.setDate(end.getDate() + duration)
                   } else {
-                    // 如果没有结束日期，默认为同一天
                     end = new Date(start)
-                    if (!dateFormat.includes('HH:mm')) {
+                    if (!dateFormat.includes('HH:mm') && !parsedStartDate.includes('T')) {
                       end.setHours(23, 59, 59)
                     } else {
-                      // 如果有时间格式但没有结束时间，默认持续1小时
                       end = new Date(start)
                       end.setHours(end.getHours() + 1)
                     }
                   }
-                  
-                  // 验证日期有效性
+
                   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
                     console.warn(`无效的日期: ${startDate} - ${endDate}`)
                     return
                   }
-                  
+
                   const durationDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
-                  
+
+                  // 判断事件类型
+                  const startHour = start.getHours()
+                  const endHour = end.getHours()
+                  const startMinute = start.getMinutes()
+                  const endMinute = end.getMinutes()
+                  const isAllDay = (startHour === 0 && startMinute === 0 && endHour === 23 && endMinute === 59) ||
+                    ((end - start) / (1000 * 60 * 60) > 20)
+
+                  // 如果是全天事件且没有时间范围或时长标记，默认当作5小时的全天事件
+                  if (isAllDay && !sectionTimeRange && !sectionDuration) {
+                    // 如果跨越多天，为每一天创建5小时的事件
+                    if (durationDays > 1) {
+                      const currentDate = new Date(start)
+                      while (currentDate <= end) {
+                        const dateStr = currentDate.toISOString().split('T')[0]
+
+                        events.push({
+                          id: `${articlePath}-${blockIndex}-${eventId++}`,
+                          title: title.trim(),
+                          section: currentSection,
+                          startDate: new Date(`${dateStr}T00:00:00`).toISOString(),
+                          endDate: new Date(`${dateStr}T23:59:59`).toISOString(),
+                          status,
+                          color,
+                          articlePath,
+                          duration: 1,
+                          eventType: 'duration-allday',
+                          durationHours: 5,
+                          priority: 3,
+                          needsScheduling: true
+                        })
+
+                        currentDate.setDate(currentDate.getDate() + 1)
+                      }
+                      return
+                    } else {
+                      // 单天的全天事件，也当作5小时
+                      events.push({
+                        id: `${articlePath}-${blockIndex}-${eventId++}`,
+                        title: title.trim(),
+                        section: currentSection,
+                        startDate: start.toISOString(),
+                        endDate: end.toISOString(),
+                        status,
+                        color,
+                        articlePath,
+                        duration: 1,
+                        eventType: 'duration-allday',
+                        durationHours: 5,
+                        priority: 3,
+                        needsScheduling: true
+                      })
+                      return
+                    }
+                  }
+
                   events.push({
                     id: `${articlePath}-${blockIndex}-${eventId++}`,
                     title: title.trim(),
@@ -722,7 +1146,8 @@ export default {
                     color,
                     articlePath,
                     duration: Math.max(1, durationDays),
-                    isRecurring: false
+                    eventType: isAllDay ? 'regular-allday' : 'timed',
+                    priority: isAllDay ? 4 : 1
                   })
                 } catch (error) {
                   console.warn(`解析日期失败: ${startDate}`, error)
@@ -732,7 +1157,7 @@ export default {
           }
         })
       })
-      
+
       return events
     },
     async loadEvents() {
@@ -740,10 +1165,10 @@ export default {
         // 获取所有 markdown 文件列表
         const response = await fetch('/assets/PostDirectory.json')
         const postDirectory = await response.json()
-        
+
         const allEvents = []
         const allPaths = []
-        
+
         // 收集所有文章路径
         const collectPaths = (obj) => {
           if (Array.isArray(obj)) {
@@ -754,24 +1179,24 @@ export default {
             Object.values(obj).forEach(value => collectPaths(value))
           }
         }
-        
+
         collectPaths(postDirectory)
-        
+
         console.log(`找到 ${allPaths.length} 篇文章`)
-        
+
         // 遍历所有文章
         for (const path of allPaths) {
           try {
             // 读取文章内容
             const contentResponse = await fetch(path)
             if (!contentResponse.ok) continue
-            
+
             const content = await contentResponse.text()
-            
+
             // 从 frontmatter 提取日期
             const dateMatch = content.match(/^---\s*\n[\s\S]*?date:\s*(.+?)\n[\s\S]*?---/)
             const articleDate = dateMatch ? dateMatch[1].trim() : null
-            
+
             // 解析 Mermaid Gantt
             const events = this.parseMermaidGantt(content, path, articleDate)
             if (events.length > 0) {
@@ -782,7 +1207,7 @@ export default {
             console.warn(`无法加载文章 ${path}:`, error)
           }
         }
-        
+
         this.events = allEvents
         console.log(`✅ 成功加载 ${allEvents.length} 个日历事件`)
       } catch (error) {
@@ -794,7 +1219,7 @@ export default {
   mounted() {
     this.loadEvents()
     this.currentWeekStart = this.getWeekStart(new Date())
-    
+
     // 如果有事件，默认显示第一个事件所在的月份
     this.$nextTick(() => {
       if (this.events.length > 0) {
@@ -1431,7 +1856,7 @@ export default {
   .expanded-content {
     grid-template-columns: 1fr;
   }
-  
+
   .month-calendar {
     order: -1;
   }
