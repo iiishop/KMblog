@@ -46,6 +46,86 @@ const emit = defineEmits(['update:modelValue', 'scroll', 'change', 'format-reque
 const editorContainer = ref(null);
 let editor = null;
 let isUpdatingFromProp = false;
+let isMobile = false; // 检测是否为移动设备
+
+// 检测移动设备
+const detectMobile = () => {
+    return window.innerWidth <= 768 ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// 获取响应式编辑器配置
+const getEditorOptions = () => {
+    isMobile = detectMobile();
+
+    const baseOptions = {
+        value: props.modelValue,
+        language: props.language,
+        theme: props.theme,
+        automaticLayout: true,
+        wordWrap: 'on',
+        lineNumbers: 'on',
+        scrollBeyondLastLine: false,
+        fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+        'bracketPairColorization.enabled': false,
+        // 行号配置
+        lineNumbersMinChars: 3, // 行号最小字符数
+        glyphMargin: true, // 启用字形边距（在行号和内容之间）
+        ...props.options
+    };
+
+    if (isMobile) {
+        // 移动端优化配置
+        return {
+            ...baseOptions,
+            fontSize: 13, // 稍小的字体
+            lineHeight: 20, // 更紧凑的行高
+            tabSize: 2, // 更小的缩进
+            insertSpaces: true, // 使用空格而不是制表符
+            minimap: {
+                enabled: true, // 移动端也启用小地图
+                side: 'right',
+                showSlider: 'mouseover',
+                scale: 1
+            },
+            lineNumbers: 'on', // 移动端也显示行号
+            lineNumbersMinChars: 3, // 行号最小宽度
+            glyphMargin: true, // 保留字形边距
+            folding: true, // 启用代码折叠
+            lineDecorationsWidth: 10, // 装饰宽度
+            renderLineHighlight: 'line', // 高亮当前行
+            scrollbar: {
+                vertical: 'auto',
+                horizontal: 'auto',
+                verticalScrollbarSize: 10, // 稍粗的滚动条便于触摸
+                horizontalScrollbarSize: 10
+            },
+            overviewRulerLanes: 2, // 启用概览标尺
+            padding: {
+                top: 8,
+                bottom: 8
+            }
+        };
+    } else {
+        // 桌面端配置
+        return {
+            ...baseOptions,
+            fontSize: 14,
+            lineHeight: 24,
+            tabSize: 4, // 标准缩进
+            insertSpaces: true,
+            minimap: {
+                enabled: true,
+                side: 'right',
+                showSlider: 'mouseover'
+            },
+            lineNumbersMinChars: 4, // 桌面端更宽的行号区域
+            glyphMargin: true,
+            folding: true,
+            lineDecorationsWidth: 10
+        };
+    }
+};
 
 // 处理图片上传
 const uploadImage = async (file) => {
@@ -221,26 +301,10 @@ onMounted(() => {
     }
 
     console.log('[MonacoEditor] editorContainer 存在，创建编辑器...');
+    console.log('[MonacoEditor] 检测到设备类型:', detectMobile() ? '移动端' : '桌面端');
 
-    // Create editor instance
-    editor = monaco.editor.create(editorContainer.value, {
-        value: props.modelValue,
-        language: props.language,
-        theme: props.theme,
-        automaticLayout: true,
-        wordWrap: 'on',
-        lineNumbers: 'on',
-        minimap: {
-            enabled: true
-        },
-        scrollBeyondLastLine: false,
-        fontSize: 14,
-        lineHeight: 24,
-        fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-        // 禁用 Monaco 的智能粘贴功能，让我们自己处理
-        'bracketPairColorization.enabled': false,
-        ...props.options
-    });
+    // Create editor instance with responsive options
+    editor = monaco.editor.create(editorContainer.value, getEditorOptions());
 
     // 注册右键菜单
     editor.addAction({
@@ -491,6 +555,28 @@ onMounted(() => {
     window.addEventListener('paste', globalPasteHandler, { capture: true });
 
     console.log('[MonacoEditor] 所有粘贴事件监听器已注册');
+
+    // 监听窗口大小变化，动态调整编辑器配置
+    const handleResize = () => {
+        const wasMobile = isMobile;
+        const nowMobile = detectMobile();
+
+        if (wasMobile !== nowMobile) {
+            console.log('[MonacoEditor] 设备类型变化，更新编辑器配置');
+            isMobile = nowMobile;
+
+            // 更新编辑器配置
+            if (editor) {
+                const options = getEditorOptions();
+                editor.updateOptions(options);
+            }
+        }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // 保存清理函数
+    editor._resizeHandler = handleResize;
 });
 
 // Watch for external value changes
@@ -530,6 +616,12 @@ onBeforeUnmount(() => {
         if (domNode) {
             domNode.removeEventListener('paste', handlePaste);
         }
+
+        // 移除 resize 监听器
+        if (editor._resizeHandler) {
+            window.removeEventListener('resize', editor._resizeHandler);
+        }
+
         editor.dispose();
         editor = null;
     }
@@ -567,5 +659,74 @@ defineExpose({
     width: 100%;
     height: 100%;
     overflow: hidden;
+}
+
+/* 确保行号和内容之间有间距 */
+.monaco-editor-container :deep(.monaco-editor .margin) {
+    padding-right: 8px;
+    /* 行号右侧间距 */
+}
+
+.monaco-editor-container :deep(.monaco-editor .lines-content) {
+    padding-left: 8px;
+    /* 内容左侧间距 */
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .monaco-editor-container {
+        /* 确保编辑器在移动端正确显示 */
+        touch-action: pan-y;
+        /* 允许垂直滚动 */
+    }
+
+    /* 移动端保持行号和内容的间距 */
+    .monaco-editor-container :deep(.monaco-editor .margin) {
+        padding-right: 6px;
+        /* 移动端稍小的间距 */
+    }
+
+    .monaco-editor-container :deep(.monaco-editor .lines-content) {
+        padding-left: 6px;
+    }
+
+    /* 优化滚动条 */
+    .monaco-editor-container :deep(.monaco-scrollable-element .scrollbar) {
+        width: 10px !important;
+        height: 10px !important;
+    }
+
+    /* 优化光标 */
+    .monaco-editor-container :deep(.monaco-editor .cursor) {
+        width: 2px !important;
+    }
+
+    /* 优化 minimap 在移动端的显示 */
+    .monaco-editor-container :deep(.monaco-editor .minimap) {
+        width: 60px !important;
+        /* 移动端更窄的 minimap */
+    }
+
+    .monaco-editor-container :deep(.monaco-editor .minimap-slider) {
+        opacity: 0.8;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .monaco-editor-container {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 增加触摸目标大小 */
+    .monaco-editor-container :deep(.monaco-editor .view-line) {
+        min-height: 28px;
+    }
+
+    /* 优化 minimap 的触摸交互 */
+    .monaco-editor-container :deep(.monaco-editor .minimap-slider) {
+        min-height: 40px;
+        /* 增加滑块高度便于触摸 */
+    }
 }
 </style>

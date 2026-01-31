@@ -14,17 +14,36 @@
                 @save="handleSave" @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
                 @toggle-file-tree="fileTreeVisible = !fileTreeVisible" />
 
+            <!-- Mobile View Toggle -->
+            <div class="mobile-view-toggle">
+                <button @click="mobileView = 'edit'" :class="{ active: mobileView === 'edit' }" class="view-toggle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>编辑</span>
+                </button>
+                <button @click="mobileView = 'preview'" :class="{ active: mobileView === 'preview' }"
+                    class="view-toggle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <span>预览</span>
+                </button>
+            </div>
+
             <!-- Editor and Preview Panels -->
             <div class="editor-panels">
                 <!-- Edit Panel -->
-                <div class="edit-panel">
+                <div class="edit-panel" :class="{ 'mobile-hidden': mobileView === 'preview' }">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
                         :current-file-name="currentFileName" :api-base="API_BASE" @change="handleContentChange"
                         @scroll="handleEditorScroll" @format-request="handleInsertFormat" ref="monacoEditorRef" />
                 </div>
 
                 <!-- Preview Panel -->
-                <div class="preview-panel" ref="previewPanelRef">
+                <div class="preview-panel" :class="{ 'mobile-hidden': mobileView === 'edit' }" ref="previewPanelRef">
                     <!-- WaterfallGraph 图片预览 - 使用 Graph 组件 -->
                     <div v-if="isWaterfallGraphFile && graphData" class="graph-preview-section">
                         <div class="preview-label">图片卡片预览</div>
@@ -176,6 +195,7 @@ const editorScrollTop = ref(0);
 const monacoEditorRef = ref(null);
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
+const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
 let isScrollingFromPreview = false; // 标记是否来自预览的滚动
 
 // Theme management
@@ -1219,6 +1239,49 @@ onBeforeUnmount(() => {
     overflow: hidden;
 }
 
+/* Mobile View Toggle */
+.mobile-view-toggle {
+    display: none;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--theme-surface-default);
+    border-bottom: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
+}
+
+.view-toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 1px solid var(--theme-border-light);
+    background: var(--theme-panel-bg);
+    color: var(--theme-panel-text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.view-toggle-btn:hover {
+    background: var(--theme-surface-hover);
+    border-color: var(--theme-primary);
+}
+
+.view-toggle-btn.active {
+    background: var(--theme-gradient);
+    color: white;
+    border-color: transparent;
+}
+
 /* Editor Panels */
 .editor-panels {
     flex: 1;
@@ -1300,6 +1363,131 @@ onBeforeUnmount(() => {
     .edit-panel {
         border-right: none;
         border-bottom: 1px solid var(--theme-panel-border);
+    }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+
+    /* Show mobile view toggle */
+    .mobile-view-toggle {
+        display: flex;
+    }
+
+    /* Single view mode on mobile */
+    .editor-panels {
+        flex-direction: row;
+    }
+
+    .edit-panel,
+    .preview-panel {
+        flex: 0 0 100%;
+        border: none;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Hide inactive view */
+    .mobile-hidden {
+        display: none;
+    }
+
+    /* Optimize preview sections for mobile */
+    .post-preview-section,
+    .graph-preview-section {
+        padding: 1rem;
+    }
+
+    .graph-preview-wrapper {
+        max-width: 100%;
+    }
+
+    .markdown-preview-section {
+        padding: 1rem;
+    }
+
+    .preview-label {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Adjust editor container for mobile */
+    .editor-container {
+        height: 100dvh;
+        /* Use dynamic viewport height for mobile browsers */
+    }
+
+    /* Make file tree overlay on mobile */
+    .editor-container :deep(.file-tree-sidebar) {
+        position: fixed;
+        z-index: 1000;
+        height: 100dvh;
+    }
+
+    /* Optimize toolbar for mobile */
+    .main-editor :deep(.ethereal-toolbar) {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .mobile-view-toggle {
+        padding: 6px 12px;
+    }
+
+    .view-toggle-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .view-toggle-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .view-toggle-btn span {
+        display: none;
+    }
+
+    /* Show only icons on very small screens */
+    .view-toggle-btn {
+        min-width: 44px;
+        /* Touch target size */
+    }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mobile-view-toggle {
+        padding: 4px 12px;
+    }
+
+    .view-toggle-btn {
+        padding: 6px 12px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Increase touch targets */
+    .view-toggle-btn {
+        min-height: 44px;
+    }
+
+    /* Improve scrolling performance */
+    .preview-panel {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent text selection during touch interactions */
+    .mobile-view-toggle {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
     }
 }
 </style>
