@@ -77,7 +77,6 @@ import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
 import mermaid from 'mermaid';
-import 'mermaid/dist/mermaid.esm.min.mjs';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';

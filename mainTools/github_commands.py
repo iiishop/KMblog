@@ -15,8 +15,15 @@ def extract_base_name(file_path):
     """提取文件的基础名称（去除 hash 后缀）
     例如: assets/app-abc123.js -> assets/app.js
          assets/style-xyz789.css -> assets/style.css
+    
+    特殊处理：chunk-index 文件不进行版本检测，因为 Vite 可能生成多个版本
     """
     import re
+    
+    # 特殊处理：chunk-index 文件不进行版本检测
+    if 'chunk-index-' in file_path:
+        return None  # 返回 None 表示不进行版本检测
+    
     # 匹配模式：文件名-hash.扩展名
     # hash 通常是 8 个字符的字母数字组合
     pattern = r'^(.+)-([a-zA-Z0-9_-]{6,12})(\.[^.]+)$'
@@ -36,6 +43,11 @@ def find_versioned_files(remote_files, base_name):
          查找所有 assets/app-*.js 文件
     """
     import re
+    
+    # 如果 base_name 是 None，说明不需要版本检测，直接返回空列表
+    if base_name is None:
+        return []
+    
     # 从 base_name 提取目录、名称和扩展名
     parts = base_name.rsplit('.', 1)
     if len(parts) != 2:

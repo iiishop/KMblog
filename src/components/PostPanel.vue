@@ -15,13 +15,22 @@ const dynamicPostsPerPage = ref(config.PostsPerPage); // 动态每页文章数
 const sidebarHeight = ref(0);
 const mainPanelHeight = ref(0);
 
-// 过滤掉带'公告'标签和 title 为 'About' 的文章
+// 过滤掉带'公告'标签、title 为 'About' 的文章，以及 WaterfallGraph 文件夹内的文章
 async function filterAnnouncements() {
     const allPosts = globalVar.markdowns;
     const filteredPosts = {};
 
     for (const [key, post] of Object.entries(allPosts)) {
         try {
+            // 检查是否在 WaterfallGraph 文件夹内
+            const isInWaterfallGraph = key.includes('/WaterfallGraph/') || key.includes('\\WaterfallGraph\\');
+
+            // 如果在 WaterfallGraph 文件夹内，直接跳过
+            if (isInWaterfallGraph) {
+                console.log(`[PostPanel] Skipping WaterfallGraph file: ${key}`);
+                continue;
+            }
+
             // 获取文章内容
             const response = await axios.get(key.startsWith('http') ? key : new URL(key, import.meta.url).href);
             const content = response.data;
