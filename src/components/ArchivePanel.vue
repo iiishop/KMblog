@@ -25,12 +25,17 @@ const isLoading = ref(false);
 const hasMore = ref(true);
 const loadMoreTrigger = ref(null);
 
-// 过滤掉带'公告'标签和 title 为 'About' 的文章
+// 过滤掉带'公告'标签和 title 为 'About' 的文章，以及 WaterfallGraph 文件夹中的文章
 async function filterPosts() {
     const allPosts = globalVar.markdowns;
     const result = [];
 
     for (const [key, post] of Object.entries(allPosts)) {
+        // 过滤掉 WaterfallGraph 文件夹中的文章
+        if (key.toLowerCase().includes('/waterfallgraph/')) {
+            continue;
+        }
+
         // 如果有 markdownUrls 限制，先检查是否在列表中
         if (props.markdownUrls.length > 0 && !props.markdownUrls.includes(key)) {
             continue;
@@ -200,7 +205,7 @@ const displayedCount = computed(() => displayedPosts.value.length);
                 <div v-if="index === 0 || new Date(post.date).getMonth() !== new Date(displayedPosts[index - 1].date).getMonth()"
                     class="timeline-marker month-marker">
                     <span class="month-text">{{ new Date(post.date).toLocaleString('default', { month: 'long' })
-                    }}</span>
+                        }}</span>
                 </div>
 
                 <div @click="navigateToPost(post.url)" class="post-content post-entry">

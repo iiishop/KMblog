@@ -45,12 +45,18 @@ const buildTree = (categories) => {
 
 const categoryTree = computed(() => buildTree(categories));
 
-// 计算当前路径下的所有文件（文章）
+// 计算当前路径下的所有文件（文章），过滤掉 WaterfallGraph 文件夹中的文章
 const currentFiles = computed(() => {
     // 1. 如果在根目录，寻找没有分类的文章
     if (props.categoryPath.length === 0) {
         return Object.entries(globalVar.markdowns)
-            .filter(([path, info]) => !info.categories || info.categories.length === 0)
+            .filter(([path, info]) => {
+                // 过滤掉 WaterfallGraph 文件夹中的文章
+                if (path.toLowerCase().includes('/waterfallgraph/')) {
+                    return false;
+                }
+                return !info.categories || info.categories.length === 0;
+            })
             .map(([path, info]) => ({ ...info, path }));
     }
 
@@ -62,11 +68,13 @@ const currentFiles = computed(() => {
             if (i === props.categoryPath.length - 1) {
                 // 找到当前分类节点
                 const files = pointer[part].files || [];
-                // 将文件路径映射为完整的文章对象
-                return files.map(filePath => ({
-                    ...globalVar.markdowns[filePath],
-                    path: filePath
-                }));
+                // 将文件路径映射为完整的文章对象，过滤掉 WaterfallGraph 文件夹中的文章
+                return files
+                    .filter(filePath => !filePath.toLowerCase().includes('/waterfallgraph/'))
+                    .map(filePath => ({
+                        ...globalVar.markdowns[filePath],
+                        path: filePath
+                    }));
             }
             // 继续向下遍历
             pointer = pointer[part].childCategories;
