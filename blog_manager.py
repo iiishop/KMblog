@@ -3016,6 +3016,88 @@ class BlogManagerGUI:
 
     def show_update_options_dialog(self, e):
         """显示更新选项对话框"""
+        # 先显示检查中的对话框
+        checking_dlg = ft.AlertDialog(
+            title=ft.Text("检查更新"),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.ProgressRing(),
+                    ft.Text("正在检查更新...", size=14),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
+                padding=20,
+            ),
+        )
+        self.page.overlay.append(checking_dlg)
+        checking_dlg.open = True
+        self.page.update()
+        
+        # 在后台线程中检查更新
+        def check_and_show():
+            try:
+                # 重新检查更新
+                print("[更新检查] 用户点击更新按钮，开始检查...")
+                
+                # 检查框架更新
+                try:
+                    import sys
+                    if 'mainTools.update_framework' in sys.modules:
+                        import importlib
+                        importlib.reload(sys.modules['mainTools.update_framework'])
+                    
+                    from mainTools.update_framework import FrameworkUpdater
+                    framework_updater = FrameworkUpdater()
+                    framework_result = framework_updater.check_for_updates()
+                    
+                    if framework_result['success']:
+                        self.update_info['has_updates'] = framework_result['has_updates']
+                        self.update_info['commits_behind'] = framework_result.get('commits_behind', 0)
+                        print(f"[更新检查] 框架更新检查完成: has_updates={framework_result['has_updates']}, commits_behind={framework_result.get('commits_behind', 0)}")
+                    else:
+                        print(f"[更新检查] 框架更新检查失败: {framework_result.get('message', '未知错误')}")
+                except Exception as e:
+                    print(f"[更新检查] 框架更新检查异常: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # 检查管理工具更新
+                try:
+                    if 'mainTools.update_manager' in sys.modules:
+                        import importlib
+                        importlib.reload(sys.modules['mainTools.update_manager'])
+                    
+                    from mainTools.update_manager import ManagerUpdater
+                    manager_updater = ManagerUpdater()
+                    manager_result = manager_updater.check_for_updates()
+                    
+                    if manager_result['success']:
+                        self.update_info['manager_has_update'] = manager_result['has_update']
+                        self.update_info['manager_version'] = manager_result.get('latest_version', 'Unknown')
+                        print(f"[更新检查] 管理工具更新检查完成: has_update={manager_result['has_update']}, version={manager_result.get('latest_version', 'Unknown')}")
+                    else:
+                        print(f"[更新检查] 管理工具更新检查失败: {manager_result.get('message', '未知错误')}")
+                except Exception as e:
+                    print(f"[更新检查] 管理工具更新检查异常: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # 关闭检查对话框
+                self.close_dlg(checking_dlg)
+                
+                # 显示更新选项对话框
+                self._show_update_options_dialog_content()
+                
+            except Exception as e:
+                print(f"[更新检查] 检查更新失败: {e}")
+                import traceback
+                traceback.print_exc()
+                self.close_dlg(checking_dlg)
+                self.snack(f"检查更新失败: {e}", True)
+        
+        import threading
+        threading.Thread(target=check_and_show, daemon=True).start()
+    
+    def _show_update_options_dialog_content(self):
+        """显示更新选项对话框内容（内部方法）"""
         options = []
         
         # 框架更新选项
