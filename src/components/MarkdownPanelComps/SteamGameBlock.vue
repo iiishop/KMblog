@@ -438,15 +438,142 @@ onMounted(() => {
     box-shadow: 0 0 15px rgba(71, 191, 255, 0.6) !important;
 }
 
-@media (max-width: 600px) {
+/* 响应式设计 */
+@media (max-width: 968px) {
     .card-content {
         flex-direction: column;
+        padding: 12px;
     }
 
     .left-col {
         width: 100%;
-        max-width: 320px;
+        max-width: 400px;
         margin: 0 auto;
+    }
+
+    .right-col {
+        width: 100%;
+    }
+
+    .game-title {
+        font-size: 1.3rem;
+    }
+
+    .meta-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tags-row {
+        gap: 5px;
+    }
+
+    .tag {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .game-desc {
+        font-size: 0.85rem;
+        -webkit-line-clamp: 4;
+    }
+
+    .action-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .price-block {
+        justify-content: center;
+    }
+
+    .store-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    .steam-card {
+        min-height: 150px;
+    }
+
+    .card-content {
+        padding: 10px;
+        gap: 12px;
+    }
+
+    .left-col {
+        max-width: 100%;
+    }
+
+    .game-title {
+        font-size: 1.2rem;
+    }
+
+    .meta-row {
+        font-size: 0.8rem;
+        gap: 6px;
+    }
+
+    .mc-score {
+        font-size: 0.75rem;
+    }
+
+    .review-text {
+        font-size: 0.8rem;
+    }
+
+    .game-desc {
+        font-size: 0.8rem;
+        -webkit-line-clamp: 3;
+    }
+
+    .action-row {
+        padding: 6px 10px;
+    }
+
+    .final-price {
+        font-size: 1rem;
+    }
+
+    .store-btn {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-content {
+        padding: 8px;
+        gap: 10px;
+    }
+
+    .game-title {
+        font-size: 1.1rem;
+    }
+
+    .meta-row {
+        font-size: 0.75rem;
+    }
+
+    .tags-row {
+        gap: 4px;
+    }
+
+    .tag {
+        font-size: 0.65rem;
+        padding: 1px 5px;
+    }
+
+    .game-desc {
+        font-size: 0.75rem;
+    }
+
+    .discount-badge {
+        font-size: 1rem;
+        padding: 3px 6px;
     }
 }
 </style>

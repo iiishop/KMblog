@@ -832,6 +832,184 @@ onMounted(() => fetchNote());
     height: 6px;
 }
 
+/* 响应式设计 */
+@media (max-width: 968px) {
+    .xhs-card {
+        flex-direction: column;
+        padding: 1.5rem;
+        gap: 1.5rem;
+    }
+
+    .media-area {
+        flex: none;
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
+        box-shadow: 15px 15px 0 var(--theme-red-deep);
+    }
+
+    .content-area {
+        width: 100%;
+    }
+
+    .note-title {
+        font-size: 2rem;
+    }
+
+    .note-abstract {
+        font-size: 0.9rem;
+        max-height: 120px;
+    }
+
+    .chips-left {
+        gap: 10px;
+    }
+
+    .meta-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .stats-row {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 640px) {
+    .xhs-embed-container {
+        margin: 2.5rem 0;
+    }
+
+    .xhs-card {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .media-area {
+        max-width: 100%;
+        box-shadow: 10px 10px 0 var(--theme-red-deep);
+    }
+
+    .xhs-header {
+        gap: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .brand-tag {
+        font-size: 9px;
+        letter-spacing: 2px;
+        padding: 2px 6px;
+    }
+
+    .note-id {
+        font-size: 9px;
+    }
+
+    .note-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .note-abstract {
+        font-size: 0.85rem;
+        max-height: 100px;
+        margin-bottom: 1.5rem;
+    }
+
+    .chips-row {
+        padding-top: 1rem;
+    }
+
+    .chips-left {
+        gap: 8px;
+    }
+
+    .tag-chip {
+        font-size: 9px;
+        padding: 3px 10px;
+    }
+
+    .meta-footer {
+        margin-top: 1rem;
+    }
+
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+    }
+
+    .user-name {
+        font-size: 0.8rem;
+    }
+
+    .stats-row {
+        gap: 15px;
+    }
+
+    .stat-pill {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .xhs-card {
+        padding: 0.75rem;
+    }
+
+    .media-area {
+        box-shadow: 8px 8px 0 var(--theme-red-deep);
+    }
+
+    .note-title {
+        font-size: 1.3rem;
+    }
+
+    .note-abstract {
+        font-size: 0.8rem;
+        max-height: 80px;
+    }
+
+    .tag-chip {
+        font-size: 8px;
+        padding: 2px 8px;
+    }
+
+    .user-block {
+        gap: 8px;
+    }
+
+    .user-avatar {
+        width: 24px;
+        height: 24px;
+    }
+
+    .user-name {
+        font-size: 0.75rem;
+    }
+
+    .stat-pill {
+        font-size: 9px;
+        gap: 4px;
+    }
+
+    /* Skeleton 响应式 */
+    .skeleton-card {
+        padding: 12px;
+        gap: 1rem;
+    }
+
+    .skeleton-media {
+        width: 100%;
+        height: 150px;
+    }
+
+    .skeleton-title {
+        height: 28px;
+    }
+}
+
 @media (max-width: 900px) {
     .xhs-card {
         flex-direction: column;
@@ -841,7 +1019,7 @@ onMounted(() => fetchNote());
     .media-area {
         flex: none;
         width: 100%;
-        box-shadow: 10px 10px 0 px var(--theme-red-deep);
+        box-shadow: 10px 10px 0 var(--theme-red-deep);
     }
 
     .note-title {
