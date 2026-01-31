@@ -4248,6 +4248,105 @@ class BlogManagerGUI:
             list_fields[key] = field
             form_rows.append(ft.Container(content=field, padding=5))
 
+        # Giscus 评论系统配置
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text('Giscus 评论系统' if self.current_lang == 'zh' else 'Giscus Comments',
+                         size=20, weight=ft.FontWeight.BOLD))
+        
+        # 读取当前 Giscus 配置
+        giscus_script_content = ''
+        try:
+            giscus_config_path = os.path.join(os.path.dirname(__file__), 'src', 'giscus.config.js')
+            if os.path.exists(giscus_config_path):
+                with open(giscus_config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # 提取 GISCUS_SCRIPT 的内容
+                    import re
+                    match = re.search(r'const GISCUS_SCRIPT = `([^`]*)`', content, re.DOTALL)
+                    if match:
+                        giscus_script_content = match.group(1).strip()
+        except Exception as e:
+            print(f"[Giscus] 读取配置失败: {e}")
+        
+        # Giscus 配置说明
+        giscus_desc = ft.Text(
+            '从 https://giscus.app/zh-CN 获取配置后，将完整的 <script> 标签粘贴到下方文本框中，然后点击"应用配置"按钮。' if self.current_lang == 'zh' 
+            else 'Get your configuration from https://giscus.app, paste the complete <script> tag below, then click "Apply Configuration".',
+            size=12,
+            color=ft.Colors.GREY_700,
+        )
+        
+        # Giscus script 输入框
+        giscus_script_field = ft.TextField(
+            label='Giscus Script Tag',
+            value=giscus_script_content,
+            multiline=True,
+            min_lines=8,
+            max_lines=15,
+            width=700,
+            hint_text='<script src="https://giscus.app/client.js"\n        data-repo="username/repo"\n        data-repo-id="..."\n        ...\n</script>',
+        )
+        
+        def apply_giscus_config(e):
+            """应用 Giscus 配置"""
+            try:
+                script_content = giscus_script_field.value.strip()
+                
+                if not script_content:
+                    self.snack('请输入 Giscus script 标签' if self.current_lang == 'zh' else 'Please enter Giscus script tag', True)
+                    return
+                
+                # 验证是否包含必要的 data-repo 属性
+                if 'data-repo=' not in script_content:
+                    self.snack('无效的 Giscus script 标签，缺少 data-repo 属性' if self.current_lang == 'zh' else 'Invalid Giscus script tag, missing data-repo attribute', True)
+                    return
+                
+                # 读取现有配置文件
+                giscus_config_path = os.path.join(os.path.dirname(__file__), 'src', 'giscus.config.js')
+                
+                with open(giscus_config_path, 'r', encoding='utf-8') as f:
+                    config_content = f.read()
+                
+                # 替换 GISCUS_SCRIPT 的内容
+                import re
+                new_content = re.sub(
+                    r'const GISCUS_SCRIPT = `[^`]*`',
+                    f'const GISCUS_SCRIPT = `\n{script_content}\n`',
+                    config_content,
+                    flags=re.DOTALL
+                )
+                
+                # 写回文件
+                with open(giscus_config_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                
+                self.snack('✅ Giscus 配置已保存！' if self.current_lang == 'zh' else '✅ Giscus configuration saved!', False)
+                
+            except Exception as ex:
+                self.snack(f'保存失败: {ex}' if self.current_lang == 'zh' else f'Save failed: {ex}', True)
+                import traceback
+                traceback.print_exc()
+        
+        apply_giscus_btn = ft.Button(
+            '应用配置' if self.current_lang == 'zh' else 'Apply Configuration',
+            icon=ft.Icons.CHECK_CIRCLE,
+            on_click=apply_giscus_config,
+        )
+        
+        # 打开 Giscus 网站按钮
+        open_giscus_btn = ft.Button(
+            '打开 Giscus 配置页面' if self.current_lang == 'zh' else 'Open Giscus Configuration',
+            icon=ft.Icons.OPEN_IN_NEW,
+            on_click=lambda e: webbrowser.open('https://giscus.app/zh-CN' if self.current_lang == 'zh' else 'https://giscus.app'),
+        )
+        
+        form_rows.append(ft.Container(content=giscus_desc, padding=5))
+        form_rows.append(ft.Container(content=giscus_script_field, padding=5))
+        form_rows.append(ft.Container(
+            content=ft.Row([apply_giscus_btn, open_giscus_btn], spacing=10),
+            padding=5
+        ))
+
         # 社交链接配置
         form_rows.append(ft.Divider())
         form_rows.append(ft.Text(self.t('social_links'),

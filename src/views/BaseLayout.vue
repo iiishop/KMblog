@@ -626,59 +626,224 @@ body {
    移动端样式
    ======================================== */
 
-/* 移动端：底部导航栏 */
+/* 移动端：底部导航栏 - 极致美化版 */
 .mobile-bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
-    background: var(--theme-content-bg);
-    border-top: 1px solid var(--theme-content-border);
+    height: 70px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 9999;
-    box-shadow: 0 -2px 10px var(--theme-shadow-sm);
-    transition: var(--theme-transition-colors);
+    box-shadow:
+        0 -8px 32px rgba(0, 0, 0, 0.08),
+        0 -2px 8px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0 1rem;
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+    .mobile-bottom-nav {
+        background: rgba(30, 30, 30, 0.9);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow:
+            0 -8px 32px rgba(0, 0, 0, 0.4),
+            0 -2px 8px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
 }
 
 .mobile-bottom-nav .nav-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 1.5rem;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.6rem 1.8rem;
     background: none;
     border: none;
-    color: var(--theme-meta-text);
+    color: #666;
     cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: 16px;
+    min-width: 80px;
+    isolation: isolate;
+}
+
+/* 导航项背景光晕效果 */
+.mobile-bottom-nav .nav-item::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: linear-gradient(135deg,
+            var(--theme-primary),
+            var(--theme-secondary, #667eea));
+    border-radius: 20px;
+    opacity: 0;
+    filter: blur(12px);
+    transition: opacity 0.4s ease;
+    z-index: -2;
+}
+
+/* 导航项背景 */
+.mobile-bottom-nav .nav-item::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            rgba(99, 102, 241, 0.1),
+            rgba(102, 126, 234, 0.1));
+    border-radius: 16px;
+    opacity: 0;
     transition: all 0.3s ease;
-    border-radius: 8px;
+    z-index: -1;
 }
 
 .mobile-bottom-nav .nav-item svg {
-    width: 24px;
-    height: 24px;
-    transition: all 0.3s ease;
+    width: 26px;
+    height: 26px;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .mobile-bottom-nav .nav-item span {
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.3s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.mobile-bottom-nav .nav-item:active {
-    transform: scale(0.95);
-}
-
-.mobile-bottom-nav .nav-item.active {
+/* Hover 效果 */
+.mobile-bottom-nav .nav-item:hover {
     color: var(--theme-primary);
-    background: var(--theme-panel-bg);
+    transform: translateY(-2px);
+}
+
+.mobile-bottom-nav .nav-item:hover::after {
+    opacity: 1;
+}
+
+.mobile-bottom-nav .nav-item:hover svg {
+    transform: scale(1.1);
+}
+
+/* 按下效果 */
+.mobile-bottom-nav .nav-item:active {
+    transform: translateY(0) scale(0.95);
+}
+
+/* 激活状态 - 极致美化 */
+.mobile-bottom-nav .nav-item.active {
+    color: #fff;
+    background: linear-gradient(135deg,
+            var(--theme-primary) 0%,
+            var(--theme-secondary, #667eea) 100%);
+    box-shadow:
+        0 8px 24px rgba(99, 102, 241, 0.35),
+        0 4px 12px rgba(99, 102, 241, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px) scale(1.05);
+}
+
+.mobile-bottom-nav .nav-item.active::before {
+    opacity: 0.6;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.mobile-bottom-nav .nav-item.active::after {
+    opacity: 0;
 }
 
 .mobile-bottom-nav .nav-item.active svg {
-    stroke: var(--theme-primary);
+    stroke: #fff;
+    transform: scale(1.15) rotate(5deg);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.mobile-bottom-nav .nav-item.active span {
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 激活指示器 */
+.mobile-bottom-nav .nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.8),
+            transparent);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* 导航栏入场动画 */
+@keyframes navSlideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.mobile-bottom-nav {
+    animation: navSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 导航项依次入场 */
+.mobile-bottom-nav .nav-item:nth-child(1) {
+    animation: navItemFadeIn 0.5s ease-out 0.1s both;
+}
+
+.mobile-bottom-nav .nav-item:nth-child(2) {
+    animation: navItemFadeIn 0.5s ease-out 0.2s both;
+}
+
+@keyframes navItemFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* 移动端：抽屉背景遮罩 */
@@ -856,7 +1021,7 @@ body {
 /* 移动端 (≤ 768px) */
 @media (max-width: 768px) {
     body {
-        padding-bottom: 60px;
+        padding-bottom: 70px;
         /* 为底部导航栏留出空间 */
     }
 
@@ -897,26 +1062,28 @@ body {
     }
 
     .mobile-bottom-nav {
-        height: 56px;
+        height: 64px;
+        padding: 0 0.5rem;
     }
 
     .mobile-bottom-nav .nav-item {
-        padding: 0.4rem 1rem;
+        padding: 0.5rem 1.2rem;
+        min-width: 70px;
     }
 
     .mobile-bottom-nav .nav-item svg {
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
     }
 
     .mobile-bottom-nav .nav-item span {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
     }
 
     .mobile-drawer {
         width: 90%;
         max-width: 100%;
-        bottom: 56px;
+        bottom: 64px;
     }
 
     .drawer-header {

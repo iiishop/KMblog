@@ -1,3 +1,5 @@
+import GiscusConfig from './giscus.config.js';
+
 const config = {
     ProjectUrl: 'https://iiishop.github.io',//博客的基础URL
     BlogName: 'iiishop的博客',//博客名称
@@ -44,7 +46,6 @@ const config = {
     MainListDown: [
     ],//Main列表，在页面默认添加的MainList的下面出现
     InfoListFloat: [
-        
     ],//Info浮动列表，开始时显示在InfoList的最下方，之后根据页面滚动位置自动调整位置
     TipListFloat: [
     ],//Tip浮动列表，开始时显示在TipList的最下方，之后根据页面滚动位置自动调整位置
@@ -53,6 +54,11 @@ const config = {
     // Get a token from: https://github.com/settings/tokens (no scopes needed for public repos)
     // Increases rate limit from 60 to 5000 requests/hour
     GitHubToken: '', // Leave empty for unauthenticated requests (60/hour limit)
+
+    // Giscus Comments Configuration
+    // 配置文件已移至 src/giscus.config.js
+    // 请在该文件中配置 Giscus 评论系统
+    Giscus: GiscusConfig,
 
     // Social Links. 社交链接
     Links: [

@@ -161,6 +161,27 @@
                         <!-- Markdown 渲染 - 使用完整的渲染系统 -->
                         <div v-html="renderedDescription" class="markdown-body"></div>
                     </div>
+
+                    <!-- 评论区 - 小红书风格 -->
+                    <div v-if="showComments" class="image-comments-section">
+                        <div class="comments-divider">
+                            <span class="divider-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </span>
+                            <span class="divider-text">评论与互动</span>
+                            <span class="divider-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path
+                                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                                    </path>
+                                </svg>
+                            </span>
+                        </div>
+                        <GiscusComments component-type="image" :term="commentTerm" :compact="true"
+                            :emphasize-reactions="true" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -175,6 +196,8 @@ import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
 import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import mermaid from 'mermaid';
+import config from '@/config';
+import GiscusComments from '@/components/GiscusComments.vue';
 
 // 导入所有嵌入式组件
 const SteamGameBlock = defineAsyncComponent(() =>
@@ -234,6 +257,16 @@ const dragStartX = ref(0);
 const dragStartY = ref(0);
 const isFullscreen = ref(false); // 是否图片全屏（隐藏描述区域）
 const showImageInfo = ref(false); // 是否显示图片信息面板
+
+// 评论相关
+const showComments = computed(() => {
+    return config.Giscus?.enabled && config.Giscus?.imageModal?.enabled;
+});
+
+const commentTerm = computed(() => {
+    // Use image path or title as unique identifier
+    return props.image.src || props.image.title || 'image-' + props.currentIndex;
+});
 
 // 计算属性
 const imageDimensions = computed(() => {
@@ -953,6 +986,271 @@ onUnmounted(() => {
     flex: 1;
 }
 
+/* === 图片评论区 - 小红书风格 === */
+.image-comments-section {
+    padding: 2rem 2.5rem 2.5rem;
+    background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+    border-top: 2px solid #ffebee;
+}
+
+.comments-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.comments-divider::before,
+.comments-divider::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #ffcdd2, transparent);
+}
+
+.divider-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #ff2442 0%, #ff6b6b 100%);
+    border-radius: 50%;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(255, 36, 66, 0.25);
+}
+
+.divider-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.divider-text {
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #d32f2f;
+    white-space: nowrap;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+    border: 2px solid #ffcdd2;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+}
+
+/* === Giscus 小红书风格定制 === */
+.image-comments-section :deep(.gsc-main) {
+    background: transparent !important;
+    border: none !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box) {
+    background: #fff !important;
+    border: 2px solid #ffcdd2 !important;
+    border-radius: 20px !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 4px 16px rgba(255, 36, 66, 0.08) !important;
+    transition: all 0.3s ease !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box:hover) {
+    border-color: #ff2442 !important;
+    box-shadow: 0 8px 24px rgba(255, 36, 66, 0.15) !important;
+    transform: translateY(-2px) !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-tabs) {
+    border-bottom: 2px solid #ffe8e8 !important;
+    margin-bottom: 1rem !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-tab) {
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    padding: 0.6rem 1.2rem !important;
+    color: #999 !important;
+    border-radius: 12px 12px 0 0 !important;
+    transition: all 0.3s ease !important;
+    letter-spacing: 0.02em !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-tab[aria-selected="true"]) {
+    color: #ff2442 !important;
+    background: linear-gradient(180deg, #fff5f5 0%, #fff 100%) !important;
+    border-bottom: 3px solid #ff2442 !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-textarea) {
+    background: #fafafa !important;
+    border: 2px solid #f0f0f0 !important;
+    border-radius: 16px !important;
+    padding: 1rem 1.25rem !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    color: #333 !important;
+    transition: all 0.3s ease !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-textarea:focus) {
+    background: #fff !important;
+    border-color: #ff2442 !important;
+    box-shadow: 0 0 0 4px rgba(255, 36, 66, 0.1) !important;
+    outline: none !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-textarea::placeholder) {
+    color: #bbb !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-bottom) {
+    margin-top: 1rem !important;
+    padding-top: 1rem !important;
+    border-top: 1px solid #f5f5f5 !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-buttons) {
+    gap: 0.75rem !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-button) {
+    padding: 0.7rem 1.5rem !important;
+    border-radius: 20px !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s ease !important;
+    border: 2px solid transparent !important;
+    letter-spacing: 0.02em !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-button-primary) {
+    background: linear-gradient(135deg, #ff2442 0%, #ff6b6b 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 16px rgba(255, 36, 66, 0.3) !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-button-primary:hover) {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 6px 24px rgba(255, 36, 66, 0.4) !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-button-secondary) {
+    background: #f5f5f5 !important;
+    color: #666 !important;
+    border: 2px solid #e8e8e8 !important;
+}
+
+.image-comments-section :deep(.gsc-comment-box-button-secondary:hover) {
+    background: #fff !important;
+    border-color: #ffcdd2 !important;
+    color: #ff2442 !important;
+}
+
+.image-comments-section :deep(.gsc-comment) {
+    background: #fff !important;
+    border: 2px solid #f5f5f5 !important;
+    border-radius: 18px !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.image-comments-section :deep(.gsc-comment:hover) {
+    border-color: #ffebee !important;
+    box-shadow: 0 4px 16px rgba(255, 36, 66, 0.08) !important;
+    transform: translateY(-1px) !important;
+}
+
+.image-comments-section :deep(.gsc-comment-author) {
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    color: #222 !important;
+}
+
+.image-comments-section :deep(.gsc-comment-author-avatar) {
+    border-radius: 50% !important;
+    border: 2px solid #ffebee !important;
+    box-shadow: 0 2px 8px rgba(255, 36, 66, 0.1) !important;
+}
+
+.image-comments-section :deep(.gsc-comment-metadata) {
+    color: #999 !important;
+    font-size: 0.8rem !important;
+}
+
+.image-comments-section :deep(.gsc-comment-content) {
+    color: #333 !important;
+    font-size: 0.9rem !important;
+    line-height: 1.7 !important;
+    margin-top: 0.75rem !important;
+}
+
+.image-comments-section :deep(.gsc-comment-content p) {
+    margin: 0.5rem 0 !important;
+}
+
+.image-comments-section :deep(.gsc-comment-reactions) {
+    margin-top: 1rem !important;
+    padding-top: 1rem !important;
+    border-top: 1px solid #f5f5f5 !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+}
+
+.image-comments-section :deep(.gsc-reaction-button) {
+    border-radius: 20px !important;
+    padding: 0.4rem 0.8rem !important;
+    background: #fafafa !important;
+    border: 2px solid #f0f0f0 !important;
+    transition: all 0.3s ease !important;
+    font-size: 0.85rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.3rem !important;
+}
+
+.image-comments-section :deep(.gsc-reaction-button:hover) {
+    background: #fff5f5 !important;
+    border-color: #ffcdd2 !important;
+    transform: scale(1.05) !important;
+}
+
+.image-comments-section :deep(.gsc-reaction-button[aria-pressed="true"]) {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%) !important;
+    border-color: #ff2442 !important;
+}
+
+.image-comments-section :deep(.gsc-reactions-count) {
+    font-weight: 700 !important;
+    color: #ff2442 !important;
+    font-size: 0.85rem !important;
+}
+
+.image-comments-section :deep(.gsc-reply-button) {
+    color: #ff2442 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.8rem !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+.image-comments-section :deep(.gsc-reply-button:hover) {
+    background: #fff5f5 !important;
+}
+
+.image-comments-section :deep(.gsc-timeline-header) {
+    font-weight: 700 !important;
+    color: #222 !important;
+    font-size: 1.1rem !important;
+    margin-bottom: 1.5rem !important;
+    padding-bottom: 1rem !important;
+    border-bottom: 2px solid #ffe8e8 !important;
+}
+
 /* Markdown 样式 - 小红书风格 */
 .markdown-body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -1393,6 +1691,9 @@ onUnmounted(() => {
 @media (max-width: 968px) {
     .modal-content {
         flex-direction: column;
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
     }
 
     .modal-image-section {
@@ -1407,12 +1708,281 @@ onUnmounted(() => {
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    /* 移动端工具栏 - 更紧凑 */
+    .image-toolbar {
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+        flex-direction: row;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .toolbar-group {
+        gap: 0.15rem;
+        padding: 0.15rem;
+    }
+
+    .toolbar-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .toolbar-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .zoom-text {
+        font-size: 0.65rem;
+    }
+
+    /* 移动端图片信息浮层 - 更小 */
+    .image-info-float {
+        bottom: 4.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.4rem 0.8rem;
+        font-size: 0.65rem;
+        gap: 0.5rem;
+    }
+
+    /* 移动端图片信息面板 - 调整位置 */
+    .image-info-panel {
+        top: 4rem;
+        right: 0.75rem;
+        left: 0.75rem;
+        width: auto;
+        max-width: 300px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .image-info-panel h3 {
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .info-item {
+        padding: 0.4rem 0;
+        font-size: 0.75rem;
+    }
+
+    /* 移动端导航按钮 - 更大更易点击 */
+    .nav-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .nav-prev {
+        left: 0.75rem;
+    }
+
+    .nav-next {
+        right: 0.75rem;
+    }
+
+    /* 移动端关闭按钮 */
+    .close-btn {
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 40px;
+        height: 40px;
+    }
+
+    .close-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* 移动端图片容器 */
+    .image-container {
+        padding: 1.5rem 1rem;
+    }
+
+    /* 移动端评论区 */
+    .image-comments-section {
+        padding: 1rem 1.5rem;
+    }
+
+    .divider-text {
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+    }
+
+    .divider-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .divider-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* 移动端描述区域 */
+    .description-header {
+        padding: 1.5rem 1.5rem 0.75rem;
+    }
+
+    .description-title {
+        font-size: 1.1rem;
+    }
+
+    .description-content {
+        padding: 1.5rem;
+    }
+
     /* 在移动端模式下，Block 组件保持紧凑 */
     .modal-description-section :deep(.bili-embed-neo),
     .modal-description-section :deep(.steam-card),
     .modal-description-section :deep(.xhs-embed-container),
     .modal-description-section :deep(.bangumi-card) {
         margin: 1rem 0 !important;
+    }
+}
+
+/* 小屏移动端 (≤ 480px) */
+@media (max-width: 480px) {
+
+    /* 工具栏进一步压缩 */
+    .image-toolbar {
+        gap: 0.25rem;
+        bottom: 0.75rem;
+        right: 0.5rem;
+        left: 0.5rem;
+    }
+
+    .toolbar-group {
+        gap: 0.1rem;
+        padding: 0.1rem;
+    }
+
+    .toolbar-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    .toolbar-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .zoom-text {
+        font-size: 0.6rem;
+    }
+
+    /* 图片信息浮层 */
+    .image-info-float {
+        bottom: 4rem;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.6rem;
+        gap: 0.4rem;
+    }
+
+    /* 图片信息面板 */
+    .image-info-panel {
+        top: 3.5rem;
+        right: 0.5rem;
+        left: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .image-info-panel h3 {
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-item {
+        padding: 0.3rem 0;
+        font-size: 0.7rem;
+    }
+
+    /* 导航按钮 */
+    .nav-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .nav-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .nav-prev {
+        left: 0.5rem;
+    }
+
+    .nav-next {
+        right: 0.5rem;
+    }
+
+    /* 关闭按钮 */
+    .close-btn {
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 36px;
+        height: 36px;
+    }
+
+    .close-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* 图片容器 */
+    .image-container {
+        padding: 1rem 0.5rem;
+    }
+
+    /* 评论区 */
+    .image-comments-section {
+        padding: 0.75rem 1rem;
+    }
+
+    .divider-text {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.8rem;
+    }
+
+    .divider-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .divider-icon svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* 描述区域 */
+    .description-header {
+        padding: 1rem 1rem 0.5rem;
+    }
+
+    .description-title {
+        font-size: 1rem;
+    }
+
+    .description-content {
+        padding: 1rem;
+    }
+
+    /* Markdown 内容 */
+    .markdown-body {
+        font-size: 0.9rem;
+    }
+
+    .markdown-body h1 {
+        font-size: 1.3rem;
+    }
+
+    .markdown-body h2 {
+        font-size: 1.15rem;
+    }
+
+    .markdown-body h3 {
+        font-size: 1rem;
     }
 }
 </style>
