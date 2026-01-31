@@ -419,7 +419,8 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   width: 100%;
   background-color: var(--theme-content-bg);
   border-radius: 1rem;
-  overflow: hidden;
+  overflow: visible;
+  /* 改为 visible 以支持 sticky 定位 */
   box-shadow: 0 4px 20px var(--theme-shadow-md);
   position: relative;
   animation: fadeIn 0.6s ease-out;
@@ -455,10 +456,13 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   position: relative;
   width: 100%;
   overflow: hidden;
+  /* 保持头部的 overflow hidden */
   min-height: 300px;
   max-height: 500px;
   background: var(--theme-gradient);
   transition: var(--theme-transition-colors);
+  border-radius: 1rem 1rem 0 0;
+  /* 添加顶部圆角 */
 }
 
 .image-container {
