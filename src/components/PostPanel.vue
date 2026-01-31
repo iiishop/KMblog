@@ -316,6 +316,7 @@ function onLeave(el, done) {
     box-shadow: 1px 1px 5px var(--theme-shadow-sm);
     cursor: pointer;
     transition: all 0.3s ease;
+    font-size: 0.9rem;
 }
 
 .pagination button:hover {
@@ -327,5 +328,53 @@ function onLeave(el, done) {
 .pagination button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .PostPanel {
+        gap: 1.5rem;
+    }
+
+    .posts {
+        gap: 1rem;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+    }
+
+    .pagination button {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .PostPanel {
+        gap: 1rem;
+    }
+
+    .posts {
+        gap: 0.75rem;
+    }
+
+    .pagination {
+        gap: 0.3rem;
+    }
+
+    .pagination button {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.8rem;
+        border-radius: 0.6rem;
+    }
+
+    /* 隐藏部分页码按钮，只显示关键按钮 */
+    .pagination button:not(:first-child):not(:nth-child(2)):not(:last-child):not(:nth-last-child(2)) {
+        display: none;
+    }
 }
 </style>
