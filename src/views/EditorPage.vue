@@ -25,8 +25,17 @@
 
                 <!-- Preview Panel -->
                 <div class="preview-panel" ref="previewPanelRef">
-                    <!-- Post组件预览 - 显示metadata效果 -->
-                    <div v-if="currentMetadata && currentFile" class="post-preview-section">
+                    <!-- WaterfallGraph 图片预览 - 使用 Graph 组件 -->
+                    <div v-if="isWaterfallGraphFile && graphData" class="graph-preview-section">
+                        <div class="preview-label">图片卡片预览</div>
+                        <div class="graph-preview-wrapper">
+                            <Graph :image="graphData" :index="0" :column="0" />
+                        </div>
+                    </div>
+
+                    <!-- 普通文章预览 - 使用 Post 组件 -->
+                    <div v-else-if="currentMetadata && currentFile && !isWaterfallGraphFile"
+                        class="post-preview-section">
                         <div class="preview-label">文章卡片预览</div>
                         <Post :key="currentFile.path"
                             :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
@@ -35,7 +44,7 @@
 
                     <!-- Markdown内容预览 -->
                     <div class="markdown-preview-section">
-                        <div v-if="currentMetadata" class="preview-label">Markdown渲染预览</div>
+                        <div v-if="currentMetadata || isWaterfallGraphFile" class="preview-label">Markdown渲染预览</div>
                         <MarkdownPreview :content="content" :scroll-sync="editorScrollTop"
                             @scroll="handlePreviewScroll" />
                     </div>
@@ -54,6 +63,7 @@ import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
 import Post from '@/components/PostPanelComps/Post.vue';
+import Graph from '@/components/WaterfallPanelComps/Graph.vue';
 import { useTheme } from '@/composables/useTheme';
 
 // Error handling utility
@@ -193,6 +203,58 @@ const currentMetadata = computed(() => {
 const virtualMarkdownUrl = computed(() => {
     if (!currentFile.value) return '';
     return currentFile.value.path;
+});
+
+// 检查当前文件是否在 WaterfallGraph 文件夹内
+const isWaterfallGraphFile = computed(() => {
+    if (!currentFile.value) return false;
+    return currentFile.value.path.includes('WaterfallGraph');
+});
+
+// 为 Graph 组件准备数据
+const graphData = computed(() => {
+    console.log('[EditorPage] Computing graphData...');
+    console.log('[EditorPage] isWaterfallGraphFile:', isWaterfallGraphFile.value);
+    console.log('[EditorPage] currentMetadata:', currentMetadata.value);
+
+    if (!isWaterfallGraphFile.value || !currentMetadata.value) {
+        console.log('[EditorPage] graphData is null - conditions not met');
+        return null;
+    }
+
+    // 从 metadata 中提取图片路径
+    const imgPath = currentMetadata.value.img;
+    console.log('[EditorPage] imgPath from metadata:', imgPath);
+
+    if (!imgPath) {
+        console.log('[EditorPage] graphData is null - no img in metadata');
+        return null;
+    }
+
+    // 构建完整的图片 URL
+    // imgPath 可能是: "WaterfallGraph/image.jpg" 或 "/Posts/WaterfallGraph/image.jpg"
+    let imageUrl;
+    if (imgPath.startsWith('/')) {
+        imageUrl = imgPath; // 已经是完整路径
+    } else if (imgPath.startsWith('Posts/')) {
+        imageUrl = '/' + imgPath; // 添加前导斜杠
+    } else {
+        imageUrl = '/Posts/' + imgPath; // 添加 /Posts/ 前缀
+    }
+    console.log('[EditorPage] Constructed imageUrl:', imageUrl);
+
+    // 构建 Graph 组件需要的 image 对象
+    const data = {
+        src: imageUrl,
+        alt: currentMetadata.value.title || currentFileName.value,
+        title: currentMetadata.value.title || (currentFileName.value ? currentFileName.value.replace('.md', '') : ''),
+        date: currentMetadata.value.date || new Date().toLocaleDateString(),
+        aspectRatio: currentMetadata.value.aspectRatio || 1,
+        dominantColor: currentMetadata.value.dominantColor || 'hsl(250, 60%, 65%)'
+    };
+
+    console.log('[EditorPage] graphData computed:', data);
+    return data;
 });
 
 // Request cancellation and queue management
@@ -539,10 +601,36 @@ const handleImageFileSelect = async ({ imagePath, mdPath, exists, imageNode }) =
 
 // Generate image description template (Task 36)
 const generateImageDescriptionTemplate = (imagePath, imageNode) => {
-    // 返回空白内容，让用户自由编辑
     const filename = imageNode.name;
-    console.log('[EditorPage] Generated empty template for image:', filename);
-    return '';
+    const filenameWithoutExt = filename.replace(/\.[^.]+$/, '');
+
+    // 构建相对于 Posts 目录的图片路径
+    // imagePath 格式: /Posts/WaterfallGraph/image.jpg
+    // 我们需要: WaterfallGraph/image.jpg (相对于 Posts)
+    let relativeImgPath = imagePath;
+    if (relativeImgPath.startsWith('/Posts/')) {
+        relativeImgPath = relativeImgPath.substring(7); // 移除 '/Posts/'
+    } else if (relativeImgPath.startsWith('Posts/')) {
+        relativeImgPath = relativeImgPath.substring(6); // 移除 'Posts/'
+    }
+
+    // 为 WaterfallGraph 图片生成带 metadata 的模板
+    const template = `---
+title: ${filenameWithoutExt}
+date: ${new Date().toISOString().split('T')[0]}
+img: ${relativeImgPath}
+aspectRatio: 1
+dominantColor: hsl(250, 60%, 65%)
+---
+
+# ${filenameWithoutExt}
+
+在这里添加图片描述...
+`;
+
+    console.log('[EditorPage] Generated template for image:', filename);
+    console.log('[EditorPage] Image path in metadata:', relativeImgPath);
+    return template;
 };
 
 // Handle file create
@@ -1158,12 +1246,28 @@ onBeforeUnmount(() => {
 }
 
 /* Post预览区域 */
-.post-preview-section {
+.post-preview-section,
+.graph-preview-section {
     padding: 1.5rem;
     background: var(--theme-surface-default);
     border-bottom: 2px solid var(--theme-panel-border);
     flex-shrink: 0;
     transition: var(--theme-transition-colors);
+}
+
+/* Graph 预览包装器 - 固定尺寸以适配预览 */
+.graph-preview-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.graph-preview-wrapper .graph-card {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: var(--card-aspect-ratio, 1);
 }
 
 .preview-label {

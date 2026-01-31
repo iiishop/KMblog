@@ -62,6 +62,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import Graph from './WaterfallPanelComps/Graph.vue';
+import fm from 'front-matter';
 
 const props = defineProps({
     images: {
@@ -87,6 +88,73 @@ const cardGap = ref(20);
 const cardGapVariance = ref(8); // 有机偏移的最大值
 const graphRefs = ref(new Map()); // 存储 Graph 组件引用
 const imageOffsets = ref(new Map()); // 存储每个图片的固定偏移量
+const enrichedImages = ref([]); // 存储增强后的图片数据（包含 .md 信息）
+
+// 加载图片对应的 .md 文件并提取 metadata
+async function loadImageMetadata(image) {
+    if (!image.mdPath) {
+        return image; // 没有 mdPath，返回原始数据
+    }
+
+    try {
+        const response = await fetch(image.mdPath);
+
+        // 检查响应是否成功
+        if (!response.ok) {
+            console.log(`[WaterfallPanel] .md file not found for ${image.id}`);
+            return image;
+        }
+
+        // 检查 Content-Type
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+            console.log(`[WaterfallPanel] .md file not found (got HTML) for ${image.id}`);
+            return image;
+        }
+
+        const text = await response.text();
+
+        // 检查内容是否为空或是 HTML
+        if (!text || !text.trim()) {
+            return image;
+        }
+
+        const trimmed = text.trim().toLowerCase();
+        if (trimmed.startsWith('<!doctype') || trimmed.startsWith('<html')) {
+            return image;
+        }
+
+        // 解析 front-matter
+        const parsed = fm(text);
+        const metadata = parsed.attributes;
+
+        // 使用 .md 中的信息覆盖原始数据
+        return {
+            ...image,
+            title: metadata.title || image.title,
+            date: metadata.date || image.date,
+            aspectRatio: metadata.aspectRatio || image.aspectRatio,
+            dominantColor: metadata.dominantColor || image.dominantColor,
+            // 保留原始数据作为备份
+            _originalTitle: image.title,
+            _originalDate: image.date,
+            _hasMetadata: true
+        };
+
+    } catch (error) {
+        console.log(`[WaterfallPanel] Failed to load .md for ${image.id}:`, error);
+        return image;
+    }
+}
+
+// 批量加载所有图片的 metadata
+async function enrichImagesWithMetadata(images) {
+    console.log('[WaterfallPanel] Enriching images with metadata...');
+    const promises = images.map(img => loadImageMetadata(img));
+    const results = await Promise.all(promises);
+    console.log('[WaterfallPanel] Enrichment complete');
+    return results;
+}
 
 // 14.5 使用 requestAnimationFrame 优化滚动
 let scrollTicking = false;
@@ -211,11 +279,14 @@ function calculateWaterfallLayout(images, colCount) {
         return [];
     }
 
+    // 使用增强后的图片数据
+    const imagesToUse = enrichedImages.value.length > 0 ? enrichedImages.value : images;
+
     // 初始化列高度数组
     const columnHeights = new Array(colCount).fill(0);
     const positions = [];
 
-    images.forEach((image, index) => {
+    imagesToUse.forEach((image, index) => {
         // 获取图片宽高比（默认为 1:1）
         const aspectRatio = image.aspectRatio || (image.width && image.height ? image.width / image.height : 1);
 
@@ -244,9 +315,12 @@ function calculateWaterfallLayout(images, colCount) {
 // 14.4 过滤可见卡片
 function calculateVisibleCards() {
     if (!containerRef.value || cardPositions.value.length === 0) {
-        visibleImages.value = props.images;
+        visibleImages.value = enrichedImages.value.length > 0 ? enrichedImages.value : props.images;
         return;
     }
+
+    // 使用增强后的图片数据
+    const imagesToUse = enrichedImages.value.length > 0 ? enrichedImages.value : props.images;
 
     // 14.2 计算可视区域范围
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
@@ -270,7 +344,7 @@ function calculateVisibleCards() {
 
         // 检查卡片是否在可视范围内（包含缓冲区）
         if (cardBottom >= rangeTop && cardTop <= rangeBottom) {
-            const image = props.images[position.index];
+            const image = imagesToUse[position.index];
             if (image) {
                 visible.push(image);
             }
@@ -292,12 +366,18 @@ function getPosition(imageId) {
 }
 
 // 更新布局
-function updateLayout() {
+async function updateLayout() {
+    // 如果还没有加载 metadata，先加载
+    if (enrichedImages.value.length === 0 && props.images.length > 0) {
+        enrichedImages.value = await enrichImagesWithMetadata(props.images);
+    }
+
     // 重新计算列数
     columnCount.value = calculateColumnCount();
 
-    // 重新计算布局
-    cardPositions.value = calculateWaterfallLayout(props.images, columnCount.value);
+    // 重新计算布局（使用增强后的数据）
+    const imagesToUse = enrichedImages.value.length > 0 ? enrichedImages.value : props.images;
+    cardPositions.value = calculateWaterfallLayout(imagesToUse, columnCount.value);
 
     // 更新可见卡片
     calculateVisibleCards();
@@ -763,7 +843,9 @@ onUnmounted(() => {
 });
 
 // 监听图片列表变化
-watch(() => props.images, () => {
+watch(() => props.images, async () => {
+    // 重新加载 metadata
+    enrichedImages.value = await enrichImagesWithMetadata(props.images);
     updateLayout();
 }, { deep: true });
 </script>
