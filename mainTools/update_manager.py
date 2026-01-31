@@ -349,7 +349,6 @@ class ManagerUpdater:
                 print("[管理工具更新] 启动 Windows 更新脚本")
                 # 使用 os.startfile 更可靠
                 try:
-                    import os
                     os.startfile(update_script)
                 except Exception as e:
                     print(f"[管理工具更新] os.startfile 失败，尝试备用方法: {e}")
