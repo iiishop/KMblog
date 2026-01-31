@@ -13,9 +13,10 @@
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
-                <div class="FloatList" :style="{ top: floatListStyle.topTip }">
+                <div class="FloatList" :class="{ 'float-fixed': isTipFloatFixed }"
+                    :style="isTipFloatFixed ? { top: tipFloatTop + 'px', left: tipFloatLeft + 'px' } : {}">
                     <div class="float-list">
-                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                        <component v-for="(componentName, index) in tipListFloatComponents" :is="componentName"
                             :key="index" />
                         <slot name="float-tip"></slot>
                     </div>
@@ -32,7 +33,8 @@
                     <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
-                <div class="FloatList" :style="{ top: floatListStyle.topInfo }">
+                <div class="FloatList" :class="{ 'float-fixed': isInfoFloatFixed }"
+                    :style="isInfoFloatFixed ? { top: infoFloatTop + 'px', left: infoFloatLeft + 'px' } : {}">
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
@@ -60,7 +62,8 @@
                     <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
-                <div class="FloatList" :style="{ top: floatListStyle.topInfo }">
+                <div class="FloatList" :class="{ 'float-fixed': isInfoFloatFixed }"
+                    :style="isInfoFloatFixed ? { top: infoFloatTop + 'px', left: infoFloatLeft + 'px' } : {}">
                     <div class="float-list">
                         <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
                             :key="index" />
@@ -78,104 +81,104 @@
                     <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
                         :key="index" />
                 </div>
-                <div class="FloatList" :style="{ top: floatListStyle.topTip }">
+                <div class="FloatList" :class="{ 'float-fixed': isTipFloatFixed }"
+                    :style="isTipFloatFixed ? { top: tipFloatTop + 'px', left: tipFloatLeft + 'px' } : {}">
                     <div class="float-list">
-                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                        <component v-for="(componentName, index) in tipListFloatComponents" :is="componentName"
                             :key="index" />
                         <slot name="float-tip"></slot>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- 移动端：底部导航栏 -->
-        <div v-if="isMobile" class="mobile-bottom-nav">
-            <!-- 根据配置决定按钮顺序 -->
-            <template v-if="!isInfoLeftPosition">
-                <!-- 默认：导航在左，信息在右 -->
-                <button class="nav-item" @click="openDrawer('tip')" :class="{ active: activeDrawer === 'tip' }">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                        <path d="M2 17l10 5 10-5"></path>
-                        <path d="M2 12l10 5 10-5"></path>
-                    </svg>
-                    <span>导航</span>
-                </button>
-                <button class="nav-item" @click="openDrawer('info')" :class="{ active: activeDrawer === 'info' }">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>信息</span>
-                </button>
-            </template>
-            <template v-else>
-                <!-- 交换后：信息在左，导航在右 -->
-                <button class="nav-item" @click="openDrawer('info')" :class="{ active: activeDrawer === 'info' }">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>信息</span>
-                </button>
-                <button class="nav-item" @click="openDrawer('tip')" :class="{ active: activeDrawer === 'tip' }">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                        <path d="M2 17l10 5 10-5"></path>
-                        <path d="M2 12l10 5 10-5"></path>
-                    </svg>
-                    <span>导航</span>
-                </button>
-            </template>
-        </div>
-
-        <!-- 移动端：抽屉式侧边栏 -->
-        <transition name="drawer-backdrop">
-            <div v-if="isMobile && isDrawerOpen" class="drawer-backdrop" @click="closeDrawer"></div>
-        </transition>
-        <transition name="drawer">
-            <div v-if="isMobile && isDrawerOpen" class="mobile-drawer" :class="drawerPosition">
-                <div class="drawer-header">
-                    <h3>{{ activeDrawer === 'info' ? '信息面板' : '导航面板' }}</h3>
-                    <button class="close-btn" @click="closeDrawer">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <div class="drawer-content">
-                    <template v-if="activeDrawer === 'info'">
-                        <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
-                            :key="'info-up-' + index" />
-                        <slot name="info"></slot>
-                        <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
-                            :key="'info-down-' + index" />
-                        <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
-                            :key="'info-float-' + index" />
-                        <slot name="float-info"></slot>
-                    </template>
-                    <template v-if="activeDrawer === 'tip'">
-                        <component v-for="(componentName, index) in tipListUpComponents" :is="componentName"
-                            :key="'tip-up-' + index" />
-                        <slot name="tip"></slot>
-                        <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
-                            :key="'tip-down-' + index" />
-                        <component v-for="(componentName, index) in tipListFloatComponents" :is="componentName"
-                            :key="'tip-float-' + index" />
-                        <slot name="float-tip"></slot>
-                    </template>
-                </div>
-            </div>
-        </transition>
     </div>
+
+    <!-- 移动端：底部导航栏 -->
+    <div v-if="isMobile" class="mobile-bottom-nav">
+        <!-- 根据配置决定按钮顺序 -->
+        <template v-if="!isInfoLeftPosition">
+            <!-- 默认：导航在左，信息在右 -->
+            <button class="nav-item" @click="openDrawer('tip')" :class="{ active: activeDrawer === 'tip' }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+                <span>导航</span>
+            </button>
+            <button class="nav-item" @click="openDrawer('info')" :class="{ active: activeDrawer === 'info' }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>信息</span>
+            </button>
+        </template>
+        <template v-else>
+            <!-- 交换后：信息在左，导航在右 -->
+            <button class="nav-item" @click="openDrawer('info')" :class="{ active: activeDrawer === 'info' }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>信息</span>
+            </button>
+            <button class="nav-item" @click="openDrawer('tip')" :class="{ active: activeDrawer === 'tip' }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+                <span>导航</span>
+            </button>
+        </template>
+    </div>
+
+    <!-- 移动端：抽屉式侧边栏 -->
+    <transition name="drawer-backdrop">
+        <div v-if="isMobile && isDrawerOpen" class="drawer-backdrop" @click="closeDrawer"></div>
+    </transition>
+    <transition name="drawer">
+        <div v-if="isMobile && isDrawerOpen" class="mobile-drawer" :class="drawerPosition">
+            <div class="drawer-header">
+                <h3>{{ activeDrawer === 'info' ? '信息面板' : '导航面板' }}</h3>
+                <button class="close-btn" @click="closeDrawer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="drawer-content">
+                <template v-if="activeDrawer === 'info'">
+                    <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
+                        :key="'info-up-' + index" />
+                    <slot name="info"></slot>
+                    <component v-for="(componentName, index) in infoListDownComponents" :is="componentName"
+                        :key="'info-down-' + index" />
+                    <component v-for="(componentName, index) in infoListFloatComponents" :is="componentName"
+                        :key="'info-float-' + index" />
+                    <slot name="float-info"></slot>
+                </template>
+                <template v-if="activeDrawer === 'tip'">
+                    <component v-for="(componentName, index) in tipListUpComponents" :is="componentName"
+                        :key="'tip-up-' + index" />
+                    <slot name="tip"></slot>
+                    <component v-for="(componentName, index) in tipListDownComponents" :is="componentName"
+                        :key="'tip-down-' + index" />
+                    <component v-for="(componentName, index) in tipListFloatComponents" :is="componentName"
+                        :key="'tip-float-' + index" />
+                    <slot name="float-tip"></slot>
+                </template>
+            </div>
+        </div>
+    </transition>
 </template>
 
 <script setup>
 import { ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
-import { markRaw } from 'vue';
 import config from '@/config';
 import { themeManager } from '@/composables/useTheme';
 
@@ -277,6 +280,64 @@ const toggleInfoList = () => {
     isInfoListHidden.value = !isInfoListHidden.value;
 };
 
+// FloatList 固定定位状态
+const isInfoFloatFixed = ref(false);
+const isTipFloatFixed = ref(false);
+const infoFloatTop = ref(0);
+const tipFloatTop = ref(0);
+const infoFloatLeft = ref(0);
+const tipFloatLeft = ref(0);
+
+// 处理 FloatList 的滚动固定效果
+const handleFloatListScroll = () => {
+    if (isMobile.value) return;
+
+    const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 96;
+    const targetTop = headerHeight + 32; // header高度 + 2rem (假设 1rem = 16px)
+
+    // 处理 InfoList 的 FloatList
+    if (infoListRef.value) {
+        const contextEl = infoListRef.value.querySelector('.context');
+        const floatEl = infoListRef.value.querySelector('.FloatList');
+
+        if (contextEl && floatEl) {
+            const contextRect = contextEl.getBoundingClientRect();
+            const contextBottom = contextRect.bottom;
+            const floatRect = floatEl.getBoundingClientRect();
+
+            // 如果 context 底部已经滚动到目标位置以上，固定 FloatList
+            if (contextBottom <= targetTop) {
+                isInfoFloatFixed.value = true;
+                infoFloatTop.value = targetTop;
+                infoFloatLeft.value = floatRect.left; // 保持原来的水平位置
+            } else {
+                isInfoFloatFixed.value = false;
+            }
+        }
+    }
+
+    // 处理 TipList 的 FloatList
+    if (tipListRef.value) {
+        const contextEl = tipListRef.value.querySelector('.context');
+        const floatEl = tipListRef.value.querySelector('.FloatList');
+
+        if (contextEl && floatEl) {
+            const contextRect = contextEl.getBoundingClientRect();
+            const contextBottom = contextRect.bottom;
+            const floatRect = floatEl.getBoundingClientRect();
+
+            // 如果 context 底部已经滚动到目标位置以上，固定 FloatList
+            if (contextBottom <= targetTop) {
+                isTipFloatFixed.value = true;
+                tipFloatTop.value = targetTop;
+                tipFloatLeft.value = floatRect.left; // 保持原来的水平位置
+            } else {
+                isTipFloatFixed.value = false;
+            }
+        }
+    }
+};
+
 const mainListStyle = computed(() => {
     // 移动端：全宽
     if (isMobile.value) {
@@ -312,35 +373,6 @@ const mainListStyle = computed(() => {
         }
     }
 });
-
-const floatListStyle = shallowRef({
-    topInfo: 'calc(100% + 2rem)',
-    topTip: 'calc(100% + 2rem)',
-});
-
-const updateFloatListPosition = () => {
-    // 移动端不需要浮动列表
-    if (isMobile.value) return;
-
-    const scrollTop = document.documentElement.scrollTop;
-    const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
-
-    let newTopInfo = 'calc(100% + 2rem)';
-    let newTopTip = 'calc(100% + 2rem)';
-
-    if (infoListRef.value) {
-        const infoListHeight = infoListRef.value.offsetHeight;
-        newTopInfo = Math.max(4, 6 + (infoListHeight - scrollTop) / rootFontSize) + 'rem';
-    }
-    if (tipListRef.value) {
-        const tipListHeight = tipListRef.value.offsetHeight;
-        newTopTip = Math.max(4, 6 + (tipListHeight - scrollTop) / rootFontSize) + 'rem';
-    }
-
-    floatListStyle.value.topInfo = newTopInfo;
-    floatListStyle.value.topTip = newTopTip;
-};
-
 // 动态更新 header 高度
 const updateHeaderHeight = () => {
     const header = document.querySelector('.header-menu');
@@ -367,21 +399,25 @@ onMounted(async () => {
 
     // 初始化
     checkMobile();
-    updateFloatListPosition();
     updateHeaderHeight();
     toggleInfoList();
     toggleInfoList();
     toggleTipList();
     toggleTipList();
+    handleFloatListScroll();
 
-    window.addEventListener('scroll', updateFloatListPosition);
+    window.addEventListener('scroll', handleFloatListScroll);
     window.addEventListener('resize', () => {
         checkMobile();
         updateHeaderHeight();
+        handleFloatListScroll();
     });
 
     // 监听 header 高度变化
-    const headerObserver = new ResizeObserver(updateHeaderHeight);
+    const headerObserver = new ResizeObserver(() => {
+        updateHeaderHeight();
+        handleFloatListScroll();
+    });
     const header = document.querySelector('.header-menu');
     if (header) {
         headerObserver.observe(header);
@@ -389,7 +425,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-    window.removeEventListener('scroll', updateFloatListPosition);
+    window.removeEventListener('scroll', handleFloatListScroll);
     window.removeEventListener('resize', checkMobile);
     // 清理
     document.body.style.overflow = '';
@@ -403,7 +439,8 @@ body {
     font-family: 'Noto Sans SC', sans-serif;
     background: var(--body-background-color);
     color: var(--body-text-color);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .Scene {
@@ -414,13 +451,13 @@ body {
     justify-content: center;
     padding-top: var(--header-height, 6rem);
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     transition: all 0.3s ease-in-out;
 }
 
 .InfoList,
 .TipList {
-    height: auto;
+    height: fit-content;
     width: 25rem;
     color: var(--rightlist-text-color);
     position: relative;
@@ -428,6 +465,9 @@ body {
     margin-left: 2rem;
     margin-right: 2rem;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
 }
 
 /* 移动端抽屉内的侧边栏需要滚动 */
@@ -504,12 +544,17 @@ body {
 }
 
 .FloatList {
-    position: fixed;
     margin-top: 2rem;
-    top: calc(100% + 2rem);
     width: 25rem;
     display: flex;
     flex-direction: column;
+    position: relative;
+    transition: none;
+}
+
+.FloatList.float-fixed {
+    position: fixed;
+    z-index: 100;
 }
 
 .InfoList.hidden .FloatList,
@@ -832,6 +877,12 @@ body {
     .TipList,
     .toggle-btn {
         display: none !important;
+    }
+
+    /* 移动端禁用 FloatList 的 sticky 效果 */
+    .FloatList {
+        position: static;
+        top: auto;
     }
 }
 
