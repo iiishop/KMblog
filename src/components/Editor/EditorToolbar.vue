@@ -4,9 +4,9 @@
         <div class="toolbar-glow" :class="{ 'active': saveStatus === 'saving' }"></div>
 
         <div class="toolbar-content">
-            <!-- 第一排工具栏 -->
-            <div class="toolbar-row toolbar-row-primary">
-                <div class="toolbar-left">
+            <div class="toolbar-main">
+                <!-- 左侧工具区域 - 自动换行 -->
+                <div class="toolbar-tools">
                     <!-- 文件树切换 -->
                     <button @click="$emit('toggle-file-tree')" class="tool-btn tree-toggle" title="切换文件树">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -284,50 +284,9 @@
                             </transition>
                         </teleport>
                     </div>
-                </div>
 
-                <div class="toolbar-right">
-                    <div class="save-indicator" :class="saveStatusClass">
-                        <div class="status-dot"></div>
-                        <span class="status-text">{{ saveStatusText }}</span>
-                    </div>
+                    <div class="divider"></div>
 
-                    <!-- Theme Toggle Button -->
-                    <button @click="toggleTheme" class="tool-btn theme-toggle-btn"
-                        :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'">
-                        <svg v-if="isDarkMode" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                        </svg>
-                        <svg v-else class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="5" />
-                            <line x1="12" y1="1" x2="12" y2="3" />
-                            <line x1="12" y1="21" x2="12" y2="23" />
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                            <line x1="1" y1="12" x2="3" y2="12" />
-                            <line x1="21" y1="12" x2="23" y2="12" />
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                        </svg>
-                    </button>
-
-                    <button @click="$emit('save')" class="tool-btn save-btn"
-                        :class="{ 'disabled': saveStatus === 'saved' }" :disabled="saveStatus === 'saved'"
-                        title="保存 (Ctrl+S)">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                            <polyline points="17 21 17 13 7 13 7 21" />
-                            <polyline points="7 3 7 8 15 8" />
-                        </svg>
-                        <span class="label">保存</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 第二排工具栏 -->
-            <div class="toolbar-row toolbar-row-secondary">
-                <div class="toolbar-left">
                     <!-- 文字对齐 -->
                     <div class="tool-group">
                         <button @click="insertFormat('align-left')" class="tool-btn format-btn" title="左对齐">
@@ -405,6 +364,45 @@
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="3" y1="12" x2="21" y2="12" />
                         </svg>
+                    </button>
+                </div>
+
+                <!-- 右侧操作区域 - 固定不换行 -->
+                <div class="toolbar-actions">
+                    <div class="save-indicator" :class="saveStatusClass">
+                        <div class="status-dot"></div>
+                        <span class="status-text">{{ saveStatusText }}</span>
+                    </div>
+
+                    <!-- Theme Toggle Button -->
+                    <button @click="toggleTheme" class="tool-btn theme-toggle-btn"
+                        :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'">
+                        <svg v-if="isDarkMode" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                        <svg v-else class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                    </button>
+
+                    <button @click="$emit('save')" class="tool-btn save-btn"
+                        :class="{ 'disabled': saveStatus === 'saved' }" :disabled="saveStatus === 'saved'"
+                        title="保存 (Ctrl+S)">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        <span class="label">保存</span>
                     </button>
                 </div>
             </div>
@@ -779,40 +777,30 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
     padding: 13px 21px;
     position: relative;
 }
 
-.toolbar-row {
+.toolbar-main {
     display: flex;
-    justify-content: space-between;
+    align-items: flex-start;
+    gap: 13px;
+}
+
+.toolbar-tools {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 21px;
+    gap: 8px;
+    min-width: 0;
 }
 
-.toolbar-row-secondary {
-    padding-top: 8px;
-    border-top: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.toolbar-left,
-.toolbar-right {
+.toolbar-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.toolbar-left {
-    flex: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.toolbar-left::-webkit-scrollbar {
-    display: none;
+    flex-shrink: 0;
 }
 
 .tool-btn {
@@ -1363,7 +1351,16 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
     .toolbar-content {
         padding: 8px 13px;
+    }
+
+    .toolbar-main {
+        flex-direction: column;
         gap: 8px;
+    }
+
+    .toolbar-actions {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .tool-btn .label {
