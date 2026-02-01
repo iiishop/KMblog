@@ -352,52 +352,46 @@ const mainListStyle = computed(() => {
     const sidebarWidth = 'var(--sidebar-width)';
     const sidebarMargin = '4rem'; // 2rem * 2 (左右边距)
 
+    // 检查左右侧边栏的显示状态
+    const hasLeftSidebar = (isInfoLeftPosition && props.showInfoList && !isInfoListHidden.value) ||
+        (!isInfoLeftPosition && props.showTipList && !isTipListHidden.value);
+    const hasRightSidebar = (isInfoLeftPosition && props.showTipList && !isTipListHidden.value) ||
+        (!isInfoLeftPosition && props.showInfoList && !isInfoListHidden.value);
+
     if (!props.showTipList && !props.showInfoList) {
+        // 没有任何侧边栏：左右各留 2rem 间隔
         return {
             minWidth: 'calc(100% - 4rem)',
-            maxWidth: 'calc(100% - 4rem)'
+            maxWidth: 'calc(100% - 4rem)',
+            margin: '0 2rem'
         };
-    } else if (!props.showTipList && props.showInfoList) {
-        if (isInfoListHidden.value) {
-            return {
-                minWidth: 'calc(100% - 4rem)',
-                maxWidth: 'calc(100% - 4rem)'
-            };
-        } else {
-            return {
-                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
-                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
-            };
-        }
-    } else if (props.showTipList && !props.showInfoList) {
-        if (isTipListHidden.value) {
-            return {
-                minWidth: 'calc(100% - 4rem)',
-                maxWidth: 'calc(100% - 4rem)'
-            };
-        } else {
-            return {
-                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
-                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
-            };
-        }
+    } else if (!hasLeftSidebar && !hasRightSidebar) {
+        // 侧边栏都被隐藏：左右各留 2rem 间隔
+        return {
+            minWidth: 'calc(100% - 4rem)',
+            maxWidth: 'calc(100% - 4rem)',
+            margin: '0 2rem'
+        };
+    } else if (hasLeftSidebar && !hasRightSidebar) {
+        // 只有左侧边栏：右侧留 2rem 间隔
+        return {
+            minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin} - 2rem)`,
+            maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin} - 2rem)`,
+            marginRight: '2rem'
+        };
+    } else if (!hasLeftSidebar && hasRightSidebar) {
+        // 只有右侧边栏：左侧留 2rem 间隔
+        return {
+            minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin} - 2rem)`,
+            maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin} - 2rem)`,
+            marginLeft: '2rem'
+        };
     } else {
-        if (isTipListHidden.value && isInfoListHidden.value) {
-            return {
-                minWidth: 'calc(100% - 4rem)',
-                maxWidth: 'calc(100% - 4rem)'
-            };
-        } else if (isTipListHidden.value || isInfoListHidden.value) {
-            return {
-                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
-                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
-            };
-        } else {
-            return {
-                minWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`,
-                maxWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`
-            };
-        }
+        // 两个侧边栏都有：保持原有设定
+        return {
+            minWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`,
+            maxWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`
+        };
     }
 });
 // 动态更新 header 高度
