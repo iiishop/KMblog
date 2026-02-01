@@ -605,6 +605,9 @@ async def save_file(data: SaveFileRequest, authorized: bool = Depends(verify_tok
         new_version = await loop.run_in_executor(None, get_file_version, full_path)
         print(f"[API] SAVE FILE - New version: {new_version}")
         
+        # 调用Generate命令更新配置（防抖模式）
+        run_generate_command_debounced("file save", delay=1.0)
+        
         print(f"[API] SAVE FILE - Success")
         return {
             "success": True,
