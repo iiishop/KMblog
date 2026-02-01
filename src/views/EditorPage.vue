@@ -46,19 +46,39 @@
                 <div class="preview-panel" :class="{ 'mobile-hidden': mobileView === 'edit' }" ref="previewPanelRef">
                     <!-- WaterfallGraph 图片预览 - 使用 Graph 组件 -->
                     <div v-if="isWaterfallGraphFile && graphData" class="graph-preview-section">
-                        <div class="preview-label">图片卡片预览</div>
-                        <div class="graph-preview-wrapper">
-                            <Graph :image="graphData" :index="0" :column="0" />
+                        <div class="preview-header">
+                            <div class="preview-label">图片卡片预览</div>
+                            <button @click="toggleGraphPreview" class="collapse-btn"
+                                :class="{ 'collapsed': !showGraphPreview }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div v-show="showGraphPreview" class="graph-preview-content">
+                            <div class="graph-preview-wrapper">
+                                <Graph :image="graphData" :index="0" :column="0" />
+                            </div>
                         </div>
                     </div>
 
                     <!-- 普通文章预览 - 使用 Post 组件 -->
                     <div v-else-if="currentMetadata && currentFile && !isWaterfallGraphFile"
                         class="post-preview-section">
-                        <div class="preview-label">文章卡片预览</div>
-                        <Post :key="currentFile.path"
-                            :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
-                            :markdownUrl="virtualMarkdownUrl" />
+                        <div class="preview-header">
+                            <div class="preview-label">文章卡片预览</div>
+                            <button @click="togglePostPreview" class="collapse-btn"
+                                :class="{ 'collapsed': !showPostPreview }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div v-show="showPostPreview" class="post-preview-content">
+                            <Post :key="postPreviewKey"
+                                :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
+                                :markdownUrl="virtualMarkdownUrl" />
+                        </div>
                     </div>
 
                     <!-- Markdown内容预览 -->
@@ -196,6 +216,9 @@ const monacoEditorRef = ref(null);
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
 const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
+const showPostPreview = ref(true); // 控制文章卡片预览的显示/隐藏
+const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
+const postPreviewKey = ref(0); // 用于强制刷新 Post 组件
 let isScrollingFromPreview = false; // 标记是否来自预览的滚动
 
 // Theme management
@@ -310,6 +333,22 @@ const createTrackedRequest = (config) => {
 // Auto-save timer
 let autoSaveTimer = null;
 
+// 切换文章卡片预览显示状态
+const togglePostPreview = () => {
+    showPostPreview.value = !showPostPreview.value;
+};
+
+// 切换图片卡片预览显示状态
+const toggleGraphPreview = () => {
+    showGraphPreview.value = !showGraphPreview.value;
+};
+
+// 强制刷新 Post 组件
+const refreshPostPreview = () => {
+    postPreviewKey.value++;
+    console.log('[EditorPage] Post preview refreshed, key:', postPreviewKey.value);
+};
+
 // Handle content change
 const handleContentChange = () => {
     saveStatus.value = 'unsaved';
@@ -347,6 +386,10 @@ const handleSave = async () => {
         saveStatus.value = 'saved';
         currentFileVersion.value = response.data.version;
         lastSaveTime.value = Date.now(); // 记录保存时间
+
+        // 保存成功后刷新 Post 预览组件
+        refreshPostPreview();
+
         console.log('[EditorPage] File saved successfully');
     } catch (error) {
         const errorMessage = handleApiError(error, 'Save');
@@ -405,6 +448,10 @@ const handleForceSave = async () => {
 
         saveStatus.value = 'saved';
         currentFileVersion.value = response.data.version;
+
+        // 强制保存成功后也刷新 Post 预览组件
+        refreshPostPreview();
+
         console.log('[EditorPage] Force save successful');
 
         // Show success message
@@ -1179,6 +1226,15 @@ const handleBeforeUnload = (e) => {
     }
 };
 
+// 监听内容变化，当 metadata 更新时刷新预览
+watch(() => currentMetadata.value, (newMetadata, oldMetadata) => {
+    // 只有当 metadata 真正发生变化时才刷新
+    if (newMetadata && oldMetadata && JSON.stringify(newMetadata) !== JSON.stringify(oldMetadata)) {
+        console.log('[EditorPage] Metadata changed, refreshing preview');
+        refreshPostPreview();
+    }
+}, { deep: true });
+
 // Lifecycle hooks
 onMounted(async () => {
     // Add beforeunload listener
@@ -1311,11 +1367,154 @@ onBeforeUnmount(() => {
 /* Post预览区域 */
 .post-preview-section,
 .graph-preview-section {
-    padding: 1.5rem;
+    padding: 0;
     background: var(--theme-surface-default);
     border-bottom: 2px solid var(--theme-panel-border);
     flex-shrink: 0;
     transition: var(--theme-transition-colors);
+}
+
+/* 预览区域头部 */
+.preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg,
+            var(--theme-panel-bg) 0%,
+            var(--theme-surface-default) 100%);
+    border-bottom: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
+    position: relative;
+}
+
+/* 头部装饰线 */
+.preview-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 2px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            var(--theme-primary) 20%,
+            var(--theme-secondary, #667eea) 80%,
+            transparent 100%);
+    opacity: 0.6;
+}
+
+/* 折叠按钮 - 更显眼的设计 */
+.collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--theme-primary);
+    background: linear-gradient(135deg,
+            var(--theme-primary) 0%,
+            var(--theme-secondary, #667eea) 100%);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    color: white;
+    box-shadow:
+        0 4px 12px rgba(99, 102, 241, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 按钮光晕效果 */
+.collapse-btn::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg,
+            var(--theme-primary),
+            var(--theme-secondary, #667eea));
+    border-radius: 14px;
+    opacity: 0;
+    filter: blur(8px);
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.collapse-btn:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow:
+        0 8px 24px rgba(99, 102, 241, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: transparent;
+}
+
+.collapse-btn:hover::before {
+    opacity: 0.6;
+}
+
+.collapse-btn:active {
+    transform: scale(0.95) translateY(0);
+}
+
+.collapse-btn svg {
+    width: 20px;
+    height: 20px;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.collapse-btn.collapsed {
+    background: var(--theme-surface-hover);
+    color: var(--theme-content-text);
+    border-color: var(--theme-border-light);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.collapse-btn.collapsed::before {
+    opacity: 0;
+}
+
+.collapse-btn.collapsed:hover {
+    background: linear-gradient(135deg,
+            var(--theme-primary) 0%,
+            var(--theme-secondary, #667eea) 100%);
+    color: white;
+    border-color: var(--theme-primary);
+}
+
+.collapse-btn.collapsed svg {
+    transform: rotate(-90deg);
+}
+
+/* 脉冲动画 - 吸引注意力 */
+@keyframes buttonPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 4px 12px rgba(99, 102, 241, 0.25),
+            0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    50% {
+        box-shadow:
+            0 6px 20px rgba(99, 102, 241, 0.4),
+            0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+}
+
+.collapse-btn:not(.collapsed) {
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+/* 预览内容区域 */
+.post-preview-content,
+.graph-preview-content {
+    padding: 1.5rem;
+    transition: all 0.3s ease;
 }
 
 /* Graph 预览包装器 - 固定尺寸以适配预览 */
@@ -1335,16 +1534,36 @@ onBeforeUnmount(() => {
 
 .preview-label {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--theme-meta-text);
+    font-weight: 700;
+    color: var(--theme-primary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-    padding: 0.5rem 1rem;
-    background: var(--theme-surface-hover);
-    border-radius: 6px;
-    display: inline-block;
+    letter-spacing: 0.1em;
     transition: var(--theme-transition-colors);
+    position: relative;
+    padding-left: 1rem;
+}
+
+/* 标签前的装饰图标 */
+.preview-label::before {
+    content: '●';
+    position: absolute;
+    left: 0;
+    color: var(--theme-primary);
+    animation: labelPulse 2s ease-in-out infinite;
+}
+
+@keyframes labelPulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 
 /* Markdown预览区域 */
@@ -1394,7 +1613,32 @@ onBeforeUnmount(() => {
     /* Optimize preview sections for mobile */
     .post-preview-section,
     .graph-preview-section {
+        padding: 0;
+    }
+
+    .preview-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .preview-header::after {
+        left: 1rem;
+        right: 1rem;
+    }
+
+    .post-preview-content,
+    .graph-preview-content {
         padding: 1rem;
+    }
+
+    .collapse-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+    }
+
+    .collapse-btn svg {
+        width: 18px;
+        height: 18px;
     }
 
     .graph-preview-wrapper {
@@ -1407,8 +1651,6 @@ onBeforeUnmount(() => {
 
     .preview-label {
         font-size: 0.7rem;
-        padding: 0.4rem 0.8rem;
-        margin-bottom: 0.75rem;
     }
 
     /* Adjust editor container for mobile */
