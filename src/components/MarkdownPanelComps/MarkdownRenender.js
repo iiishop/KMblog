@@ -400,6 +400,42 @@ md.use((md) => {
         if (info === 'xiaohongshu-note' || info === 'xiaohongshu') {
             return `<XiaohongshuNoteBlock :noteUrl="'${content}'" ></XiaohongshuNoteBlock>`;
         }
+        if (info === 'carousel') {
+            console.log('[Carousel] Processing carousel block with content:', content);
+            // 解析轮播图内容
+            const images = [];
+            const lines = content.split('\n').filter(line => line.trim());
+            console.log('[Carousel] Found lines:', lines);
+
+            for (const line of lines) {
+                // 匹配 markdown 图片语法: ![alt](src "title")
+                const match = line.match(/!\[([^\]]*)\]\(([^)]+?)(?:\s+"([^"]*)")?\)/);
+                if (match) {
+                    const [, alt, src, title] = match;
+                    // 处理图片路径
+                    const imageSrc = src.startsWith('http') ? src : `/Posts/Images/${src}`;
+                    const imageObj = {
+                        src: imageSrc,
+                        alt: alt || '',
+                        title: title || '',
+                        description: alt || ''
+                    };
+                    console.log('[Carousel] Adding image:', imageObj);
+                    images.push(imageObj);
+                }
+            }
+
+            console.log('[Carousel] Total images found:', images.length);
+            if (images.length > 0) {
+                // 将对象转为 JSON 字符串，并进行 HTML 实体编码以安全地放入属性中
+                const imagesJson = JSON.stringify(images).replace(/"/g, '&quot;');
+                const result = `<carouselblock :images="${imagesJson}" ></carouselblock>`;
+                console.log('[Carousel] Generated HTML:', result);
+                return result;
+            }
+            console.log('[Carousel] No valid images found');
+            return '<div class="carousel-error">No valid images found in carousel block</div>';
+        }
         if (info === 'mermaid') {
             const uniqueId = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
             return `<div class="mermaid-wrapper"><div id="${uniqueId}" class="mermaid">${content}</div></div>`;

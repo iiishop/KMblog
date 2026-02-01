@@ -99,6 +99,7 @@ const BangumiBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/Ban
 const BilibiliVideoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BilibiliVideoBlock.vue'));
 const GithubRepoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/GithubRepoBlock.vue'));
 const XiaohongshuNoteBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/XiaohongshuNoteBlock.vue'));
+const CarouselBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/CarouselBlock.vue'));
 
 // 定义 props
 const props = defineProps({
@@ -341,14 +342,17 @@ const parseMarkdown = async (url, decryptedText = null) => {
 
     // 在 nextTick 中手动编译和挂载组件
     await nextTick();
-    const container = document.querySelector('.post-content.markdown');
-    renderDynamicComponents(container, {
-      'steamgameblock': SteamGameBlock,
-      'bangumiblock': BangumiBlock,
-      'bilibilivideoblock': BilibiliVideoBlock,
-      'githubrepoblock': GithubRepoBlock,
-      'xiaohongshunoteblock': XiaohongshuNoteBlock
-    });
+    const container = contentRef.value;
+    if (container) {
+      renderDynamicComponents(container, {
+        'steamgameblock': SteamGameBlock,
+        'bangumiblock': BangumiBlock,
+        'bilibilivideoblock': BilibiliVideoBlock,
+        'githubrepoblock': GithubRepoBlock,
+        'xiaohongshunoteblock': XiaohongshuNoteBlock,
+        'carouselblock': CarouselBlock
+      });
+    }
 
     // 渲染 Mermaid 图表
     await nextTick();

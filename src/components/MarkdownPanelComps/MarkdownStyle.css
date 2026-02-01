@@ -865,3 +865,41 @@
   --primary: var(--theme-primary);
   --background: var(--theme-body-bg);
 }
+
+/* ========================================
+   轮播图组件样式
+   ======================================== */
+
+/* 轮播图错误提示样式 */
+.carousel-error {
+    padding: 2rem;
+    background: var(--theme-error-bg, #fee);
+    border: 1px solid var(--theme-error-border, #fcc);
+    border-radius: 8px;
+    color: var(--theme-error-text, #c33);
+    text-align: center;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+}
+
+/* 轮播图容器基础样式 */
+.markdown .carousel-container {
+    margin: 2rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    background: var(--theme-content-bg);
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .carousel-error,
+[data-theme="night"] .carousel-error {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .carousel-container,
+[data-theme="night"] .carousel-container {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
