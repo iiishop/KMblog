@@ -3628,7 +3628,7 @@ class BlogManagerGUI:
         # 进度回调函数（在主线程中更新 UI）
         def progress_callback(stage, progress, message):
             """进度回调 - 线程安全的 UI 更新"""
-            def update_ui():
+            async def update_ui():
                 try:
                     # 更新进度条
                     progress_bar.value = progress
@@ -3684,7 +3684,7 @@ class BlogManagerGUI:
                     self.page.update()
                     
                     # 关闭程序
-                    self.page.window_destroy()
+                    await self.page.window.close()
                 else:
                     raise Exception(result.get('message', '更新失败'))
                     
