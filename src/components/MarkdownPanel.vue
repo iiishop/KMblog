@@ -520,7 +520,9 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .header-content {
   width: 100%;
   max-width: 900px;
-  color: var(--theme-content-text);
+  color: #ffffff;
+  position: relative;
+  z-index: 2;
 }
 
 .post-title {
@@ -530,7 +532,20 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   margin: 0 0 1.2rem 0;
   font-family: 'Noto Serif SC', 'Merriweather', Georgia, serif;
   letter-spacing: -0.5px;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  /* 多层文字阴影创建发光效果 */
+  text-shadow:
+    0 0 10px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.9),
+    0 4px 8px rgba(0, 0, 0, 0.7),
+    0 8px 16px rgba(0, 0, 0, 0.5);
+  /* 添加白色发光边缘 */
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.3);
+  text-stroke: 1px rgba(255, 255, 255, 0.3);
+  /* 确保文字在任何背景下都清晰可见 */
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 16px rgba(0, 0, 0, 0.6));
 }
 
 .meta-info {
@@ -542,8 +557,10 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 }
 
 .meta-divider {
-  opacity: 0.7;
+  opacity: 0.9;
   font-weight: 300;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 .category-panel,
@@ -552,30 +569,54 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(15px);
   border-radius: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
+  /* 添加发光效果 */
+  box-shadow:
+    0 0 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .category-panel:hover,
 .date-panel:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.5);
   transform: translateY(-2px);
+  box-shadow:
+    0 4px 25px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .category-panel a,
 .date-panel a {
   text-decoration: none;
-  color: var(--theme-content-text);
+  color: #ffffff;
   font-weight: 600;
-  transition: opacity 0.2s ease;
+  transition: all 0.3s ease;
+  /* 添加文字发光效果 */
+  text-shadow:
+    0 0 8px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .category-panel a:hover,
 .date-panel a:hover {
-  opacity: 0.8;
+  color: #ffffff;
+  text-shadow:
+    0 0 12px rgba(255, 255, 255, 0.3),
+    0 0 8px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* 图标也需要高对比度处理 */
+.category-panel svg,
+.date-panel svg {
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
+  color: #ffffff;
 }
 
 /* === 文章统计信息 === */
@@ -583,15 +624,19 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   padding: 2rem;
   background: var(--theme-content-bg);
   border-bottom: 1px solid var(--theme-content-border);
   transition: var(--theme-transition-colors);
+  gap: 1rem 2rem;
+  /* 行间距 列间距 */
 }
 
 .stat-item {
   flex: 0 0 auto;
   padding: 0 1.5rem;
+  min-width: 120px;
 }
 
 .stat-content {
@@ -625,17 +670,28 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
       var(--theme-border-light),
       transparent);
   transition: var(--theme-transition-colors);
+  flex-shrink: 0;
+}
+
+/* 两行布局：第一行显示字数和阅读时间，第二行显示标签 */
+.stat-tags {
+  flex-basis: 100%;
+  margin-top: 0.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--theme-content-border);
 }
 
 .stat-tags .stat-content {
   flex-direction: row;
   gap: 0.8rem;
+  justify-content: center;
 }
 
 .tags-container {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .tag {
@@ -923,6 +979,25 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 }
 
 /* === 响应式设计 === */
+@media (max-width: 1200px) {
+  .article-stats {
+    padding: 1.8rem;
+    gap: 0.8rem 1.5rem;
+  }
+
+  .stat-item {
+    padding: 0 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 968px) {
   .post-title {
     font-size: 2.2rem;
@@ -933,29 +1008,18 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   }
 
   .article-stats {
-    flex-direction: column;
-    gap: 1.5rem;
-    align-items: stretch;
+    padding: 2rem 1.5rem;
+    gap: 1rem 1rem;
   }
 
   .stat-item {
-    padding: 0;
-    border-bottom: 1px solid var(--theme-content-border);
-    padding-bottom: 1.5rem;
+    padding: 0 0.8rem;
+    min-width: 100px;
   }
 
-  .stat-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  .stat-divider {
-    display: none;
-  }
-
-  .stat-tags .stat-content {
-    flex-direction: column;
-    align-items: flex-start;
+  .stat-tags {
+    margin-top: 0.5rem;
+    padding-top: 1rem;
   }
 
   .post-content {
@@ -968,6 +1032,54 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
   .comments-title {
     font-size: 1.5rem;
+  }
+}
+
+/* 中等屏幕优化 (769px - 968px) - 保持两行布局 */
+@media (max-width: 968px) and (min-width: 769px) {
+  .article-stats {
+    gap: 1rem 1.2rem;
+  }
+
+  .stat-item {
+    min-width: 110px;
+  }
+
+  .stat-divider {
+    height: 35px;
+  }
+}
+
+/* 小平板优化 (641px - 768px) - 两行布局，第一行居中 */
+@media (max-width: 768px) and (min-width: 641px) {
+  .article-stats {
+    padding: 1.8rem;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .stat-item {
+    padding: 0.8rem 1rem;
+    background: var(--theme-surface-default);
+    border-radius: 12px;
+    border: 1px solid var(--theme-border-light);
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  .stat-tags {
+    background: none;
+    border: none;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .stat-tags .stat-content {
+    justify-content: center;
   }
 }
 
@@ -986,6 +1098,44 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 
   .article-stats {
     padding: 1.5rem;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+
+  .stat-item {
+    padding: 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--theme-content-border);
+    padding-bottom: 1.5rem;
+    border-radius: 0;
+    min-width: 0;
+    flex: none;
+  }
+
+  .stat-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  .stat-tags {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+  }
+
+  .stat-tags .stat-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tags-container {
+    justify-content: flex-start;
   }
 
   .stat-value {

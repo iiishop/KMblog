@@ -348,28 +348,55 @@ const mainListStyle = computed(() => {
         };
     }
 
-    // 桌面端逻辑保持不变
+    // 桌面端逻辑 - 使用动态计算的侧边栏宽度
+    const sidebarWidth = 'var(--sidebar-width)';
+    const sidebarMargin = '4rem'; // 2rem * 2 (左右边距)
+
     if (!props.showTipList && !props.showInfoList) {
-        return { minWidth: 'calc(100% - 4rem)' };
+        return {
+            minWidth: 'calc(100% - 4rem)',
+            maxWidth: 'calc(100% - 4rem)'
+        };
     } else if (!props.showTipList && props.showInfoList) {
         if (isInfoListHidden.value) {
-            return { minWidth: 'calc(100% - 4rem)' };
+            return {
+                minWidth: 'calc(100% - 4rem)',
+                maxWidth: 'calc(100% - 4rem)'
+            };
         } else {
-            return { minWidth: 'calc(100% - 33rem)' };
+            return {
+                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
+                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
+            };
         }
     } else if (props.showTipList && !props.showInfoList) {
         if (isTipListHidden.value) {
-            return { minWidth: 'calc(100% - 4rem)' };
+            return {
+                minWidth: 'calc(100% - 4rem)',
+                maxWidth: 'calc(100% - 4rem)'
+            };
         } else {
-            return { minWidth: 'calc(100% - 33rem)' };
+            return {
+                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
+                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
+            };
         }
     } else {
         if (isTipListHidden.value && isInfoListHidden.value) {
-            return { minWidth: 'calc(100% - 4rem)' };
+            return {
+                minWidth: 'calc(100% - 4rem)',
+                maxWidth: 'calc(100% - 4rem)'
+            };
         } else if (isTipListHidden.value || isInfoListHidden.value) {
-            return { minWidth: 'calc(100% - 33rem)' };
+            return {
+                minWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`,
+                maxWidth: `calc(100% - ${sidebarWidth} - ${sidebarMargin})`
+            };
         } else {
-            return { minWidth: 'calc(100% - 58rem)' };
+            return {
+                minWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`,
+                maxWidth: `calc(100% - ${sidebarWidth} * 2 - ${sidebarMargin} * 2)`
+            };
         }
     }
 });
@@ -443,6 +470,45 @@ body {
     overflow-y: auto;
 }
 
+/* 响应式侧边栏宽度 */
+:root {
+    /* 超宽屏 (≥ 2560px) - 更宽的侧边栏 */
+    --sidebar-width: 28rem;
+    --sidebar-margin: 4rem;
+}
+
+@media (max-width: 2559px) and (min-width: 1920px) {
+    :root {
+        /* 2K 分辨率 (1920px - 2559px) - 标准侧边栏 */
+        --sidebar-width: 25rem;
+        --sidebar-margin: 4rem;
+    }
+}
+
+@media (max-width: 1919px) and (min-width: 1440px) {
+    :root {
+        /* 1440p 分辨率 (1440px - 1919px) - 稍窄侧边栏 */
+        --sidebar-width: 22rem;
+        --sidebar-margin: 3rem;
+    }
+}
+
+@media (max-width: 1439px) and (min-width: 1200px) {
+    :root {
+        /* 1080p 分辨率 (1200px - 1439px) - 更窄侧边栏 */
+        --sidebar-width: 20rem;
+        --sidebar-margin: 2rem;
+    }
+}
+
+@media (max-width: 1199px) and (min-width: 969px) {
+    :root {
+        /* 小桌面 (969px - 1199px) - 最窄侧边栏 */
+        --sidebar-width: 18rem;
+        --sidebar-margin: 2rem;
+    }
+}
+
 .Scene {
     margin-top: 1rem;
     margin-bottom: 1rem;
@@ -458,7 +524,7 @@ body {
 .InfoList,
 .TipList {
     height: fit-content;
-    width: 25rem;
+    width: var(--sidebar-width);
     color: var(--rightlist-text-color);
     position: relative;
     transition: all 0.3s ease-in-out;
@@ -545,7 +611,7 @@ body {
 
 .FloatList {
     margin-top: 2rem;
-    width: 25rem;
+    width: var(--sidebar-width);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -591,7 +657,7 @@ body {
     border-bottom-left-radius: 0;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
-    left: 29rem;
+    left: calc(var(--sidebar-width) + 4rem);
     transition: all 0.5s ease-in-out, top 0s;
 }
 
@@ -600,7 +666,7 @@ body {
     border-bottom-left-radius: 10px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
-    right: 29rem;
+    right: calc(var(--sidebar-width) + 4rem);
     transition: all 0.5s ease-in-out, top 0s;
 }
 
