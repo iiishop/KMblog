@@ -51,12 +51,14 @@ const routes = [
     {
         path: '/',
         name: 'Home',
-        component: Home
+        component: Home,
+        meta: { menuIndex: 0 }
     },
     {
         path: '/tags',
         name: 'TagPage',
-        component: TagPage
+        component: TagPage,
+        meta: { menuIndex: 6 }
     },
     {
         path: '/posts/:collection?/:mdName',
@@ -80,7 +82,8 @@ const routes = [
         props: route => {
             const markdownUrls = globalVar.markdowns ? Object.keys(globalVar.markdowns) : [];
             return { markdownUrls };
-        }
+        },
+        meta: { menuIndex: 4 }
     },
     {
         path: '/archive/tags/:tagName',
@@ -105,7 +108,8 @@ const routes = [
     {
         path: '/about',
         name: 'AboutPage',
-        component: AboutPage
+        component: AboutPage,
+        meta: { menuIndex: 1 }
     },
     {
         path: '/category/:pathMatch(.*)*',
@@ -115,18 +119,20 @@ const routes = [
             const { pathMatch } = route.params;
             const categoryPath = Array.isArray(pathMatch) ? pathMatch : pathMatch ? pathMatch.split('/') : [];
             return { categoryPath };
-        }
+        },
+        meta: { menuIndex: 5 }
     },
     {
         path: '/collections',
         name: 'Collections',
         component: CollectionsPage,
-        meta: { title: 'Archive Gallery' }
+        meta: { title: 'Archive Gallery', menuIndex: 2 }
     },
     {
         path: '/gallery',
         name: 'Gallery',
-        component: WaterfallPage
+        component: WaterfallPage,
+        meta: { menuIndex: 3 }
     }
 ];
 
@@ -142,6 +148,31 @@ if (import.meta.env.DEV) {
 const router = createRouter({
     history: createWebHashHistory(),
     routes
+});
+
+// 路由守卫：根据菜单位置动态设置过渡方向
+router.beforeEach((to, from, next) => {
+    const toIndex = to.meta?.menuIndex;
+    const fromIndex = from.meta?.menuIndex;
+
+    // 如果两个路由都有menuIndex，根据位置关系设置过渡方向
+    if (toIndex !== undefined && fromIndex !== undefined) {
+        if (toIndex > fromIndex) {
+            // 向右切换：从右边滑入
+            to.meta.transitionName = 'slide-left';
+        } else if (toIndex < fromIndex) {
+            // 向左切换：从左边滑入
+            to.meta.transitionName = 'slide-right';
+        } else {
+            // 同一个页面，使用淡入淡出
+            to.meta.transitionName = 'fade';
+        }
+    } else {
+        // 没有menuIndex的页面（如PostPage），使用默认过渡
+        to.meta.transitionName = 'page';
+    }
+
+    next();
 });
 
 export default router;
