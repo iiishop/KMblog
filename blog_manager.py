@@ -336,6 +336,7 @@ class BlogManagerGUI:
                 'pulling_code': '拉取最新代码...',
                 'restoring_files': '恢复用户文件...',
                 'generating_report': '生成更新报告...',
+                'config_save_reminder': '修改配置后请点击 \'保存配置\' 按钮',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -421,6 +422,7 @@ class BlogManagerGUI:
                 'pulling_code': 'Pulling latest code...',
                 'restoring_files': 'Restoring user files...',
                 'generating_report': 'Generating update report...',
+                'config_save_reminder': 'Please click the \'Save Config\' button after making changes',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -934,12 +936,19 @@ class BlogManagerGUI:
                 parts = line.split('|')
                 current_collection = parts[0].replace(
                     'Collection:', '').strip()
+
+                # 过滤掉 WaterfallGraph 文件夹
+                if current_collection == 'WaterfallGraph':
+                    current_collection = None  # 跳过这个合集
+                    continue
+
                 grouped_posts[current_collection] = []
             elif line.startswith('Post:'):
                 # 解析文章信息
-                if current_collection not in grouped_posts:
+                if current_collection and current_collection not in grouped_posts:
                     grouped_posts[current_collection] = []
-                grouped_posts[current_collection].append(line)
+                if current_collection:  # 只在有效合集下添加文章
+                    grouped_posts[current_collection].append(line)
 
         # 缓存数据
         self.posts_cache = grouped_posts
@@ -4506,19 +4515,51 @@ class BlogManagerGUI:
             self.t('save_config'),
             icon=ft.Icons.SAVE,
             on_click=save_config,
+            bgcolor=ft.Colors.GREEN_600,
+            color=ft.Colors.WHITE,
         )
 
+        # 添加底部保存按钮（方便滚动到最后时保存）
         form_rows.append(ft.Divider())
         form_rows.append(ft.Container(content=save_btn, padding=10))
 
-        return ft.Container(
-            content=ft.Column(
-                form_rows,
-                scroll=ft.ScrollMode.AUTO,
-            ),
-            expand=True,
-            padding=20,
+        # 创建顶部固定的保存提示区域
+        save_reminder = ft.Container(
+            content=ft.Row([
+                ft.Icon(ft.Icons.INFO_OUTLINE,
+                        color=ft.Colors.BLUE_600, size=20),
+                ft.Text(
+                    self.t('config_save_reminder'),
+                    size=13,
+                    color=ft.Colors.BLUE_700,
+                    expand=True,
+                ),
+                ft.Button(
+                    self.t('save_config'),
+                    icon=ft.Icons.SAVE,
+                    on_click=save_config,
+                    bgcolor=ft.Colors.GREEN_600,
+                    color=ft.Colors.WHITE,
+                    height=36,
+                ),
+            ], spacing=10),
+            bgcolor=ft.Colors.BLUE_50,
+            padding=15,
+            border_radius=8,
+            border=ft.Border.all(1, ft.Colors.BLUE_200),
         )
+
+        return ft.Column([
+            save_reminder,
+            ft.Container(height=10),
+            ft.Container(
+                content=ft.Column(
+                    form_rows,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
+                expand=True,
+            ),
+        ], expand=True, spacing=0)
 
     def show_github_dialog(self, e):
         """显示GitHub部署配置对话框"""
