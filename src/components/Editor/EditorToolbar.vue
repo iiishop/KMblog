@@ -519,6 +519,7 @@ const commonSymbols = [
 
 // Block templates
 const blockTemplates = {
+    'carousel': '```carousel\n/path/to/image1.jpg | 图片1描述\n/path/to/image2.jpg | 图片2描述\n/path/to/image3.jpg | 图片3描述\n```',
     'bilibili-video': '```bilibili-video\nhttps://www.bilibili.com/video/BV...\n```',
     'steam-game': '```steam-game\nhttps://store.steampowered.com/app/...\n```',
     'bangumi-card': '```bangumi-card\nhttps://bgm.tv/subject/...\n```',
@@ -529,6 +530,7 @@ const blockTemplates = {
 
 const getBlockIcon = (key) => {
     const icons = {
+        'carousel': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M7 3v14"/><path d="M17 3v14"/><circle cx="12" cy="10" r="2"/></svg>`,
         'bilibili-video': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`,
         'steam-game': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4l-3 3"/><path d="M12 8v4l3-3"/></svg>`,
         'bangumi-card': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
@@ -541,6 +543,7 @@ const getBlockIcon = (key) => {
 
 const getBlockDisplayName = (key) => {
     const names = {
+        'carousel': '图片轮播',
         'bilibili-video': 'Bilibili视频',
         'steam-game': 'Steam游戏',
         'bangumi-card': 'Bangumi卡片',
@@ -553,6 +556,7 @@ const getBlockDisplayName = (key) => {
 
 const getBlockHint = (key) => {
     const hints = {
+        'carousel': '图片轮播展示',
         'bilibili-video': '嵌入视频播放器',
         'steam-game': '展示游戏信息',
         'bangumi-card': '动漫/影视卡片',
