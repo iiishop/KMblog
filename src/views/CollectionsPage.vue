@@ -1023,19 +1023,33 @@ onUnmounted(() => {
     right: 2rem;
     width: 48px;
     height: 48px;
-    background: transparent;
-    border: 1px solid transparent;
+    background: var(--theme-nav-hover-bg);
+    border: 2px solid var(--theme-border-medium);
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.4s var(--ease-organic);
+    z-index: 100;
+}
+
+.close-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--theme-body-text);
+    transition: all 0.3s ease;
 }
 
 .close-btn:hover {
-    border-color: var(--theme-border-medium);
+    background: var(--theme-gradient);
+    border-color: transparent;
     transform: rotate(90deg);
+    box-shadow: 0 8px 20px var(--theme-shadow-lg);
+}
+
+.close-btn:hover svg {
+    stroke: var(--theme-button-text);
 }
 
 .sidebar-header h2 {
@@ -1060,6 +1074,36 @@ onUnmounted(() => {
     flex: 1;
     overflow-y: auto;
     padding: 0 4rem 4rem 4rem;
+}
+
+/* 自定义滚动条样式 */
+.articles-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.articles-list::-webkit-scrollbar-track {
+    background: var(--theme-nav-hover-bg);
+    border-radius: 10px;
+    margin: 1rem 0;
+}
+
+.articles-list::-webkit-scrollbar-thumb {
+    background: var(--theme-gradient);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.articles-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg,
+            var(--theme-secondary) 0%,
+            var(--theme-primary) 100%);
+    box-shadow: 0 0 10px var(--theme-primary);
+}
+
+/* Firefox 滚动条样式 */
+.articles-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-primary) var(--theme-nav-hover-bg);
 }
 
 /* Individual Article Item - Minimalist List */
