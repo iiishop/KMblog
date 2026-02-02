@@ -53,7 +53,7 @@
             </div>
 
             <!-- 导航提示 -->
-            <div class="navigation-hint" v-if="!selectedCollection">
+            <div class="navigation-hint" v-if="!selectedCollection && collectionsArray.length > 1">
                 <button class="nav-arrow nav-left" @click="scrollCarousel(-1)" :disabled="activeIndex === 0">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15,18 9,12 15,6"></polyline>
@@ -179,10 +179,22 @@ const getItemStyle = (index) => {
     const total = collectionsArray.value.length;
     const diff = index - activeIndex.value;
 
+    // 如果只有一个collection，直接居中显示
+    if (total === 1) {
+        return {
+            left: '50%',
+            top: '50%',
+            transform: 'translateZ(200px) scale(1)',
+            opacity: 1,
+            zIndex: 1000,
+            '--card-rotate-y': '0deg',
+        };
+    }
+
     // 半圆弧形布局：以activeIndex为中心(0°)，向两边展开
     // 左边为负角度，右边为正角度，形成半圆弧
     const maxSpread = 120; // 最大展开角度（左右各60度）
-    const anglePerItem = total > 1 ? maxSpread / (total - 1) : 0;
+    const anglePerItem = maxSpread / (total - 1);
 
     // 当前卡片相对于激活卡片的角度偏移
     const relativeAngle = diff * (anglePerItem / (total - 1)) * total / 2;
