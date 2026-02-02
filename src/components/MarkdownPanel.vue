@@ -59,15 +59,6 @@
       <div v-html="htmlContent"></div>
     </article>
 
-    <!-- 评论区 -->
-    <div v-if="showComments" class="comments-section">
-      <div class="comments-header">
-        <h2 class="comments-title">💬 评论区</h2>
-        <p class="comments-subtitle">欢迎留下你的想法和反馈</p>
-      </div>
-      <GiscusComments component-type="markdown" :term="commentTerm" :emphasize-reactions="true" />
-    </div>
-
     <!-- 回到顶部按钮 -->
     <transition name="fade">
       <button v-if="showBackToTop" class="back-to-top" @click="scrollToTop">
@@ -91,7 +82,6 @@ import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
 import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import { parseMarkdownMetadata } from '@/utils';
-import GiscusComments from '@/components/GiscusComments.vue';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
@@ -132,16 +122,6 @@ const accentColor = ref({ h: 220, s: 65, l: 50 });
 const articleStats = ref({
   wordCount: 0,
   readingTime: 0
-});
-
-// 评论相关
-const showComments = computed(() => {
-  return config.Giscus?.enabled && config.Giscus?.markdownPanel?.enabled;
-});
-
-const commentTerm = computed(() => {
-  // Use article title or URL as unique identifier
-  return metadata.value.title || props.markdownUrl;
 });
 
 // CSS变量
@@ -725,207 +705,6 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   color: var(--theme-content-text);
   font-size: 1.05rem;
   transition: var(--theme-transition-colors);
-}
-
-/* === 评论区 - 专业长文风格 === */
-.comments-section {
-  width: 100%;
-  margin: 0 auto;
-  padding: 4rem 4rem 3rem;
-  border-top: 2px solid var(--theme-content-border);
-  background: linear-gradient(180deg,
-      var(--theme-panel-bg) 0%,
-      var(--theme-content-bg) 100%);
-  transition: var(--theme-transition-colors);
-  position: relative;
-}
-
-.comments-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 4px;
-  background: var(--theme-gradient);
-  border-radius: 2px;
-}
-
-.comments-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid var(--theme-border-light);
-  position: relative;
-}
-
-.comments-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--theme-content-text);
-  margin: 0 0 0.75rem 0;
-  font-family: 'Noto Serif SC', 'Merriweather', Georgia, serif;
-  background: var(--theme-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-}
-
-.comments-subtitle {
-  font-size: 1rem;
-  color: var(--theme-meta-text);
-  margin: 0;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-}
-
-/* === Giscus 专业风格定制 === */
-.comments-section :deep(.gsc-main) {
-  background: transparent !important;
-  border: none !important;
-}
-
-.comments-section :deep(.gsc-comment-box) {
-  background: var(--theme-panel-bg) !important;
-  border: 2px solid var(--theme-border-light) !important;
-  border-radius: 16px !important;
-  padding: 1.5rem !important;
-  margin-bottom: 2rem !important;
-  box-shadow: 0 4px 16px var(--theme-shadow-sm) !important;
-  transition: all 0.3s ease !important;
-}
-
-.comments-section :deep(.gsc-comment-box:hover) {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 8px 24px var(--theme-shadow-md) !important;
-}
-
-.comments-section :deep(.gsc-comment-box-tabs) {
-  border-bottom: 2px solid var(--theme-border-light) !important;
-  margin-bottom: 1rem !important;
-}
-
-.comments-section :deep(.gsc-comment-box-tab) {
-  font-weight: 600 !important;
-  font-size: 0.95rem !important;
-  padding: 0.75rem 1.5rem !important;
-  color: var(--theme-meta-text) !important;
-  border-radius: 8px 8px 0 0 !important;
-  transition: all 0.3s ease !important;
-}
-
-.comments-section :deep(.gsc-comment-box-tab[aria-selected="true"]) {
-  color: var(--primary-color) !important;
-  background: var(--theme-surface-hover) !important;
-  border-bottom: 3px solid var(--primary-color) !important;
-}
-
-.comments-section :deep(.gsc-comment-box-textarea) {
-  background: var(--theme-content-bg) !important;
-  border: 2px solid var(--theme-border-light) !important;
-  border-radius: 12px !important;
-  padding: 1rem !important;
-  font-size: 1rem !important;
-  line-height: 1.6 !important;
-  color: var(--theme-content-text) !important;
-  transition: all 0.3s ease !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-}
-
-.comments-section :deep(.gsc-comment-box-textarea:focus) {
-  border-color: var(--primary-color) !important;
-  box-shadow: 0 0 0 3px var(--primary-light-color) !important;
-  outline: none !important;
-}
-
-.comments-section :deep(.gsc-comment-box-bottom) {
-  margin-top: 1rem !important;
-  padding-top: 1rem !important;
-  border-top: 1px solid var(--theme-border-light) !important;
-}
-
-.comments-section :deep(.gsc-comment-box-buttons) {
-  gap: 0.75rem !important;
-}
-
-.comments-section :deep(.gsc-comment-box-button) {
-  padding: 0.75rem 1.5rem !important;
-  border-radius: 10px !important;
-  font-weight: 600 !important;
-  font-size: 0.95rem !important;
-  transition: all 0.3s ease !important;
-  border: 2px solid transparent !important;
-}
-
-.comments-section :deep(.gsc-comment-box-button-primary) {
-  background: var(--gradient) !important;
-  color: var(--theme-button-text) !important;
-  box-shadow: 0 4px 12px var(--primary-color) !important;
-}
-
-.comments-section :deep(.gsc-comment-box-button-primary:hover) {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 20px var(--primary-color) !important;
-}
-
-.comments-section :deep(.gsc-comment) {
-  background: var(--theme-panel-bg) !important;
-  border: 1px solid var(--theme-border-light) !important;
-  border-radius: 16px !important;
-  padding: 1.5rem !important;
-  margin-bottom: 1.5rem !important;
-  transition: all 0.3s ease !important;
-}
-
-.comments-section :deep(.gsc-comment:hover) {
-  border-color: var(--theme-border-medium) !important;
-  box-shadow: 0 4px 16px var(--theme-shadow-sm) !important;
-  transform: translateY(-2px) !important;
-}
-
-.comments-section :deep(.gsc-comment-author) {
-  font-weight: 600 !important;
-  font-size: 1rem !important;
-  color: var(--theme-content-text) !important;
-}
-
-.comments-section :deep(.gsc-comment-author-avatar) {
-  border-radius: 12px !important;
-  border: 2px solid var(--theme-border-light) !important;
-}
-
-.comments-section :deep(.gsc-comment-content) {
-  color: var(--theme-content-text) !important;
-  font-size: 0.95rem !important;
-  line-height: 1.7 !important;
-  margin-top: 1rem !important;
-}
-
-.comments-section :deep(.gsc-comment-reactions) {
-  margin-top: 1rem !important;
-  padding-top: 1rem !important;
-  border-top: 1px solid var(--theme-border-light) !important;
-}
-
-.comments-section :deep(.gsc-reaction-button) {
-  border-radius: 8px !important;
-  padding: 0.5rem 0.75rem !important;
-  background: var(--theme-surface-hover) !important;
-  border: 1px solid var(--theme-border-light) !important;
-  transition: all 0.3s ease !important;
-}
-
-.comments-section :deep(.gsc-reaction-button:hover) {
-  background: var(--theme-surface-active) !important;
-  border-color: var(--primary-color) !important;
-  transform: scale(1.05) !important;
-}
-
-.comments-section :deep(.gsc-reactions-count) {
-  font-weight: 600 !important;
-  color: var(--primary-color) !important;
 }
 
 /* === 回到顶部按钮 === */

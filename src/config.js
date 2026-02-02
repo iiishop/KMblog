@@ -1,5 +1,3 @@
-import GiscusConfig from './giscus.config.js';
-
 const config = {
     ProjectUrl: 'https://iiishop.github.io',//博客的基础URL
     BlogName: 'iiishop的博客',//博客名称
@@ -54,11 +52,6 @@ const config = {
     // Get a token from: https://github.com/settings/tokens (no scopes needed for public repos)
     // Increases rate limit from 60 to 5000 requests/hour
     GitHubToken: '', // Leave empty for unauthenticated requests (60/hour limit)
-
-    // Giscus Comments Configuration
-    // 配置文件已移至 src/giscus.config.js
-    // 请在该文件中配置 Giscus 评论系统
-    Giscus: GiscusConfig,
 
     // Social Links. 社交链接
     Links: [

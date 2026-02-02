@@ -260,9 +260,17 @@ async def verify_token(x_auth_token: Optional[str] = Header(None)) -> bool:
 # CORS配置 - 将在启动时根据 --allow-lan 参数动态配置
 # 默认只允许 localhost，如果启用 LAN 模式则允许所有来源
 ALLOW_LAN_MODE = False  # 将在 main() 中设置
+CORS_CONFIGURED = False  # 防止重复配置的标志
 
 def configure_cors():
-    """配置CORS中间件"""
+    """配置CORS中间件（只配置一次）"""
+    global CORS_CONFIGURED
+    
+    # 如果已经配置过，跳过
+    if CORS_CONFIGURED:
+        print(f"[CORS] Already configured (LAN mode: {ALLOW_LAN_MODE})")
+        return
+    
     if ALLOW_LAN_MODE:
         # LAN模式：允许所有来源
         app.add_middleware(
@@ -287,6 +295,8 @@ def configure_cors():
             max_age=3600,
         )
         print("[CORS] Local mode - allowing only localhost")
+    
+    CORS_CONFIGURED = True
 
 
 # ==================== Pydantic模型 ====================
