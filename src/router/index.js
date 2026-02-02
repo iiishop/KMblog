@@ -7,7 +7,7 @@ const PostPage = () => import('../views/PostPage.vue');
 const ArchivePage = () => import('../views/ArchivePage.vue');
 const CategoryPage = () => import('../views/CategoryPage.vue');
 const AboutPage = () => import('../views/AboutPage.vue');
-const CollectionPage = () => import('../views/CollectionPage.vue');
+const CollectionsPage = () => import('../views/CollectionsPage.vue');
 const WaterfallPage = () => import('../views/WaterfallPage.vue');
 
 const getMarkdownUrls = (categoryPath) => {
@@ -118,12 +118,10 @@ const routes = [
         }
     },
     {
-        path: '/collection/:name',
-        name: 'CollectionPage',
-        component: CollectionPage,
-        props: route => ({
-            collectionName: route.params.name
-        })
+        path: '/collections',
+        name: 'Collections',
+        component: CollectionsPage,
+        meta: { title: 'Archive Gallery' }
     },
     {
         path: '/gallery',

@@ -20,7 +20,7 @@ const navigateToCollection = (event) => {
     if (isAnimating.value) return;
     isAnimating.value = true;
 
-    console.log('[Collection] Navigating to:', props.name);
+    console.log('[Collection] Navigating to CollectionsPage with:', props.name);
 
     const card = event.currentTarget;
     const rect = card.getBoundingClientRect();
@@ -52,13 +52,13 @@ const navigateToCollection = (event) => {
     // 使用 GSAP 时间线创建流畅动画
     const tl = gsap.timeline({
         onComplete: () => {
-            // 导航到新页面
+            // 导航到 Collections 页面，并传递要打开的 Collection 名称
             router.push({
-                name: 'CollectionPage',
-                params: { name: props.name }
+                name: 'Collections',
+                query: { open: props.name }
             }).then(() => {
                 console.log('[Collection] Navigation successful');
-                // 延迟清理，让 CollectionPage 的入场动画先开始
+                // 延迟清理，让 CollectionsPage 的入场动画先开始
                 gsap.to(transitionEl, {
                     opacity: 0,
                     duration: 0.3,
