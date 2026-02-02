@@ -194,17 +194,14 @@ class BlogManagerGUI:
 
                 self.update_info['checking'] = False
 
-                # 如果有任何更新且当前在 dashboard 视图，刷新 UI 显示徽章
+                # 如果有任何更新，刷新 UI 显示徽章
                 has_any_update = self.update_info['has_updates'] or self.update_info['manager_has_update']
-                if has_any_update and self.current_view == 'dashboard':
+                if has_any_update:
                     try:
+                        # 使用 run_task 在主线程中更新 UI
                         self.page.run_task(self.refresh_dashboard_ui)
-                    except:
-                        # 如果 run_task 失败，尝试直接更新
-                        try:
-                            self.build_ui()
-                        except:
-                            pass
+                    except Exception as refresh_error:
+                        print(f"[UI刷新] run_task 失败: {refresh_error}")
 
             except Exception as e:
                 print(f"[更新检查] 异常: {e}")
@@ -220,10 +217,17 @@ class BlogManagerGUI:
     async def refresh_dashboard_ui(self):
         """异步刷新 dashboard UI（用于显示更新徽章）"""
         try:
-            if self.current_view == 'dashboard':
-                self.build_ui()
+            print(f"[UI刷新] 开始刷新，当前视图: {self.current_view}")
+            print(
+                f"[UI刷新] 更新信息: has_updates={self.update_info['has_updates']}, manager_has_update={self.update_info['manager_has_update']}")
+
+            # 重新构建 UI（无论当前在哪个视图，都更新侧边栏以显示徽章）
+            self.build_ui()
+            print(f"[UI刷新] UI已重新构建")
         except Exception as e:
             print(f"[UI刷新] 刷新失败: {e}")
+            import traceback
+            traceback.print_exc()
 
     def get_commands(self):
         """动态获取所有命令类"""
@@ -337,6 +341,62 @@ class BlogManagerGUI:
                 'restoring_files': '恢复用户文件...',
                 'generating_report': '生成更新报告...',
                 'config_save_reminder': '修改配置后请点击 \'保存配置\' 按钮',
+                'click_to_init': '点击开始初始化博客框架',
+                'click_to_upload': '点击上传',
+                'click_upload_cover': '点击上传封面',
+                'current_image': '当前图片',
+                'new_image': '新图片',
+                'preparing_init': '准备初始化...',
+                'init_blog_framework': '初始化博客框架',
+                'preparing_build': '准备构建...',
+                'building_project': '正在构建项目',
+                'start_editor': '启动编辑器',
+                'allow_lan_access': '是否允许局域网内其他设备访问编辑器？',
+                'preparing_start_editor': '准备启动编辑器...',
+                'localhost_address': '本机访问地址：',
+                'lan_address': '局域网访问地址：',
+                'editor_start_failed': '启动编辑器失败',
+                'checking_update': '检查更新',
+                'checking_updates': '正在检查更新...',
+                'update_blog_framework': '更新博客框架',
+                'update_manager_tool': '更新管理工具',
+                'already_latest': '已是最新版本',
+                'select_update_item': '选择更新项目',
+                'hint': '提示',
+                'found_new_version': '发现管理工具新版本',
+                'update_notes': '更新说明:',
+                'update_now_question': '是否立即更新管理工具？',
+                'program_will_restart': '（程序将自动关闭并重启）',
+                'update_later': '稍后更新',
+                'update_now': '立即更新',
+                'updating_manager': '更新管理工具',
+                'downloading': '正在下载...',
+                'brief': '简介:',
+                'content_preview': '内容预览:',
+                'theme_config': '主题配置',
+                'image_config': '图片配置',
+                'repo_auto_create': '如果仓库不存在，将自动创建',
+                'preparing_deploy': '准备部署...',
+                'close': '关闭',
+                'close_editor': '关闭编辑器',
+                'confirm_close': '确认关闭',
+                'confirm_close_editor': '确定要关闭编辑器服务吗？\n这将停止开发服务器和后端API服务器。',
+                'installing_deps': '正在安装依赖...',
+                'building': '正在构建项目...',
+                'build_complete': '构建完成！',
+                'init_complete': '初始化完成！',
+                'start_complete': '启动完成！',
+                'editor_closed': '✅ 编辑器已关闭',
+                'close_failed': '关闭失败',
+                'configuring_firewall': '正在配置防火墙...',
+                'firewall_success': '✅ 防火墙规则已添加成功！',
+                'firewall_failed_admin': '❌ 添加失败，请以管理员身份运行程序',
+                'firewall_failed': '❌ 配置失败',
+                'has_commits': '有 {} 个新提交',
+                'latest_version': '最新版本: {}',
+                'cancel_btn': '取消',
+                'replace': '替换',
+                'replace_cover_question': '替换 {} 的封面图片？',
             },
             'en': {
                 'title': 'KMBlog Manager', 'dashboard': 'Dashboard', 'posts': 'Posts',
@@ -423,6 +483,62 @@ class BlogManagerGUI:
                 'restoring_files': 'Restoring user files...',
                 'generating_report': 'Generating update report...',
                 'config_save_reminder': 'Please click the \'Save Config\' button after making changes',
+                'click_to_init': 'Click to initialize blog framework',
+                'click_to_upload': 'Click to upload',
+                'click_upload_cover': 'Click to upload cover',
+                'current_image': 'Current Image',
+                'new_image': 'New Image',
+                'preparing_init': 'Preparing initialization...',
+                'init_blog_framework': 'Initialize Blog Framework',
+                'preparing_build': 'Preparing build...',
+                'building_project': 'Building Project',
+                'start_editor': 'Start Editor',
+                'allow_lan_access': 'Allow LAN access to editor?',
+                'preparing_start_editor': 'Preparing to start editor...',
+                'localhost_address': 'Localhost Address:',
+                'lan_address': 'LAN Address:',
+                'editor_start_failed': 'Editor Start Failed',
+                'checking_update': 'Check Update',
+                'checking_updates': 'Checking for updates...',
+                'update_blog_framework': 'Update Blog Framework',
+                'update_manager_tool': 'Update Manager Tool',
+                'already_latest': 'Already Latest Version',
+                'select_update_item': 'Select Update Item',
+                'hint': 'Hint',
+                'found_new_version': 'Found New Manager Version',
+                'update_notes': 'Update Notes:',
+                'update_now_question': 'Update manager tool now?',
+                'program_will_restart': '(Program will close and restart)',
+                'update_later': 'Later',
+                'update_now': 'Update Now',
+                'updating_manager': 'Updating Manager',
+                'downloading': 'Downloading...',
+                'brief': 'Brief:',
+                'content_preview': 'Content Preview:',
+                'theme_config': 'Theme Config',
+                'image_config': 'Image Config',
+                'repo_auto_create': 'Repository will be auto-created if not exists',
+                'preparing_deploy': 'Preparing deployment...',
+                'close': 'Close',
+                'close_editor': 'Close Editor',
+                'confirm_close': 'Confirm Close',
+                'confirm_close_editor': 'Close editor service?\nThis will stop dev server and API server.',
+                'installing_deps': 'Installing dependencies...',
+                'building': 'Building project...',
+                'build_complete': 'Build Complete!',
+                'init_complete': 'Initialization Complete!',
+                'start_complete': 'Start Complete!',
+                'editor_closed': '✅ Editor Closed',
+                'close_failed': 'Close Failed',
+                'configuring_firewall': 'Configuring firewall...',
+                'firewall_success': '✅ Firewall rule added successfully!',
+                'firewall_failed_admin': '❌ Failed, please run as administrator',
+                'firewall_failed': '❌ Configuration failed',
+                'has_commits': '{} new commits available',
+                'latest_version': 'Latest version: {}',
+                'cancel_btn': 'Cancel',
+                'replace': 'Replace',
+                'replace_cover_question': 'Replace cover image of {}?',
             }
         }
         return trans[self.current_lang].get(key, key)
@@ -557,7 +673,7 @@ class BlogManagerGUI:
                                 size=64, color=ft.Colors.WHITE),
                         ft.Text(self.t('init_blog'), size=20, weight=ft.FontWeight.BOLD,
                                 color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
-                        ft.Text("点击开始初始化博客框架", size=14, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
+                        ft.Text(self.t('click_to_init'), size=14, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
                                 text_align=ft.TextAlign.CENTER),
                     ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     width=400,
@@ -596,7 +712,7 @@ class BlogManagerGUI:
                                     self.open_editor_window, ft.Colors.PURPLE_600, '打开已运行的编辑器')
                 )
                 action_buttons.append(
-                    self.action_btn('关闭编辑器', ft.Icons.STOP_CIRCLE,
+                    self.action_btn(self.t('close_editor'), ft.Icons.STOP_CIRCLE,
                                     self.stop_editor, ft.Colors.RED_600, '停止编辑器服务')
                 )
             else:
@@ -1024,7 +1140,8 @@ class BlogManagerGUI:
                 content=ft.Column([
                     ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE,
                             size=36, color="#718096"),
-                    ft.Text("点击上传", size=12, color="#A0AEC0"),
+                    ft.Text(self.t('click_to_upload'),
+                            size=12, color="#A0AEC0"),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
                 width=width,
                 height=height,
@@ -1198,7 +1315,8 @@ class BlogManagerGUI:
                     content=ft.Column([
                         ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE,
                                 size=36, color=ft.Colors.GREY_400),
-                        ft.Text("点击上传封面", size=12, color=ft.Colors.GREY_500),
+                        ft.Text(self.t('click_upload_cover'),
+                                size=12, color=ft.Colors.GREY_500),
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
                     width=150,
                     height=100,
@@ -1399,7 +1517,8 @@ class BlogManagerGUI:
         # 创建预览
         preview_content = ft.Row([
             ft.Column([
-                ft.Text("当前图片", size=14, weight=ft.FontWeight.BOLD),
+                ft.Text(self.t('current_image'), size=14,
+                        weight=ft.FontWeight.BOLD),
                 ft.Container(
                     content=ft.Image(
                         src=old_image_path,
@@ -1413,7 +1532,8 @@ class BlogManagerGUI:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
             ft.Icon(ft.Icons.ARROW_FORWARD, size=32, color=ft.Colors.BLUE_600),
             ft.Column([
-                ft.Text("新图片", size=14, weight=ft.FontWeight.BOLD),
+                ft.Text(self.t('new_image'), size=14,
+                        weight=ft.FontWeight.BOLD),
                 ft.Container(
                     content=ft.Image(
                         src=new_image_path,
@@ -1442,7 +1562,8 @@ class BlogManagerGUI:
                 self.snack(f"替换失败: {ex}", True)
 
         dlg = ft.AlertDialog(
-            title=ft.Text(f"替换 {collection_name} 的封面图片？"),
+            title=ft.Text(
+                self.t('replace_cover_question').format(collection_name)),
             content=ft.Container(
                 content=preview_content,
                 width=600,
@@ -1451,7 +1572,7 @@ class BlogManagerGUI:
             actions=[
                 ft.TextButton("取消", on_click=lambda e: self.close_dlg(dlg)),
                 ft.Button(
-                    "替换",
+                    self.t('replace'),
                     on_click=lambda e: confirm_replace(),
                     bgcolor=ft.Colors.GREEN_600,
                     color=ft.Colors.WHITE,
@@ -3184,17 +3305,34 @@ class BlogManagerGUI:
                     import traceback
                     traceback.print_exc()
 
-                # 关闭检查对话框
-                self.close_dlg(checking_dlg)
+                # 使用 run_task 在主线程中更新 UI
+                async def update_ui():
+                    print("[更新检查] 准备更新 UI...")
+                    # 关闭检查对话框
+                    checking_dlg.open = False
+                    self.page.update()
+                    print("[更新检查] 检查对话框已关闭")
 
-                # 显示更新选项对话框
-                self._show_update_options_dialog_content()
+                    # 短暂延迟，确保对话框关闭动画完成
+                    import asyncio
+                    await asyncio.sleep(0.1)
+
+                    # 显示更新选项对话框
+                    self._show_update_options_dialog_content()
+                    print("[更新检查] 更新选项对话框已显示")
+
+                self.page.run_task(update_ui)
 
             except Exception as e:
                 print(f"[更新检查] 检查更新失败: {e}")
                 import traceback
                 traceback.print_exc()
-                self.close_dlg(checking_dlg)
+                # 错误时也要在主线程中关闭对话框
+                try:
+                    checking_dlg.open = False
+                    self.page.update()
+                except:
+                    pass
                 self.snack(f"检查更新失败: {e}", True)
 
         import threading
