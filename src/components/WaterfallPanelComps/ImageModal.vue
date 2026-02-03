@@ -37,6 +37,13 @@
                         <!-- Markdown 渲染 -->
                         <div v-html="renderedDescription" class="markdown-body"></div>
                     </div>
+
+                    <!-- 评论区域 -->
+                    <div class="comments-section">
+                        <UtterancesComments 
+                            :issueTitle="`图片: ${image.alt || image.src}`"
+                        />
+                    </div>
                 </div>
             </div>
         </div>
@@ -46,6 +53,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import MarkdownIt from 'markdown-it';
+import UtterancesComments from '@/components/UtterancesComments.vue';
 
 const props = defineProps({
     image: {
@@ -411,6 +419,19 @@ onUnmounted(() => {
 .description-content {
     padding: 2rem 2.5rem;
     flex: 1;
+}
+
+/* 评论区域 */
+.comments-section {
+    padding: 0 2.5rem 2rem;
+    border-top: 1px solid #e8e8e8;
+    margin-top: 1rem;
+}
+
+.comments-section :deep(.utterances-comments) {
+    margin: 1rem 0 0 0;
+    padding: 1.5rem;
+    background: #fff;
 }
 
 /* Markdown 样式 - 小红书风格 */

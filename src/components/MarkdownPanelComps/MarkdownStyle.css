@@ -19,7 +19,37 @@
     /* margin: 1.5rem auto; */
     border-radius: 8px;
     box-shadow: 0 4px 8px var(--theme-shadow-md);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 可点击图片样式 */
+.markdown img.clickable-image {
+    cursor: zoom-in;
+    position: relative;
+}
+
+.markdown img.clickable-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px var(--theme-shadow-lg);
+}
+
+.markdown img.clickable-image::after {
+    content: '🔍';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.markdown img.clickable-image:hover::after {
+    opacity: 1;
 }
 
 .markdown h1 {
@@ -444,11 +474,44 @@
     max-width: 100%; /* 防止内容扩展容器 */
 }
 
+/* 可点击 Mermaid 样式 */
+.markdown .mermaid-wrapper.clickable-mermaid {
+    cursor: zoom-in;
+    position: relative;
+}
+
+.markdown .mermaid-wrapper.clickable-mermaid::before {
+    content: '🔍 点击放大';
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: var(--theme-primary);
+    color: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.markdown .mermaid-wrapper.clickable-mermaid:hover::before {
+    opacity: 1;
+}
+
 .markdown .mermaid-wrapper:hover {
     box-shadow: 
         0 10px 15px -3px var(--theme-shadow-md), 
         0 4px 6px -2px var(--theme-shadow-sm);
     border-color: var(--theme-border-medium);
+}
+
+.markdown .mermaid-wrapper.clickable-mermaid:hover {
+    transform: scale(1.01);
+    border-color: var(--theme-primary);
 }
 
 /* 滚动条美化 */

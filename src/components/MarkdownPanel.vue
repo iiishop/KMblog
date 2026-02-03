@@ -59,6 +59,12 @@
       <div v-html="htmlContent"></div>
     </article>
 
+    <!-- 评论区域 -->
+    <UtterancesComments 
+      v-if="metadata.title"
+      :issueTitle="metadata.title"
+    />
+
     <!-- 回到顶部按钮 -->
     <transition name="fade">
       <button v-if="showBackToTop" class="back-to-top" @click="scrollToTop">
@@ -67,6 +73,15 @@
         </svg>
       </button>
     </transition>
+
+    <!-- 图片查看器 -->
+    <ImageViewer 
+      v-model:visible="viewerVisible"
+      :imageSrc="viewerImageSrc"
+      :imageAlt="viewerImageAlt"
+      :imageType="viewerImageType"
+      :svgContent="viewerSvgContent"
+    />
   </div>
 </template>
 
@@ -83,6 +98,8 @@ import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
 import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import { parseMarkdownMetadata } from '@/utils';
+import ImageViewer from '@/components/ImageViewer.vue';
+import UtterancesComments from '@/components/UtterancesComments.vue';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
@@ -113,6 +130,13 @@ const colorCanvas = ref(null);
 // 阅读进度
 const readingProgress = ref(0);
 const showBackToTop = ref(false);
+
+// 图片查看器状态
+const viewerVisible = ref(false);
+const viewerImageSrc = ref('');
+const viewerImageAlt = ref('');
+const viewerImageType = ref('img'); // 'img' 或 'svg'
+const viewerSvgContent = ref('');
 
 // 动态颜色
 const dominantColor = ref({ h: 210, s: 70, l: 55 });
@@ -370,9 +394,64 @@ const parseMarkdown = async (url, decryptedText = null) => {
         console.warn('Mermaid rendering failed:', error);
       }
     }
+
+    // 添加图片和 Mermaid 的点击放大功能
+    await nextTick();
+    setupImageClickHandlers();
   } catch (error) {
     console.error('Error fetching or parsing markdown file:', error);
   }
+};
+
+// 设置图片和 Mermaid 图表的点击事件
+const setupImageClickHandlers = () => {
+  // 处理普通图片点击
+  const images = contentRef.value?.querySelectorAll('.markdown img');
+  images?.forEach(img => {
+    // 添加可点击样式类
+    img.classList.add('clickable-image');
+    
+    // 移除旧的点击事件监听器（如果存在）
+    img.replaceWith(img.cloneNode(true));
+  });
+  
+  // 重新获取克隆后的图片并添加事件监听器
+  const newImages = contentRef.value?.querySelectorAll('.markdown img');
+  newImages?.forEach(img => {
+    img.classList.add('clickable-image');
+    img.addEventListener('click', () => {
+      viewerImageType.value = 'img';
+      viewerImageSrc.value = img.src;
+      viewerImageAlt.value = img.alt || '';
+      viewerVisible.value = true;
+    });
+  });
+
+  // 处理 Mermaid 图表点击
+  const mermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
+  mermaidContainers?.forEach(container => {
+    // 添加可点击样式类
+    container.classList.add('clickable-mermaid');
+    
+    // 移除旧的点击事件监听器（如果存在）
+    const newContainer = container.cloneNode(true);
+    container.parentNode?.replaceChild(newContainer, container);
+  });
+  
+  // 重新获取克隆后的容器并添加事件监听器
+  const newMermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
+  newMermaidContainers?.forEach(container => {
+    container.classList.add('clickable-mermaid');
+    container.addEventListener('click', () => {
+      const mermaidDiv = container.querySelector('.mermaid');
+      if (mermaidDiv) {
+        viewerImageType.value = 'svg';
+        viewerSvgContent.value = mermaidDiv.innerHTML;
+        viewerImageAlt.value = 'Mermaid 图表';
+        viewerVisible.value = true;
+      }
+    });
+  });
 };
 
 // 监控 markdownUrl 和 decryptedContent 的变化
