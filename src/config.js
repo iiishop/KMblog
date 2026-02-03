@@ -7,6 +7,18 @@ const config = {
     BackgroundImgOpacity: 0.5,//覆盖在背景图片上的白色层的透明度
     BackgroundImgBlur: 20.0,//覆盖在背景图片上的白色层的模糊度
 
+    // === Hero Section Configuration ===
+    // Hero区域配置（首页顶部全屏展示区域）
+    HeroBackgroundImg: '/assets/background.png', // Hero区域背景图片，如果不设置则使用BackgroundImg
+    HeroTitle: 'Welcome to My Blog', // Hero大标题，如果不设置则使用BlogName
+    HeroSubtitles: [ // Hero小标题数组，支持多行循环打字效果
+        'Exploring the world of code',
+        'Sharing thoughts and experiences',
+        'Building something amazing'
+    ],
+    HeroPanels: [], // Hero底部横向Panel列表，例如: ['CategoryPanel', 'TagPanel']
+    // 可以添加任何已有的Panel组件，它们将在Hero区域底部横向排列
+
     // === New Theme Configuration System ===
     LightTheme: 'day',        // Theme palette to use for light mode
     DarkTheme: 'dark',        // Theme palette to use for dark mode

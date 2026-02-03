@@ -1,9 +1,12 @@
 <template>
     <div>
+        <!-- 全局背景遮挡层 - 在BaseLayout区域显示 -->
+        <div class="baselayout-background-overlay"></div>
+        
         <HeadMenu />
         <div class="Scene">
             <!-- 桌面端：左侧切换按钮 -->
-            <button v-if="showTipList && !isInfoLeftPosition && !isMobile"
+            <button v-if="showTipList && !isInfoLeftPosition && !isMobile && isScrolledPastHero"
                 :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && !isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'LeftList', { hidden: isTipListHidden }]" ref="tipListRef">
@@ -22,7 +25,7 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showInfoList && isInfoLeftPosition && !isMobile"
+            <button v-if="showInfoList && isInfoLeftPosition && !isMobile && isScrolledPastHero"
                 :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
             <div v-if="showInfoList && isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]" ref="infoListRef">
@@ -51,7 +54,7 @@
             </div>
 
             <!-- 桌面端：右侧切换按钮 -->
-            <button v-if="showInfoList && !isInfoLeftPosition && !isMobile"
+            <button v-if="showInfoList && !isInfoLeftPosition && !isMobile && isScrolledPastHero"
                 :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
             <div v-if="showInfoList && !isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]" ref="infoListRef">
@@ -71,7 +74,7 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showTipList && isInfoLeftPosition && !isMobile"
+            <button v-if="showTipList && isInfoLeftPosition && !isMobile && isScrolledPastHero"
                 :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'RightList', { hidden: isTipListHidden }]" ref="tipListRef">
@@ -218,6 +221,9 @@ const isMobile = ref(false);
 const isDrawerOpen = ref(false);
 const activeDrawer = ref(''); // 'info' or 'tip'
 
+// 滚动相关状态 - 用于控制toggle-btn显示
+const isScrolledPastHero = ref(false);
+
 // 根据配置决定抽屉位置
 // 如果 ChangeInfoAndTipPosition 为 false（默认）：info在右，tip在左
 // 如果 ChangeInfoAndTipPosition 为 true：info在左，tip在右
@@ -239,6 +245,13 @@ const checkMobile = () => {
         isDrawerOpen.value = false;
         activeDrawer.value = '';
     }
+};
+
+// 检测是否滚动过Hero区域
+const checkScrollPosition = () => {
+    // Hero区域高度为100vh
+    const heroHeight = window.innerHeight;
+    isScrolledPastHero.value = window.scrollY > heroHeight * 0.3; // 滚动超过30%后显示
 };
 
 // 打开抽屉
@@ -421,6 +434,7 @@ onMounted(async () => {
     // 初始化
     checkMobile();
     updateHeaderHeight();
+    checkScrollPosition(); // 初始检测
     toggleInfoList();
     toggleInfoList();
     toggleTipList();
@@ -428,6 +442,7 @@ onMounted(async () => {
     handleFloatListScroll();
 
     window.addEventListener('scroll', handleFloatListScroll);
+    window.addEventListener('scroll', checkScrollPosition); // 添加滚动监听
     window.addEventListener('resize', () => {
         checkMobile();
         updateHeaderHeight();
@@ -447,6 +462,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
     window.removeEventListener('scroll', handleFloatListScroll);
+    window.removeEventListener('scroll', checkScrollPosition);
     window.removeEventListener('resize', checkMobile);
     // 清理
     document.body.style.overflow = '';
@@ -458,10 +474,24 @@ body {
     margin: 0;
     padding: 0;
     font-family: 'Noto Sans SC', sans-serif;
-    background: var(--body-background-color);
+    background: transparent;
     color: var(--body-text-color);
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+/* BaseLayout 背景遮挡层 */
+.baselayout-background-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--theme-body-bg);
+    opacity: var(--background-opacity, 0.5);
+    backdrop-filter: blur(var(--background-blur, 20px));
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* 响应式侧边栏宽度 */
