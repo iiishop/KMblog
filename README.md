@@ -210,6 +210,27 @@ KMblog 支持在 Markdown 代码块中直接嵌入 Vue 组件，让你的文章�
 - **标签分类** - 多维度内容分类
 - **归档功能** - 按时间线浏览历史文章
 - **加密文章** - 保护私密内容
+- **评论系统** - 基于 GitHub Discussions 的 Giscus 评论
+
+### 评论系统
+
+KMblog 集成了 [Giscus](https://giscus.app/) 评论系统，基于 GitHub Discussions 实现：
+
+- **文章评论** - 每篇文章都可以开启评论功能
+- **图片评论** - 瀑布流图片也支持评论和点赞
+- **Markdown 支持** - 评论支持完整的 Markdown 语法
+- **反应表情** - 支持 emoji 反应，快速表达态度
+- **主题适配** - 自动跟随博客主题切换
+- **零成本** - 完全免费，数据存储在 GitHub
+
+**配置方式：**
+1. **GUI 配置（推荐）** - 在博客管理工具的"配置管理"页面，直接粘贴 giscus.app 生成的 script 标签，一键应用
+2. **手动配置** - 编辑 `src/giscus.config.js` 文件
+
+详见：
+- [5分钟快速配置](docs/GISCUS_QUICKSTART.md)
+- [GUI 配置指南](docs/GISCUS_GUI_CONFIG.md)
+- [完整配置文档](docs/GISCUS_SETUP.md)
 
 ### 主题定制
 
@@ -239,12 +260,18 @@ KMblog 支持在 Markdown 代码块中直接嵌入 Vue 组件，让你的文章�
 | Markdown 扩展 | **内嵌 Vue 组件** | 需要插件 |
 | 合集管理 | 原生支持 | 需要插件 |
 | 加密文章 | 内置功能 | 需要插件 |
+| 评论系统 | Giscus 集成 | 需要插件 |
 | 主题切换 | 运行时切换 | 需要重新构建 |
 | 迁移工具 | 内置 Hexo 迁移 | - |
 | 在线编辑 | 支持 | 不支持 |
 | 技术栈 | Vue 3 + Vite | EJS/Pug + Webpack |
 
 ## 更新日志
+
+### 2026-01-31
+- 集成 Giscus 评论系统
+- 支持文章页面和图片模态框评论
+- 添加评论配置文档和示例
 
 ### 2026-01-28
 - 制作了完整的 CI/CD 流程用于分发
@@ -303,9 +330,21 @@ KMblog 支持在 Markdown 代码块中直接嵌入 Vue 组件，让你的文章�
   // 社交链接
   Links: [
     { name: 'GitHub', url: 'https://github.com/...' }
-  ]
+  ],
+  
+  // Giscus 评论系统（可选）
+  Giscus: {
+    enabled: true,
+    repo: 'username/repo',
+    repoId: 'R_kgDOxxxxxxx',
+    category: 'Announcements',
+    categoryId: 'DIC_kwDOxxxxxxx',
+    // 更多配置见文档
+  }
 }
 ```
+
+详细配置说明请参考 [Giscus 配置指南](docs/GISCUS_SETUP.md)。
 
 ## 部署到 GitHub Pages
 
@@ -464,7 +503,7 @@ npm run test:ui
 
 ### 考虑中功能
 
-- 评论系统集成 - 集成第三方评论服务（如 Giscus）
+- 评论系统集成 - ✅ 已完成（Giscus）
 - 多语言支持 - 国际化界面
 - 文章推荐 - 基于标签的相关文章推荐
 - 阅读进度条 - 显示文章阅读进度

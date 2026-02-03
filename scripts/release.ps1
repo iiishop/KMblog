@@ -216,7 +216,14 @@ if ($needsVersionUpdate) {
     git add VERSION
     
     Write-Host "2. Committing VERSION file..." -ForegroundColor Yellow
-    git commit -m "chore: bump version to $Version"
+    
+    # Build commit message
+    $commitMsg = "chore: bump version to $Version"
+    if ($Description) {
+        $commitMsg += "`n`n$Description"
+    }
+    
+    git commit -m $commitMsg
     
     $needsPush = $true
 }
@@ -258,22 +265,68 @@ $retryCount = 0
 $pushSuccess = $false
 
 while ($retryCount -lt $maxRetries) {
-    try {
-        if ($Force) {
-            git push origin $Tag --force 2>&1 | Out-Null
+    $pushOutput = ""
+    $pushError = ""
+    
+    # Use Start-Process to capture output properly
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "git"
+    if ($Force) {
+        $psi.Arguments = "push origin $Tag --force"
+    }
+    else {
+        $psi.Arguments = "push origin $Tag"
+    }
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $process.Start() | Out-Null
+    
+    $pushOutput = $process.StandardOutput.ReadToEnd()
+    $pushError = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+    
+    # Combine output and error for checking
+    $allOutput = $pushOutput + $pushError
+    
+    # Debug: Show output
+    if ($allOutput.Trim()) {
+        Write-Host "   Git output: $($allOutput.Trim())" -ForegroundColor Gray
+    }
+    
+    # Check if push was successful
+    # Success cases: 
+    # 1. Exit code 0
+    # 2. "Everything up-to-date" message
+    # 3. Output contains "new tag" or "* [new tag]"
+    $isUpToDate = $allOutput -match "Everything up-to-date"
+    $isNewTag = $allOutput -match "\[new tag\]" -or $allOutput -match "new tag"
+    $hasError = $allOutput -match "error:" -or $allOutput -match "fatal:"
+    
+    if (($exitCode -eq 0 -or $isUpToDate -or $isNewTag) -and -not $hasError) {
+        if ($isUpToDate) {
+            Write-Host "Tag already exists on remote (up-to-date)" -ForegroundColor Green
+        }
+        elseif ($isNewTag) {
+            Write-Host "Tag pushed successfully (new tag created)" -ForegroundColor Green
         }
         else {
-            git push origin $Tag 2>&1 | Out-Null
-        }
-        
-        if ($LASTEXITCODE -eq 0) {
             Write-Host "Tag pushed successfully" -ForegroundColor Green
-            $pushSuccess = $true
-            break
         }
+        $pushSuccess = $true
+        break
     }
-    catch {
-        # Continue to retry
+    else {
+        # Show error details
+        if ($hasError) {
+            Write-Host "   Error detected in output" -ForegroundColor Red
+        }
+        Write-Host "   Exit code: $exitCode" -ForegroundColor Gray
     }
     
     $retryCount++

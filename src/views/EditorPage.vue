@@ -5,7 +5,7 @@
             :current-file="currentFile" @file-select="handleFileSelect" @file-create="handleFileCreate"
             @file-delete="handleFileDelete" @file-move="handleFileMove" @file-rename="handleFileRename"
             @folder-create="handleFolderCreate" @folder-delete="handleFolderDelete"
-            @image-file-select="handleImageFileSelect" />
+            @image-file-select="handleImageFileSelect" @external-file-drop="handleExternalFileDrop" />
 
         <!-- Main Editor Area -->
         <div class="main-editor">
@@ -14,28 +14,76 @@
                 @save="handleSave" @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
                 @toggle-file-tree="fileTreeVisible = !fileTreeVisible" />
 
+            <!-- Mobile View Toggle -->
+            <div class="mobile-view-toggle">
+                <button @click="mobileView = 'edit'" :class="{ active: mobileView === 'edit' }" class="view-toggle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>编辑</span>
+                </button>
+                <button @click="mobileView = 'preview'" :class="{ active: mobileView === 'preview' }"
+                    class="view-toggle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <span>预览</span>
+                </button>
+            </div>
+
             <!-- Editor and Preview Panels -->
             <div class="editor-panels">
                 <!-- Edit Panel -->
-                <div class="edit-panel">
+                <div class="edit-panel" :class="{ 'mobile-hidden': mobileView === 'preview' }">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
                         :current-file-name="currentFileName" :api-base="API_BASE" @change="handleContentChange"
                         @scroll="handleEditorScroll" @format-request="handleInsertFormat" ref="monacoEditorRef" />
                 </div>
 
                 <!-- Preview Panel -->
-                <div class="preview-panel" ref="previewPanelRef">
-                    <!-- Post组件预览 - 显示metadata效果 -->
-                    <div v-if="currentMetadata && currentFile" class="post-preview-section">
-                        <div class="preview-label">文章卡片预览</div>
-                        <Post :key="currentFile.path"
-                            :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
-                            :markdownUrl="virtualMarkdownUrl" />
+                <div class="preview-panel" :class="{ 'mobile-hidden': mobileView === 'edit' }" ref="previewPanelRef">
+                    <!-- WaterfallGraph 图片预览 - 使用 Graph 组件 -->
+                    <div v-if="isWaterfallGraphFile && graphData" class="graph-preview-section">
+                        <div class="preview-header">
+                            <div class="preview-label">图片卡片预览</div>
+                            <button @click="toggleGraphPreview" class="collapse-btn"
+                                :class="{ 'collapsed': !showGraphPreview }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div v-show="showGraphPreview" class="graph-preview-content">
+                            <div class="graph-preview-wrapper">
+                                <Graph :image="graphData" :index="0" :column="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 普通文章预览 - 使用 Post 组件 -->
+                    <div v-else-if="currentMetadata && currentFile && !isWaterfallGraphFile"
+                        class="post-preview-section">
+                        <div class="preview-header">
+                            <div class="preview-label">文章卡片预览</div>
+                            <button @click="togglePostPreview" class="collapse-btn"
+                                :class="{ 'collapsed': !showPostPreview }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div v-show="showPostPreview" class="post-preview-content">
+                            <Post :key="postPreviewKey"
+                                :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
+                                :markdownUrl="virtualMarkdownUrl" />
+                        </div>
                     </div>
 
                     <!-- Markdown内容预览 -->
                     <div class="markdown-preview-section">
-                        <div v-if="currentMetadata" class="preview-label">Markdown渲染预览</div>
+                        <div v-if="currentMetadata || isWaterfallGraphFile" class="preview-label">Markdown渲染预览</div>
                         <MarkdownPreview :content="content" :scroll-sync="editorScrollTop"
                             @scroll="handlePreviewScroll" />
                     </div>
@@ -54,6 +102,7 @@ import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
 import Post from '@/components/PostPanelComps/Post.vue';
+import Graph from '@/components/WaterfallPanelComps/Graph.vue';
 import { useTheme } from '@/composables/useTheme';
 
 // Error handling utility
@@ -125,7 +174,12 @@ console.log('URL Hash:', window.location.hash);
 console.log('Auth Token:', authToken ? 'Present' : 'Missing');
 console.log('API Port:', apiPort);
 
-const API_BASE = apiPort ? `http://127.0.0.1:${apiPort}/api` : 'http://127.0.0.1:8000/api';
+// Use current hostname instead of hardcoded 127.0.0.1
+// This allows LAN access to work properly
+const currentHost = window.location.hostname;
+const API_BASE = apiPort ? `http://${currentHost}:${apiPort}/api` : `http://${currentHost}:8000/api`;
+
+console.log('API Base URL:', API_BASE);
 
 // Create authenticated axios instance for backend API calls only
 const apiClient = axios.create({
@@ -161,6 +215,10 @@ const editorScrollTop = ref(0);
 const monacoEditorRef = ref(null);
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
+const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
+const showPostPreview = ref(true); // 控制文章卡片预览的显示/隐藏
+const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
+const postPreviewKey = ref(0); // 用于强制刷新 Post 组件
 let isScrollingFromPreview = false; // 标记是否来自预览的滚动
 
 // Theme management
@@ -188,6 +246,58 @@ const currentMetadata = computed(() => {
 const virtualMarkdownUrl = computed(() => {
     if (!currentFile.value) return '';
     return currentFile.value.path;
+});
+
+// 检查当前文件是否在 WaterfallGraph 文件夹内
+const isWaterfallGraphFile = computed(() => {
+    if (!currentFile.value) return false;
+    return currentFile.value.path.includes('WaterfallGraph');
+});
+
+// 为 Graph 组件准备数据
+const graphData = computed(() => {
+    console.log('[EditorPage] Computing graphData...');
+    console.log('[EditorPage] isWaterfallGraphFile:', isWaterfallGraphFile.value);
+    console.log('[EditorPage] currentMetadata:', currentMetadata.value);
+
+    if (!isWaterfallGraphFile.value || !currentMetadata.value) {
+        console.log('[EditorPage] graphData is null - conditions not met');
+        return null;
+    }
+
+    // 从 metadata 中提取图片路径
+    const imgPath = currentMetadata.value.img;
+    console.log('[EditorPage] imgPath from metadata:', imgPath);
+
+    if (!imgPath) {
+        console.log('[EditorPage] graphData is null - no img in metadata');
+        return null;
+    }
+
+    // 构建完整的图片 URL
+    // imgPath 可能是: "WaterfallGraph/image.jpg" 或 "/Posts/WaterfallGraph/image.jpg"
+    let imageUrl;
+    if (imgPath.startsWith('/')) {
+        imageUrl = imgPath; // 已经是完整路径
+    } else if (imgPath.startsWith('Posts/')) {
+        imageUrl = '/' + imgPath; // 添加前导斜杠
+    } else {
+        imageUrl = '/Posts/' + imgPath; // 添加 /Posts/ 前缀
+    }
+    console.log('[EditorPage] Constructed imageUrl:', imageUrl);
+
+    // 构建 Graph 组件需要的 image 对象
+    const data = {
+        src: imageUrl,
+        alt: currentMetadata.value.title || currentFileName.value,
+        title: currentMetadata.value.title || (currentFileName.value ? currentFileName.value.replace('.md', '') : ''),
+        date: currentMetadata.value.date || new Date().toLocaleDateString(),
+        aspectRatio: currentMetadata.value.aspectRatio || 1,
+        dominantColor: currentMetadata.value.dominantColor || 'hsl(250, 60%, 65%)'
+    };
+
+    console.log('[EditorPage] graphData computed:', data);
+    return data;
 });
 
 // Request cancellation and queue management
@@ -222,6 +332,22 @@ const createTrackedRequest = (config) => {
 
 // Auto-save timer
 let autoSaveTimer = null;
+
+// 切换文章卡片预览显示状态
+const togglePostPreview = () => {
+    showPostPreview.value = !showPostPreview.value;
+};
+
+// 切换图片卡片预览显示状态
+const toggleGraphPreview = () => {
+    showGraphPreview.value = !showGraphPreview.value;
+};
+
+// 强制刷新 Post 组件
+const refreshPostPreview = () => {
+    postPreviewKey.value++;
+    console.log('[EditorPage] Post preview refreshed, key:', postPreviewKey.value);
+};
 
 // Handle content change
 const handleContentChange = () => {
@@ -260,6 +386,10 @@ const handleSave = async () => {
         saveStatus.value = 'saved';
         currentFileVersion.value = response.data.version;
         lastSaveTime.value = Date.now(); // 记录保存时间
+
+        // 保存成功后刷新 Post 预览组件
+        refreshPostPreview();
+
         console.log('[EditorPage] File saved successfully');
     } catch (error) {
         const errorMessage = handleApiError(error, 'Save');
@@ -318,6 +448,10 @@ const handleForceSave = async () => {
 
         saveStatus.value = 'saved';
         currentFileVersion.value = response.data.version;
+
+        // 强制保存成功后也刷新 Post 预览组件
+        refreshPostPreview();
+
         console.log('[EditorPage] Force save successful');
 
         // Show success message
@@ -534,10 +668,36 @@ const handleImageFileSelect = async ({ imagePath, mdPath, exists, imageNode }) =
 
 // Generate image description template (Task 36)
 const generateImageDescriptionTemplate = (imagePath, imageNode) => {
-    // 返回空白内容，让用户自由编辑
     const filename = imageNode.name;
-    console.log('[EditorPage] Generated empty template for image:', filename);
-    return '';
+    const filenameWithoutExt = filename.replace(/\.[^.]+$/, '');
+
+    // 构建相对于 Posts 目录的图片路径
+    // imagePath 格式: /Posts/WaterfallGraph/image.jpg
+    // 我们需要: WaterfallGraph/image.jpg (相对于 Posts)
+    let relativeImgPath = imagePath;
+    if (relativeImgPath.startsWith('/Posts/')) {
+        relativeImgPath = relativeImgPath.substring(7); // 移除 '/Posts/'
+    } else if (relativeImgPath.startsWith('Posts/')) {
+        relativeImgPath = relativeImgPath.substring(6); // 移除 'Posts/'
+    }
+
+    // 为 WaterfallGraph 图片生成带 metadata 的模板
+    const template = `---
+title: ${filenameWithoutExt}
+date: ${new Date().toISOString().split('T')[0]}
+img: ${relativeImgPath}
+aspectRatio: 1
+dominantColor: hsl(250, 60%, 65%)
+---
+
+# ${filenameWithoutExt}
+
+在这里添加图片描述...
+`;
+
+    console.log('[EditorPage] Generated template for image:', filename);
+    console.log('[EditorPage] Image path in metadata:', relativeImgPath);
+    return template;
 };
 
 // Handle file create
@@ -763,6 +923,77 @@ const handleFolderDelete = async (folder) => {
         if (errorMessage) {
             alert(`删除文件夹失败\n\n${errorMessage}\n\n文件夹: ${folder.name}`);
         }
+    }
+};
+
+// Handle external file drop (for WaterfallGraph folder)
+const handleExternalFileDrop = async ({ files, targetFolder }) => {
+    console.log('[EditorPage] handleExternalFileDrop called');
+    console.log('[EditorPage] Files:', files.length);
+    console.log('[EditorPage] Target folder:', targetFolder);
+
+    if (!files || files.length === 0) {
+        console.warn('[EditorPage] No files to upload');
+        return;
+    }
+
+    // 确认上传
+    const confirmMessage = `📤 上传图片到 ${targetFolder.name}\n\n` +
+        `将上传 ${files.length} 个文件:\n` +
+        files.map(f => `• ${f.name}`).join('\n') +
+        `\n\n确认上传?`;
+
+    if (!confirm(confirmMessage)) {
+        console.log('[EditorPage] Upload cancelled by user');
+        return;
+    }
+
+    const normalizedPath = normalizePathForAPI(targetFolder.path);
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
+
+    // 显示上传进度
+    console.log('[EditorPage] Starting upload...');
+
+    for (const file of files) {
+        try {
+            console.log(`[EditorPage] Uploading: ${file.name}`);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', normalizedPath);
+
+            await apiClient.post('/files/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            successCount++;
+            console.log(`[EditorPage] ✓ Uploaded: ${file.name}`);
+        } catch (error) {
+            failCount++;
+            const errorMessage = handleApiError(error, `Upload ${file.name}`);
+            errors.push(`${file.name}: ${errorMessage || '未知错误'}`);
+            console.error(`[EditorPage] ✗ Failed: ${file.name}`, error);
+        }
+    }
+
+    // 显示结果
+    let resultMessage = `📊 上传完成\n\n`;
+    resultMessage += `✓ 成功: ${successCount} 个文件\n`;
+    if (failCount > 0) {
+        resultMessage += `✗ 失败: ${failCount} 个文件\n\n`;
+        resultMessage += `失败详情:\n${errors.join('\n')}`;
+    }
+
+    alert(resultMessage);
+
+    // 重新加载文件树
+    if (successCount > 0) {
+        console.log('[EditorPage] Reloading file tree...');
+        await loadFileTree();
     }
 };
 
@@ -995,6 +1226,15 @@ const handleBeforeUnload = (e) => {
     }
 };
 
+// 监听内容变化，当 metadata 更新时刷新预览
+watch(() => currentMetadata.value, (newMetadata, oldMetadata) => {
+    // 只有当 metadata 真正发生变化时才刷新
+    if (newMetadata && oldMetadata && JSON.stringify(newMetadata) !== JSON.stringify(oldMetadata)) {
+        console.log('[EditorPage] Metadata changed, refreshing preview');
+        refreshPostPreview();
+    }
+}, { deep: true });
+
 // Lifecycle hooks
 onMounted(async () => {
     // Add beforeunload listener
@@ -1055,6 +1295,49 @@ onBeforeUnmount(() => {
     overflow: hidden;
 }
 
+/* Mobile View Toggle */
+.mobile-view-toggle {
+    display: none;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--theme-surface-default);
+    border-bottom: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
+}
+
+.view-toggle-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 1px solid var(--theme-border-light);
+    background: var(--theme-panel-bg);
+    color: var(--theme-panel-text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.view-toggle-btn:hover {
+    background: var(--theme-surface-hover);
+    border-color: var(--theme-primary);
+}
+
+.view-toggle-btn.active {
+    background: var(--theme-gradient);
+    color: white;
+    border-color: transparent;
+}
+
 /* Editor Panels */
 .editor-panels {
     flex: 1;
@@ -1082,26 +1365,205 @@ onBeforeUnmount(() => {
 }
 
 /* Post预览区域 */
-.post-preview-section {
-    padding: 1.5rem;
+.post-preview-section,
+.graph-preview-section {
+    padding: 0;
     background: var(--theme-surface-default);
     border-bottom: 2px solid var(--theme-panel-border);
     flex-shrink: 0;
     transition: var(--theme-transition-colors);
 }
 
+/* 预览区域头部 */
+.preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg,
+            var(--theme-panel-bg) 0%,
+            var(--theme-surface-default) 100%);
+    border-bottom: 1px solid var(--theme-panel-border);
+    transition: var(--theme-transition-colors);
+    position: relative;
+}
+
+/* 头部装饰线 */
+.preview-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 2px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            var(--theme-primary) 20%,
+            var(--theme-secondary, #667eea) 80%,
+            transparent 100%);
+    opacity: 0.6;
+}
+
+/* 折叠按钮 - 更显眼的设计 */
+.collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--theme-primary);
+    background: linear-gradient(135deg,
+            var(--theme-primary) 0%,
+            var(--theme-secondary, #667eea) 100%);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    color: white;
+    box-shadow:
+        0 4px 12px rgba(99, 102, 241, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 按钮光晕效果 */
+.collapse-btn::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg,
+            var(--theme-primary),
+            var(--theme-secondary, #667eea));
+    border-radius: 14px;
+    opacity: 0;
+    filter: blur(8px);
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.collapse-btn:hover {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow:
+        0 8px 24px rgba(99, 102, 241, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: transparent;
+}
+
+.collapse-btn:hover::before {
+    opacity: 0.6;
+}
+
+.collapse-btn:active {
+    transform: scale(0.95) translateY(0);
+}
+
+.collapse-btn svg {
+    width: 20px;
+    height: 20px;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.collapse-btn.collapsed {
+    background: var(--theme-surface-hover);
+    color: var(--theme-content-text);
+    border-color: var(--theme-border-light);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.collapse-btn.collapsed::before {
+    opacity: 0;
+}
+
+.collapse-btn.collapsed:hover {
+    background: linear-gradient(135deg,
+            var(--theme-primary) 0%,
+            var(--theme-secondary, #667eea) 100%);
+    color: white;
+    border-color: var(--theme-primary);
+}
+
+.collapse-btn.collapsed svg {
+    transform: rotate(-90deg);
+}
+
+/* 脉冲动画 - 吸引注意力 */
+@keyframes buttonPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 4px 12px rgba(99, 102, 241, 0.25),
+            0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    50% {
+        box-shadow:
+            0 6px 20px rgba(99, 102, 241, 0.4),
+            0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+}
+
+.collapse-btn:not(.collapsed) {
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+/* 预览内容区域 */
+.post-preview-content,
+.graph-preview-content {
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+/* Graph 预览包装器 - 固定尺寸以适配预览 */
+.graph-preview-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.graph-preview-wrapper .graph-card {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: var(--card-aspect-ratio, 1);
+}
+
 .preview-label {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--theme-meta-text);
+    font-weight: 700;
+    color: var(--theme-primary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-    padding: 0.5rem 1rem;
-    background: var(--theme-surface-hover);
-    border-radius: 6px;
-    display: inline-block;
+    letter-spacing: 0.1em;
     transition: var(--theme-transition-colors);
+    position: relative;
+    padding-left: 1rem;
+}
+
+/* 标签前的装饰图标 */
+.preview-label::before {
+    content: '●';
+    position: absolute;
+    left: 0;
+    color: var(--theme-primary);
+    animation: labelPulse 2s ease-in-out infinite;
+}
+
+@keyframes labelPulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 
 /* Markdown预览区域 */
@@ -1120,6 +1582,154 @@ onBeforeUnmount(() => {
     .edit-panel {
         border-right: none;
         border-bottom: 1px solid var(--theme-panel-border);
+    }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+
+    /* Show mobile view toggle */
+    .mobile-view-toggle {
+        display: flex;
+    }
+
+    /* Single view mode on mobile */
+    .editor-panels {
+        flex-direction: row;
+    }
+
+    .edit-panel,
+    .preview-panel {
+        flex: 0 0 100%;
+        border: none;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Hide inactive view */
+    .mobile-hidden {
+        display: none;
+    }
+
+    /* Optimize preview sections for mobile */
+    .post-preview-section,
+    .graph-preview-section {
+        padding: 0;
+    }
+
+    .preview-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .preview-header::after {
+        left: 1rem;
+        right: 1rem;
+    }
+
+    .post-preview-content,
+    .graph-preview-content {
+        padding: 1rem;
+    }
+
+    .collapse-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+    }
+
+    .collapse-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .graph-preview-wrapper {
+        max-width: 100%;
+    }
+
+    .markdown-preview-section {
+        padding: 1rem;
+    }
+
+    .preview-label {
+        font-size: 0.7rem;
+    }
+
+    /* Adjust editor container for mobile */
+    .editor-container {
+        height: 100dvh;
+        /* Use dynamic viewport height for mobile browsers */
+    }
+
+    /* Make file tree overlay on mobile */
+    .editor-container :deep(.file-tree-sidebar) {
+        position: fixed;
+        z-index: 1000;
+        height: 100dvh;
+    }
+
+    /* Optimize toolbar for mobile */
+    .main-editor :deep(.ethereal-toolbar) {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .mobile-view-toggle {
+        padding: 6px 12px;
+    }
+
+    .view-toggle-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .view-toggle-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .view-toggle-btn span {
+        display: none;
+    }
+
+    /* Show only icons on very small screens */
+    .view-toggle-btn {
+        min-width: 44px;
+        /* Touch target size */
+    }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mobile-view-toggle {
+        padding: 4px 12px;
+    }
+
+    .view-toggle-btn {
+        padding: 6px 12px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Increase touch targets */
+    .view-toggle-btn {
+        min-height: 44px;
+    }
+
+    /* Improve scrolling performance */
+    .preview-panel {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent text selection during touch interactions */
+    .mobile-view-toggle {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
     }
 }
 </style>

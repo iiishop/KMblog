@@ -517,39 +517,251 @@ onMounted(() => {
     text-overflow: ellipsis;
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 600px) {
+/* 响应式设计 */
+@media (max-width: 968px) {
     .card-content {
         flex-direction: column;
-        align-items: center;
-        text-align: center;
+        padding: 1.25rem;
+        gap: 1.25rem;
     }
 
     .cover-column {
-        width: 160px;
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto;
+    }
+
+    .info-column {
+        width: 100%;
     }
 
     .header-section {
         flex-direction: column;
         align-items: center;
-        width: 100%;
+        text-align: center;
+        gap: 0.75rem;
     }
 
-    .score-box {
-        justify-content: center;
-        width: 100%;
+    .title {
+        font-size: 1.3rem;
     }
 
     .rating-badge {
         text-align: center;
         width: 100%;
-        margin-bottom: 1rem;
+    }
+
+    .score-box {
+        justify-content: center;
+    }
+
+    .tags-container {
+        justify-content: center;
+    }
+
+    .summary-text {
+        text-align: left;
     }
 
     .infobox-grid {
         grid-template-columns: 1fr 1fr;
         text-align: left;
+    }
+}
+
+@media (max-width: 640px) {
+    .bangumi-card {
+        border-radius: 12px;
+    }
+
+    .card-content {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .cover-column {
         width: 100%;
+        max-width: 200px;
+        gap: 0.75rem;
+    }
+
+    .cover-wrapper {
+        border-radius: 10px;
+    }
+
+    .cover-img {
+        min-height: 150px;
+        border-radius: 10px;
+    }
+
+    .action-btn {
+        padding: 7px 10px;
+        font-size: 0.8rem;
+    }
+
+    .btn-icon svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .title {
+        font-size: 1.2rem;
+    }
+
+    .score-val {
+        font-size: 1.75rem;
+    }
+
+    .score-suffix {
+        font-size: 0.85rem;
+    }
+
+    .score-count {
+        font-size: 0.7rem;
+    }
+
+    .distribution-bar {
+        height: 5px;
+    }
+
+    .tags-container {
+        gap: 5px;
+    }
+
+    .tag-pill {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+
+    .summary-text {
+        font-size: 0.85rem;
+    }
+
+    .summary-text.collapsed {
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+
+    .infobox-grid {
+        gap: 6px 12px;
+        padding-top: 0.75rem;
+    }
+
+    .info-item {
+        font-size: 0.75rem;
+    }
+
+    .info-key {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-content {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+
+    .cover-column {
+        max-width: 160px;
+    }
+
+    .cover-img {
+        min-height: 120px;
+    }
+
+    .action-btn {
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+
+    .btn-icon svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .title {
+        font-size: 1.1rem;
+    }
+
+    .score-val {
+        font-size: 1.5rem;
+    }
+
+    .score-suffix {
+        font-size: 0.8rem;
+    }
+
+    .score-count {
+        font-size: 0.65rem;
+    }
+
+    .distribution-bar {
+        height: 4px;
+    }
+
+    .tag-pill {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+    }
+
+    .summary-text {
+        font-size: 0.8rem;
+    }
+
+    .infobox-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .info-item {
+        font-size: 0.7rem;
+    }
+}
+
+/* 平板横屏优化 */
+@media (min-width: 641px) and (max-width: 968px) and (orientation: landscape) {
+    .card-content {
+        flex-direction: row;
+    }
+
+    .cover-column {
+        width: 200px;
+        max-width: 200px;
+    }
+
+    .header-section {
+        flex-direction: row;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .rating-badge {
+        text-align: right;
+    }
+
+    .tags-container {
+        justify-content: flex-start;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .action-btn {
+        min-height: 44px;
+        /* iOS 推荐的最小触摸目标 */
+    }
+
+    .tag-pill {
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .summary-text {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
     }
 }
 </style>

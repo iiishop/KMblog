@@ -26,7 +26,11 @@ export default defineConfig({
         // 使用相对较短的8位hash足以避免冲突，且更整洁
         entryFileNames: `assets/entry-[name]-[hash:8].js`,
         chunkFileNames: `assets/chunk-[name]-[hash:8].js`,
-        assetFileNames: `assets/asset-[name]-[hash:8].[ext]`
+        assetFileNames: `assets/asset-[name]-[hash:8].[ext]`,
+        // 手动分块配置，将 mermaid 单独打包成一个 chunk
+        manualChunks: {
+          'mermaid-lib': ['mermaid']
+        }
       }
     }
   }

@@ -150,3 +150,6 @@ src/router/index.js  # 如果是生成的路由配置
 src/views/EditorPage.vue  # 如果是临时编辑器视图
 cryptoPosts/
 UPDATE_REPORT.md
+
+# Giscus 配置文件（包含敏感的仓库信息）
+src/giscus.config.js

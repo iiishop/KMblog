@@ -32,6 +32,9 @@ const GithubRepoBlock = defineAsyncComponent(() =>
 const XiaohongshuNoteBlock = defineAsyncComponent(() =>
     import('@/components/MarkdownPanelComps/XiaohongshuNoteBlock.vue')
 );
+const CarouselBlock = defineAsyncComponent(() =>
+    import('@/components/MarkdownPanelComps/CarouselBlock.vue')
+);
 
 const props = defineProps({
     content: {
@@ -69,7 +72,8 @@ const renderMarkdown = async (markdown) => {
                 'bangumiblock': BangumiBlock,
                 'bilibilivideoblock': BilibiliVideoBlock,
                 'githubrepoblock': GithubRepoBlock,
-                'xiaohongshunoteblock': XiaohongshuNoteBlock
+                'xiaohongshunoteblock': XiaohongshuNoteBlock,
+                'carouselblock': CarouselBlock
             });
 
             // 渲染Mermaid图表
@@ -154,7 +158,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .markdown-preview-container {
-    height: 100%;
     overflow-y: auto;
     padding: 2rem;
     background-color: var(--theme-content-bg);

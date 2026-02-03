@@ -1534,14 +1534,102 @@ onUnmounted(() => {
 }
 
 /* === 响应式 === */
-@media (max-width: 768px) {
+
+/* 窄主列表优化 (MainList 宽度较小时) */
+@media (max-width: 1400px) {
+    .post-panel {
+        gap: 1rem;
+    }
+
+    .content-panel {
+        padding: 1.5rem;
+    }
+
+    .content-wrapper {
+        gap: 1.5rem;
+    }
+
+    .title-text {
+        font-size: 1.5rem;
+    }
+
+    .pre-text {
+        font-size: 0.9rem;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+    }
+
+    .meta-sidebar {
+        width: 30%;
+        min-width: 160px;
+        padding-left: 1rem;
+    }
+
+    .meta-item {
+        font-size: 0.85rem;
+    }
+
+    .meta-icon-wrapper {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    .meta-icon {
+        width: 1rem;
+        height: 1rem;
+    }
+}
+
+/* 更窄的主列表 - 切换到垂直布局 */
+@media (max-width: 1200px) {
+    .post-panel {
+        flex-direction: column;
+        height: auto;
+        gap: 0;
+    }
+
+    .image-panel {
+        width: 100% !important;
+        height: 200px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .image-border-frame {
+        border-radius: 16px 16px 0 0;
+    }
+
+    .content-panel {
+        width: 100%;
+        padding: 1.5rem;
+        border-radius: 0 0 16px 16px;
+    }
+
     .content-wrapper {
         flex-direction: column;
         gap: 1rem;
     }
 
+    .main-content-area {
+        width: 100%;
+    }
+
+    .title-text {
+        font-size: 1.4rem;
+    }
+
+    .pre-panel {
+        padding: 0.875rem;
+    }
+
+    .pre-text {
+        font-size: 0.875rem;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+    }
+
     .meta-sidebar {
         width: 100%;
+        min-width: auto;
         border-left: none;
         padding-left: 0;
         border-top: 2px solid transparent;
@@ -1552,38 +1640,189 @@ onUnmounted(() => {
         padding-top: 1rem;
         flex-direction: row;
         justify-content: space-between;
-        align-items: center;
-    }
-
-    .tags-container {
-        justify-content: flex-end;
+        align-items: flex-start;
+        gap: 1rem;
     }
 
     .meta-list {
-        flex-direction: row;
-        gap: 1.5rem;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .tags-container {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+
+    /* 保持桌面端的粒子效果 */
+    .particle-canvas,
+    .mouse-glow,
+    .deco-geometry,
+    .scan-line {
+        display: block;
+    }
+}
+
+/* 平板端优化 */
+@media (max-width: 968px) {
+    .post-panel {
+        gap: 1rem;
+        border-radius: 14px;
+    }
+
+    .image-panel {
+        height: 190px;
+        border-radius: 14px 14px 0 0;
+    }
+
+    .image-border-frame {
+        border-radius: 14px 14px 0 0;
+    }
+
+    .content-panel {
+        padding: 1.35rem;
+        border-radius: 0 0 14px 14px;
+    }
+
+    .title-text {
+        font-size: 1.4rem;
+    }
+
+    .pre-text {
+        font-size: 0.875rem;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+    }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .post-wrapper {
+        width: 100%;
     }
 
     .post-panel {
         flex-direction: column;
         height: auto;
+        gap: 0;
+        border-radius: 12px;
     }
 
     .image-panel {
         width: 100% !important;
-        height: 200px;
+        height: 180px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .image-border-frame {
+        border-radius: 12px 12px 0 0;
     }
 
     .content-panel {
         width: 100%;
+        padding: 1.25rem;
+        border-radius: 0 0 12px 12px;
     }
 
-    .particle-canvas {
+    .content-wrapper {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .main-content-area {
+        width: 100%;
+    }
+
+    .title-text {
+        font-size: 1.35rem;
+        line-height: 1.4;
+    }
+
+    .title-panel {
+        margin-bottom: 0.75rem;
+    }
+
+    .pre-panel {
+        padding: 0.75rem;
+    }
+
+    .pre-text {
+        font-size: 0.85rem;
+        line-height: 1.6;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+    }
+
+    .meta-sidebar {
+        width: 100%;
+        min-width: auto;
+        border-left: none;
+        padding-left: 0;
+        border-top: 2px solid transparent;
+        border-image: linear-gradient(to right,
+                transparent 0%,
+                rgba(102, 126, 234, 0.2) 50%,
+                transparent 100%) 1;
+        padding-top: 1rem;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .meta-list {
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .meta-item {
+        font-size: 0.85rem;
+    }
+
+    .meta-icon-wrapper {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    .meta-icon {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .tags-container {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+
+    /* 禁用移动端的粒子和复杂动画 */
+    .particle-canvas,
+    .mouse-glow,
+    .deco-geometry,
+    .scan-line {
         display: none;
     }
 
+    .collection-theme-bg {
+        opacity: 0.1;
+    }
+
+    /* 简化移动端的悬停效果 */
+    .post-panel:hover .image-border-frame img {
+        transform: scale(1.05);
+    }
+
+    .post-panel:hover .content-panel {
+        transform: none;
+    }
+
+    /* 过渡动画优化 */
     .transition-text {
         font-size: 1.2rem;
+        max-width: 90%;
     }
 
     .transition-spinner {
@@ -1598,6 +1837,78 @@ onUnmounted(() => {
     .wave {
         width: 50px;
         height: 50px;
+    }
+
+    .floating-shapes {
+        display: none;
+    }
+}
+
+/* 小屏移动端优化 */
+@media (max-width: 480px) {
+    .post-panel {
+        border-radius: 10px;
+    }
+
+    .image-panel {
+        height: 160px;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .image-border-frame {
+        border-radius: 10px 10px 0 0;
+    }
+
+    .content-panel {
+        padding: 1rem;
+        border-radius: 0 0 10px 10px;
+    }
+
+    .title-text {
+        font-size: 1.2rem;
+    }
+
+    .pre-text {
+        font-size: 0.8rem;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+
+    .meta-sidebar {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .meta-list {
+        flex-direction: row;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .meta-item {
+        font-size: 0.8rem;
+        flex: 1;
+    }
+
+    .link-text {
+        font-size: 0.75rem;
+    }
+
+    .tags-container {
+        width: 100%;
+    }
+
+    .transition-text {
+        font-size: 1rem;
+    }
+
+    .transition-spinner {
+        width: 60px;
+        height: 60px;
+    }
+
+    .loading-bar {
+        width: 150px;
     }
 }
 </style>

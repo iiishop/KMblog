@@ -792,14 +792,129 @@ onMounted(() => fetchVideoDetails());
     }
 }
 
-@media (max-width: 768px) {
+/* 响应式设计 */
+@media (max-width: 968px) {
     .bili-card-glass {
         flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
     }
 
     .media-column {
         flex: none;
         width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .data-column {
+        width: 100%;
+    }
+
+    .video-title {
+        font-size: 16px;
+    }
+
+    .stats-matrix {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 12px;
+    }
+
+    .creator-bio {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .bili-embed-neo {
+        margin: 2rem 0;
+    }
+
+    .bili-card-glass {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+
+    .media-column {
+        max-width: 100%;
+    }
+
+    .video-title {
+        font-size: 15px;
+        margin-bottom: 8px;
+    }
+
+    .video-description-deck {
+        padding: 6px 10px;
+        margin-bottom: 10px;
+    }
+
+    .deck-content {
+        font-size: 12px;
+        -webkit-line-clamp: 3;
+    }
+
+    .stats-matrix {
+        gap: 6px 10px;
+        margin-bottom: 12px;
+    }
+
+    .stat-info {
+        font-size: 9px;
+    }
+
+    .data-footer {
+        padding-top: 10px;
+        gap: 10px;
+    }
+
+    .cyclotron-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .author-id {
+        font-size: 13px;
+    }
+
+    .creator-bio {
+        font-size: 9px;
+    }
+
+    .feedback-sector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .micro-tags {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .bili-card-glass {
+        padding: 0.5rem;
+    }
+
+    .data-header {
+        font-size: 9px;
+    }
+
+    .video-title {
+        font-size: 14px;
+    }
+
+    .stats-matrix {
+        grid-template-columns: 1fr;
+    }
+
+    .creator-telemetry {
+        gap: 10px;
+    }
+
+    .fans-badge {
+        font-size: 8px;
     }
 }
 

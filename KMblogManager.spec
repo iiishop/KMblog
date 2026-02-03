@@ -77,6 +77,7 @@ a = Analysis(
         'pip',
         'jupyter',
         'notebook',
+        
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -100,7 +101,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # 不显示控制台窗口（发布版本）
+    console=True,  # 不显示控制台窗口（发布版本）
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

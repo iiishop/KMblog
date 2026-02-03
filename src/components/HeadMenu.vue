@@ -8,6 +8,7 @@ import '../color.css';
 const menuItems = ref([
   { name: 'Home', link: '/', icon: '' },
   { name: 'About', link: '/about', icon: '' },
+  { name: 'Collections', link: '/collections', icon: '' },
   { name: 'Gallery', link: '/gallery', icon: '' },
   { name: 'Archive', link: '/archive', icon: '' },
   { name: 'Categories', link: '/category', icon: '' },

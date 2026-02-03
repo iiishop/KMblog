@@ -1,11 +1,31 @@
 <script setup>
-import { onMounted, ref, defineAsyncComponent } from 'vue';
+import { onMounted, ref, computed, defineAsyncComponent } from 'vue';
+import { useRouter } from 'vue-router';
 import globalVar from '../globalVar.js';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const Collection = defineAsyncComponent(() => import('./CollectionPanelComps/Collection.vue'));
 
+const router = useRouter();
 const collections = ref({});
+
+// 显示前4个collection（第4个会有渐隐效果）
+const displayedCollections = computed(() => {
+    const entries = Object.entries(collections.value);
+    return entries.slice(0, 4).reduce((obj, [key, value]) => {
+        obj[key] = value;
+        return obj;
+    }, {});
+});
+
+// 是否有更多内容
+const hasMore = computed(() => Object.keys(collections.value).length > 3);
+
+// 跳转到CollectionsPage
+const goToCollections = () => {
+    router.push('/collections');
+};
+
 onMounted(() => {
     collections.value = globalVar.collections;
 });
@@ -27,12 +47,24 @@ onMounted(() => {
 
         <div class="collection-list">
             <TransitionGroup name="list" appear>
-                <div v-for="(collection, name, index) in collections" :key="name" class="collection-wrapper"
-                    :style="{ '--i': index }">
+                <div v-for="(collection, name, index) in displayedCollections" :key="name" class="collection-wrapper"
+                    :class="{ 'last-item': index === 3 && hasMore }" :style="{ '--i': index }">
                     <Collection :name="name" :imageUrl="collection.image" :createDate="collection.date"
                         :count="collection.count" />
                 </div>
             </TransitionGroup>
+
+            <!-- 渐隐遮罩和查看全部按钮 -->
+            <div v-if="hasMore" class="view-more-overlay" @click="goToCollections">
+                <div class="fade-gradient"></div>
+                <div class="view-more-content">
+                    <span class="view-more-text">查看全部</span>
+                    <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -113,10 +145,88 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+    position: relative;
 }
 
 .collection-wrapper {
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 最后一个条目（第4个）的样式 */
+.collection-wrapper.last-item {
+    position: relative;
+    overflow: hidden;
+    max-height: 150px;
+    /* 只显示一半高度 */
+}
+
+/* 渐隐遮罩和查看全部按钮 */
+.view-more-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.fade-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom,
+            transparent 0%,
+            color-mix(in srgb, var(--collectionpanel-background-color) 30%, transparent) 30%,
+            color-mix(in srgb, var(--collectionpanel-background-color) 70%, transparent) 50%,
+            var(--collectionpanel-background-color) 80%);
+    backdrop-filter: blur(0px);
+    transition: backdrop-filter 0.3s ease, background 0.3s ease;
+    pointer-events: none;
+}
+
+.view-more-overlay:hover .fade-gradient {
+    backdrop-filter: blur(2px);
+}
+
+.view-more-content {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1rem 2rem;
+    background: var(--theme-gradient);
+    color: var(--theme-button-text);
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 700;
+    box-shadow: 0 8px 24px var(--theme-shadow-lg);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 11;
+}
+
+.view-more-overlay:hover .view-more-content {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 12px 32px var(--theme-shadow-xl);
+}
+
+.view-more-text {
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+}
+
+.arrow-icon {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.view-more-overlay:hover .arrow-icon {
+    transform: translateX(5px);
 }
 
 /* List Transitions */

@@ -8,6 +8,7 @@ import axios from 'axios';
 const BaseLayout = defineAsyncComponent(() => import('@/views/BaseLayout.vue'));
 const MarkdownPanel = defineAsyncComponent(() => import('@/components/MarkdownPanel.vue'));
 const CryptoUnlock = defineAsyncComponent(() => import('@/components/CryptoUnlock.vue'));
+const TOCPanel = defineAsyncComponent(() => import('@/components/TOCPanel.vue'));
 
 const props = defineProps({
   markdownUrl: {
@@ -57,7 +58,7 @@ const displayUrl = computed(() => {
 </script>
 
 <template>
-  <BaseLayout :showTipList="false">
+  <BaseLayout :showTipList="true">
     <template #main>
       <!-- 加载中状态 -->
       <div v-if="isLoading" class="loading-container">
@@ -70,6 +71,10 @@ const displayUrl = computed(() => {
 
       <!-- 已解锁或非加密文章：显示内容 -->
       <MarkdownPanel v-else :markdown-url="displayUrl" :decrypted-content="isUnlocked ? decryptedContent : null" />
+    </template>
+
+    <template #float-tip>
+      <TOCPanel content-selector=".post-content.markdown" />
     </template>
   </BaseLayout>
 </template>

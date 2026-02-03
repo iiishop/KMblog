@@ -1,15 +1,17 @@
 <template>
-    <div class="ethereal-node" :style="{ '--node-depth': depth }">
+    <div v-if="!shouldHideNode" class="ethereal-node" :style="{ '--node-depth': depth }">
         <div class="node-content" :class="{
             'is-folder': node.type === 'folder',
             'is-file': node.type === 'file',
             'is-current': isCurrentFile,
             'is-expanded': isExpanded,
             'is-dragging': isDragging,
-            'is-drag-over': isDragOver
+            'is-drag-over': isDragOver,
+            'is-waterfall-folder': isWaterfallFolder
         }" @click="handleClick" @contextmenu.prevent="handleContextMenu" :draggable="node.type === 'file'"
             @dragstart="handleDragStart" @dragend="handleDragEnd" @dragover="handleDragOver"
-            @dragleave="handleDragLeave" @drop="handleDrop">
+            @dragleave="handleDragLeave" @drop="handleDrop" @mouseenter="handleMouseEnter"
+            @mouseleave="handleMouseLeave">
 
             <!-- 树状层级线 -->
             <div class="tree-lines" v-if="depth > 0">
@@ -25,7 +27,16 @@
                 <svg class="expand-arrow" :class="{ 'expanded': isExpanded }" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M10 17l5-5-5-5v10z" />
                 </svg>
-                <svg class="folder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <!-- WaterfallGraph 特殊图标 -->
+                <svg v-if="isWaterfallFolder" class="folder-svg waterfall-icon" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                    <rect x="8" y="10" width="3" height="6" rx="0.5" opacity="0.7" />
+                    <rect x="12" y="8" width="3" height="8" rx="0.5" opacity="0.8" />
+                    <rect x="16" y="11" width="3" height="5" rx="0.5" opacity="0.6" />
+                </svg>
+                <!-- 普通文件夹图标 -->
+                <svg v-else class="folder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
                 </svg>
             </div>
@@ -56,6 +67,19 @@
             </div>
         </div>
 
+        <!-- 图片悬停预览 -->
+        <teleport to="body">
+            <transition name="preview-fade">
+                <div v-if="showImagePreview && isImageFile" class="image-preview-tooltip" :style="imagePreviewStyle">
+                    <div class="preview-backdrop"></div>
+                    <div class="preview-content">
+                        <img :src="imagePreviewUrl" :alt="node.name" @error="handleImageError" />
+                        <div class="preview-filename">{{ node.name }}</div>
+                    </div>
+                </div>
+            </transition>
+        </teleport>
+
         <!-- 子节点（递归） -->
         <transition name="expand">
             <div v-if="node.type === 'folder' && isExpanded && node.children" class="node-children">
@@ -63,7 +87,8 @@
                     :depth="depth + 1" @select="$emit('select', $event)" @create="$emit('create', $event)"
                     @delete="$emit('delete', $event)" @move="$emit('move', $event)" @rename="$emit('rename', $event)"
                     @folder-create="$emit('folder-create', $event)" @folder-delete="$emit('folder-delete', $event)"
-                    @image-file-select="$emit('image-file-select', $event)" />
+                    @image-file-select="$emit('image-file-select', $event)"
+                    @external-file-drop="$emit('external-file-drop', $event)" />
             </div>
         </transition>
 
@@ -155,10 +180,44 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete', 'image-file-select']);
+const emit = defineEmits(['select', 'create', 'delete', 'move', 'rename', 'folder-create', 'folder-delete', 'image-file-select', 'external-file-drop']);
 
 // 33.1 定义图片文件扩展名常量
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif'];
+
+// 检查是否为 WaterfallGraph 文件夹
+const isWaterfallFolder = computed(() => {
+    return props.node.type === 'folder' &&
+        (props.node.name === 'WaterfallGraph' || props.node.path.includes('WaterfallGraph'));
+});
+
+// 检查当前节点是否在 WaterfallGraph 文件夹内
+const isInWaterfallFolder = computed(() => {
+    return props.node.path.includes('WaterfallGraph');
+});
+
+// 检查是否应该隐藏该节点
+const shouldHideNode = computed(() => {
+    if (props.node.type !== 'file') return false;
+
+    const fileName = props.node.name.toLowerCase();
+
+    // 在 WaterfallGraph 文件夹内
+    if (isInWaterfallFolder.value) {
+        // 隐藏所有 .md 文件，除了 README.md
+        if (fileName.endsWith('.md') && fileName !== 'readme.md') {
+            return true;
+        }
+    } else {
+        // 在其他文件夹内 - 隐藏所有图片文件
+        const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+        if (IMAGE_EXTENSIONS.includes(ext)) {
+            return true;
+        }
+    }
+
+    return false;
+});
 
 // State
 const isExpanded = ref(false);
@@ -166,6 +225,10 @@ const showContextMenu = ref(false);
 const contextMenuStyle = ref({});
 const isDragging = ref(false);
 const isDragOver = ref(false);
+const showImagePreview = ref(false);
+const imagePreviewStyle = ref({});
+const imagePreviewUrl = ref('');
+let imagePreviewTimer = null;
 
 // Computed
 const isCurrentFile = computed(() => {
@@ -217,6 +280,47 @@ const handleClick = async () => {
             emit('select', props.node);
         }
     }
+};
+
+// 处理鼠标悬停 - 显示图片预览
+const handleMouseEnter = (e) => {
+    if (isImageFile.value && isInWaterfallFolder.value) {
+        // 延迟显示预览，避免快速移动时闪烁
+        imagePreviewTimer = setTimeout(() => {
+            // 检查事件目标是否存在
+            if (!e.currentTarget) {
+                console.warn('[FileTreeNode] currentTarget is null, skipping preview');
+                return;
+            }
+
+            // 构建图片 URL
+            imagePreviewUrl.value = props.node.path;
+
+            // 计算预览位置
+            const rect = e.currentTarget.getBoundingClientRect();
+            imagePreviewStyle.value = {
+                top: `${rect.top}px`,
+                left: `${rect.right + 10}px`
+            };
+
+            showImagePreview.value = true;
+        }, 500); // 500ms 延迟
+    }
+};
+
+// 处理鼠标离开 - 隐藏图片预览
+const handleMouseLeave = () => {
+    if (imagePreviewTimer) {
+        clearTimeout(imagePreviewTimer);
+        imagePreviewTimer = null;
+    }
+    showImagePreview.value = false;
+};
+
+// 处理图片加载错误
+const handleImageError = () => {
+    console.error('[FileTreeNode] Failed to load image preview:', props.node.path);
+    showImagePreview.value = false;
 };
 
 // Handle context menu
@@ -323,7 +427,18 @@ const handleDragStart = (e) => {
 const handleDragOver = (e) => {
     if (props.node.type === 'folder') {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+
+        // 检查是否为外部文件拖入
+        const hasFiles = e.dataTransfer.types.includes('Files');
+
+        if (hasFiles && isWaterfallFolder.value) {
+            // WaterfallGraph 文件夹接受外部图片文件
+            e.dataTransfer.dropEffect = 'copy';
+        } else {
+            // 普通文件夹只接受内部移动
+            e.dataTransfer.dropEffect = 'move';
+        }
+
         isDragOver.value = true;
     }
 };
@@ -339,13 +454,45 @@ const handleDragLeave = (e) => {
     }
 };
 
-const handleDrop = (e) => {
+const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     isDragOver.value = false;
 
     if (props.node.type === 'folder') {
+        // 检查是否为外部文件拖入
+        const files = e.dataTransfer.files;
+
+        if (files && files.length > 0 && isWaterfallFolder.value) {
+            // 处理外部文件拖入到 WaterfallGraph 文件夹
+            console.log('[FileTreeNode] External files dropped:', files.length);
+
+            // 过滤出图片文件
+            const imageFiles = Array.from(files).filter(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                return IMAGE_EXTENSIONS.includes(ext);
+            });
+
+            if (imageFiles.length === 0) {
+                alert('⚠️ 只能上传图片文件\n\n支持的格式: PNG, JPG, JPEG, GIF, WEBP, SVG, AVIF');
+                return;
+            }
+
+            if (imageFiles.length !== files.length) {
+                alert(`⚠️ 已过滤掉 ${files.length - imageFiles.length} 个非图片文件\n\n将上传 ${imageFiles.length} 个图片文件`);
+            }
+
+            // 触发外部文件上传事件
+            emit('external-file-drop', {
+                files: imageFiles,
+                targetFolder: props.node
+            });
+
+            return;
+        }
+
+        // 处理内部文件移动
         try {
             const jsonData = e.dataTransfer.getData('application/json');
             let draggedNode;
@@ -401,6 +548,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (showContextMenu.value) {
         showContextMenu.value = false;
+    }
+    if (imagePreviewTimer) {
+        clearTimeout(imagePreviewTimer);
     }
 });
 </script>
@@ -598,6 +748,89 @@ onBeforeUnmount(() => {
     font-weight: 600;
 }
 
+/* WaterfallGraph 文件夹特殊样式 */
+.node-content.is-waterfall-folder .folder-svg {
+    color: #06b6d4;
+}
+
+.node-content.is-waterfall-folder .waterfall-icon rect {
+    fill: currentColor;
+}
+
+.node-content.is-waterfall-folder:hover .folder-svg {
+    color: #0891b2;
+}
+
+.node-content.is-waterfall-folder.is-drag-over {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(8, 145, 178, 0.15) 100%);
+    border: 2px dashed #06b6d4;
+}
+
+/* 图片预览悬浮框 */
+.image-preview-tooltip {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    max-width: 400px;
+    max-height: 400px;
+}
+
+.preview-backdrop {
+    position: absolute;
+    inset: -8px;
+    background: var(--theme-panel-bg);
+    border-radius: 12px;
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--theme-panel-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    transition: var(--theme-transition-colors);
+}
+
+.preview-content {
+    position: relative;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.preview-content img {
+    max-width: 100%;
+    max-height: 350px;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+}
+
+.preview-filename {
+    font-size: 12px;
+    color: var(--theme-meta-text);
+    text-align: center;
+    padding: 4px 8px;
+    background: var(--theme-surface-hover);
+    border-radius: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: var(--theme-transition-colors);
+}
+
+/* 预览动画 */
+.preview-fade-enter-active,
+.preview-fade-leave-active {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preview-fade-enter-from {
+    opacity: 0;
+    transform: scale(0.95) translateX(-10px);
+}
+
+.preview-fade-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateX(10px);
+}
+
 /* 拖拽提示 */
 .drop-hint {
     position: absolute;
@@ -611,6 +844,10 @@ onBeforeUnmount(() => {
     justify-content: center;
     animation: bounce 0.6s ease-in-out infinite;
     z-index: 1;
+}
+
+.node-content.is-waterfall-folder.is-drag-over .drop-hint {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
 }
 
 .drop-hint svg {
