@@ -11,8 +11,8 @@
 
                 <!-- 图片/SVG 内容 -->
                 <div class="viewer-content" ref="contentRef" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
-                    @mouseup="handleMouseUp" @mouseleave="handleMouseLeave" @touchstart="handleTouchStart"
-                    @touchmove="handleTouchMove" @touchend="handleTouchEnd"
+                    @mouseup="handleMouseUp" @mouseleave="handleMouseLeave" @wheel="handleWheel"
+                    @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd"
                     :style="{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }">
                     <!-- 普通图片 -->
                     <img v-if="imageType === 'img'" :src="imageSrc" :alt="imageAlt" class="viewer-image"
@@ -49,9 +49,10 @@
                 <div v-if="imageAlt" class="viewer-info">
                     {{ imageAlt }}
                     <span v-if="scale > 1" class="drag-hint"> • 可拖动</span>
+                    <span class="scroll-hint"> • 滚轮缩放</span>
                 </div>
-                <div v-else-if="scale > 1" class="viewer-info">
-                    可拖动查看
+                <div v-else class="viewer-info">
+                    <span v-if="scale > 1">可拖动查看 • </span>滚轮缩放
                 </div>
             </div>
         </div>
@@ -249,6 +250,57 @@ const handleTouchEnd = () => {
     if (isDragging.value) {
         isDragging.value = false;
         lastTranslate.value = { ...translate.value };
+    }
+};
+
+// 鼠标滚轮缩放
+const handleWheel = (e) => {
+    e.preventDefault();
+
+    // 获取滚轮方向（向上为正，向下为负）
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const zoomAmount = delta * 0.1; // 每次缩放10%
+
+    // 计算新的缩放值
+    const newScale = Math.max(minScale, Math.min(maxScale, scale.value + zoomAmount));
+
+    if (newScale === scale.value) return; // 如果达到极限，不处理
+
+    // 获取鼠标相对于内容区域的位置
+    const rect = contentRef.value.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // 计算缩放中心点（相对于图片的位置）
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // 计算鼠标位置相对于中心的偏移
+    const offsetX = mouseX - centerX;
+    const offsetY = mouseY - centerY;
+
+    // 计算缩放比例变化
+    const scaleRatio = newScale / scale.value;
+
+    // 调整位移，使缩放中心在鼠标位置
+    translate.value = {
+        x: translate.value.x - offsetX * (scaleRatio - 1),
+        y: translate.value.y - offsetY * (scaleRatio - 1)
+    };
+
+    // 更新缩放值
+    scale.value = newScale;
+
+    // 应用变换
+    applyTransform();
+    updateCursor();
+
+    // 更新最后的位移值
+    lastTranslate.value = { ...translate.value };
+
+    // 如果缩放到1或以下，重置位置
+    if (scale.value <= 1) {
+        resetPosition();
     }
 };
 
