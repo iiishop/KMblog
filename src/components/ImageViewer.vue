@@ -1,0 +1,561 @@
+<template>
+    <Transition name="viewer-fade">
+        <div v-if="visible" class="image-viewer-overlay" @click="close">
+            <div class="image-viewer-container" @click.stop>
+                <!-- 关闭按钮 -->
+                <button class="viewer-close-btn" @click="close" title="关闭 (ESC)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <!-- 图片/SVG 内容 -->
+                <div class="viewer-content" ref="contentRef" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
+                    @mouseup="handleMouseUp" @mouseleave="handleMouseLeave" @touchstart="handleTouchStart"
+                    @touchmove="handleTouchMove" @touchend="handleTouchEnd"
+                    :style="{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }">
+                    <!-- 普通图片 -->
+                    <img v-if="imageType === 'img'" :src="imageSrc" :alt="imageAlt" class="viewer-image"
+                        @load="onImageLoad" draggable="false" />
+
+                    <!-- SVG（Mermaid 图表） -->
+                    <div v-else-if="imageType === 'svg'" class="viewer-svg-container" v-html="svgContent"></div>
+                </div>
+
+                <!-- 缩放控制按钮 -->
+                <div class="viewer-controls">
+                    <button @click="zoomOut" title="缩小 (-)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="M21 21l-4.35-4.35M8 11h6" />
+                        </svg>
+                    </button>
+                    <span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
+                    <button @click="zoomIn" title="放大 (+)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+                        </svg>
+                    </button>
+                    <button @click="resetZoom" title="重置 (0)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 图片信息（可选） -->
+                <div v-if="imageAlt" class="viewer-info">
+                    {{ imageAlt }}
+                    <span v-if="scale > 1" class="drag-hint"> • 可拖动</span>
+                </div>
+                <div v-else-if="scale > 1" class="viewer-info">
+                    可拖动查看
+                </div>
+            </div>
+        </div>
+    </Transition>
+</template>
+
+<script setup>
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+
+const props = defineProps({
+    visible: {
+        type: Boolean,
+        default: false
+    },
+    imageSrc: {
+        type: String,
+        default: ''
+    },
+    imageAlt: {
+        type: String,
+        default: ''
+    },
+    imageType: {
+        type: String,
+        default: 'img', // 'img' 或 'svg'
+        validator: (value) => ['img', 'svg'].includes(value)
+    },
+    svgContent: {
+        type: String,
+        default: ''
+    }
+});
+
+const emit = defineEmits(['update:visible', 'close']);
+
+const contentRef = ref(null);
+const scale = ref(1);
+const minScale = 0.5;
+const maxScale = 3;
+const scaleStep = 0.25;
+
+// 拖动相关状态
+const isDragging = ref(false);
+const dragStart = ref({ x: 0, y: 0 });
+const translate = ref({ x: 0, y: 0 });
+const lastTranslate = ref({ x: 0, y: 0 });
+
+// 关闭查看器
+const close = () => {
+    emit('update:visible', false);
+    emit('close');
+    resetZoom();
+    resetPosition();
+};
+
+// 放大
+const zoomIn = () => {
+    if (scale.value < maxScale) {
+        scale.value = Math.min(scale.value + scaleStep, maxScale);
+        applyTransform();
+        updateCursor();
+    }
+};
+
+// 缩小
+const zoomOut = () => {
+    if (scale.value > minScale) {
+        scale.value = Math.max(scale.value - scaleStep, minScale);
+        applyTransform();
+        updateCursor();
+
+        // 如果缩放到1或以下，重置位置
+        if (scale.value <= 1) {
+            resetPosition();
+        }
+    }
+};
+
+// 更新鼠标样式
+const updateCursor = () => {
+    if (contentRef.value) {
+        contentRef.value.style.cursor = scale.value > 1 ? 'grab' : 'default';
+    }
+};
+
+// 重置缩放
+const resetZoom = () => {
+    scale.value = 1;
+    applyScale();
+};
+
+// 重置位置
+const resetPosition = () => {
+    translate.value = { x: 0, y: 0 };
+    lastTranslate.value = { x: 0, y: 0 };
+    applyTransform();
+};
+
+// 应用缩放和位移
+const applyScale = () => {
+    applyTransform();
+};
+
+// 应用完整变换（缩放 + 位移）
+const applyTransform = () => {
+    if (contentRef.value) {
+        const element = contentRef.value.querySelector('img, .viewer-svg-container');
+        if (element) {
+            element.style.transform = `translate(${translate.value.x}px, ${translate.value.y}px) scale(${scale.value})`;
+        }
+    }
+};
+
+// 鼠标按下开始拖动
+const handleMouseDown = (e) => {
+    // 只在缩放时或者内容超出容器时允许拖动
+    if (scale.value > 1) {
+        isDragging.value = true;
+        dragStart.value = {
+            x: e.clientX - translate.value.x,
+            y: e.clientY - translate.value.y
+        };
+
+        // 改变鼠标样式
+        if (contentRef.value) {
+            contentRef.value.style.cursor = 'grabbing';
+        }
+
+        // 阻止默认行为
+        e.preventDefault();
+    }
+};
+
+// 鼠标移动拖动
+const handleMouseMove = (e) => {
+    if (!isDragging.value) return;
+
+    translate.value = {
+        x: e.clientX - dragStart.value.x,
+        y: e.clientY - dragStart.value.y
+    };
+
+    applyTransform();
+};
+
+// 鼠标松开结束拖动
+const handleMouseUp = () => {
+    if (isDragging.value) {
+        isDragging.value = false;
+        lastTranslate.value = { ...translate.value };
+
+        // 恢复鼠标样式
+        if (contentRef.value) {
+            contentRef.value.style.cursor = scale.value > 1 ? 'grab' : 'default';
+        }
+    }
+};
+
+// 鼠标离开容器
+const handleMouseLeave = () => {
+    if (isDragging.value) {
+        handleMouseUp();
+    }
+};
+
+// 触摸开始
+const handleTouchStart = (e) => {
+    if (scale.value > 1 && e.touches.length === 1) {
+        isDragging.value = true;
+        const touch = e.touches[0];
+        dragStart.value = {
+            x: touch.clientX - translate.value.x,
+            y: touch.clientY - translate.value.y
+        };
+        e.preventDefault();
+    }
+};
+
+// 触摸移动
+const handleTouchMove = (e) => {
+    if (!isDragging.value || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    translate.value = {
+        x: touch.clientX - dragStart.value.x,
+        y: touch.clientY - dragStart.value.y
+    };
+
+    applyTransform();
+    e.preventDefault();
+};
+
+// 触摸结束
+const handleTouchEnd = () => {
+    if (isDragging.value) {
+        isDragging.value = false;
+        lastTranslate.value = { ...translate.value };
+    }
+};
+
+// 图片加载完成
+const onImageLoad = () => {
+    // 可以在这里添加加载完成后的逻辑
+};
+
+// 键盘事件处理
+const handleKeydown = (e) => {
+    if (!props.visible) return;
+
+    switch (e.key) {
+        case 'Escape':
+            close();
+            break;
+        case '+':
+        case '=':
+            zoomIn();
+            break;
+        case '-':
+            zoomOut();
+            break;
+        case '0':
+            resetZoom();
+            break;
+    }
+};
+
+// 监听可见性变化
+watch(() => props.visible, (newVal) => {
+    if (newVal) {
+        // 阻止背景滚动
+        document.body.style.overflow = 'hidden';
+        // 重置缩放和位置
+        scale.value = 1;
+        resetPosition();
+        // 等待 DOM 更新后应用变换
+        nextTick(() => {
+            applyTransform();
+        });
+    } else {
+        // 恢复滚动
+        document.body.style.overflow = '';
+        resetZoom();
+        resetPosition();
+    }
+});
+
+// 监听 SVG 内容变化
+watch(() => props.svgContent, (newVal) => {
+    if (newVal && props.visible) {
+        nextTick(() => {
+            applyTransform();
+        });
+    }
+});
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+    document.body.style.overflow = '';
+});
+</script>
+
+<style scoped>
+.image-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+.image-viewer-container {
+    position: relative;
+    width: 90vw;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.viewer-content {
+    width: 100%;
+    height: calc(100% - 120px);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.viewer-image {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: transform 0.1s ease-out;
+    transform-origin: center;
+    pointer-events: none;
+    user-select: none;
+}
+
+.viewer-svg-container {
+    transition: transform 0.1s ease-out;
+    transform-origin: center;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    user-select: none;
+}
+
+.viewer-svg-container :deep(svg) {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 auto !important;
+    object-fit: contain !important;
+}
+
+.viewer-close-btn {
+    position: absolute;
+    top: -3rem;
+    right: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.viewer-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: rotate(90deg);
+}
+
+.viewer-close-btn svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.viewer-controls {
+    position: absolute;
+    bottom: -4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 1.5rem;
+    border-radius: 2rem;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.viewer-controls button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.viewer-controls button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+}
+
+.viewer-controls button svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.zoom-level {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-width: 3rem;
+    text-align: center;
+    user-select: none;
+}
+
+.viewer-info {
+    position: absolute;
+    bottom: -6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    max-width: 80%;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    white-space: nowrap;
+}
+
+.drag-hint {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+}
+
+/* 过渡动画 */
+.viewer-fade-enter-active,
+.viewer-fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+
+.viewer-fade-enter-from,
+.viewer-fade-leave-to {
+    opacity: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .image-viewer-overlay {
+        padding: 1rem;
+    }
+
+    .viewer-content {
+        width: 95vw;
+        height: calc(80vh - 150px);
+    }
+
+    .viewer-controls {
+        bottom: -5rem;
+        padding: 0.5rem 1rem;
+        gap: 0.3rem;
+    }
+
+    .viewer-controls button {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    .zoom-level {
+        font-size: 0.85rem;
+        min-width: 2.5rem;
+    }
+
+    .viewer-svg-container {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .viewer-content {
+        width: 98vw;
+        height: calc(75vh - 150px);
+    }
+
+    .viewer-svg-container {
+        padding: 1rem;
+    }
+
+    .viewer-close-btn {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .viewer-close-btn svg {
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+}
+</style>
