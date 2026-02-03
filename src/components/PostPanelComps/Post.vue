@@ -27,7 +27,7 @@
                 <div v-if="metadata" class="content-wrapper">
 
                     <!-- Left Main Content Area -->
-                    <div class="main-content-area">
+                    <div class="main-content-area" :class="{ 'no-preview': !metadata.pre }">
                         <div class="title-panel" @click="initiateTransition">
                             <p class="title-text">
                                 <span v-for="(char, index) in metadata.title" :key="index" class="title-char"
@@ -38,9 +38,25 @@
                             <div class="title-underline"></div>
                         </div>
 
-                        <div class="pre-panel" @click="initiateTransition">
+                        <div v-if="metadata.pre" class="pre-panel" @click="initiateTransition">
                             <pre class="pre-text">{{ metadata.pre }}</pre>
                             <div class="pre-gradient-overlay"></div>
+                        </div>
+
+                        <!-- 装饰性内容 - 当没有 pre 时显示 -->
+                        <div v-else class="placeholder-decoration">
+                            <div class="ornamental-pattern">
+                                <div class="pattern-line left-line"></div>
+                                <div class="pattern-center">
+                                    <span class="center-ornament">❖</span>
+                                    <div class="floating-accents">
+                                        <span class="accent" v-for="i in 6" :key="i"
+                                            :style="{ '--accent-index': i }">✦</span>
+                                    </div>
+                                </div>
+                                <div class="pattern-line right-line"></div>
+                            </div>
+                            <p class="decorative-text">阅读以启智 · 思考以明理</p>
                         </div>
                     </div>
 
@@ -842,6 +858,12 @@ onUnmounted(() => {
     overflow: hidden;
 }
 
+/* 没有预览文本时的紧凑布局 */
+.main-content-area.no-preview {
+    justify-content: center;
+    gap: 1.5rem;
+}
+
 .meta-sidebar {
     width: 25%;
     min-width: 180px;
@@ -941,11 +963,12 @@ onUnmounted(() => {
     flex-grow: 1;
     cursor: pointer;
     border-radius: 12px;
-    padding: 1rem;
+    padding: 1.25rem;
     position: relative;
     overflow: hidden;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--theme-surface-hover);
+    min-height: 120px;
 }
 
 .pre-panel:hover {
@@ -960,11 +983,11 @@ onUnmounted(() => {
     white-space: pre-wrap;
     word-wrap: break-word;
     margin: 0;
-    line-height: 1.8;
+    line-height: 1.9;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
     overflow: hidden;
     position: relative;
     z-index: 1;
@@ -978,8 +1001,197 @@ onUnmounted(() => {
     height: 50%;
     background: linear-gradient(to bottom,
             transparent 0%,
-            var(--theme-panel-bg) 100%);
+            var(--theme-surface-hover) 100%);
     pointer-events: none;
+}
+
+/* === 装饰性占位符（无预览文本时） === */
+.placeholder-decoration {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    opacity: 0.35;
+    pointer-events: none;
+    margin-top: 1rem;
+}
+
+.ornamental-pattern {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    width: 85%;
+    position: relative;
+}
+
+.pattern-line {
+    flex: 1;
+    height: 1.5px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            var(--theme-primary) 50%,
+            transparent 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.pattern-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.4) 50%,
+            transparent 100%);
+}
+
+.left-line::after {
+    animation: shimmerRight 4s ease-in-out infinite;
+}
+
+.right-line::after {
+    animation: shimmerLeft 4s ease-in-out infinite;
+}
+
+@keyframes shimmerRight {
+
+    0%,
+    100% {
+        left: -100%;
+    }
+
+    50% {
+        left: 100%;
+    }
+}
+
+@keyframes shimmerLeft {
+
+    0%,
+    100% {
+        right: -100%;
+        left: auto;
+    }
+
+    50% {
+        right: 100%;
+    }
+}
+
+.pattern-center {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.center-ornament {
+    font-size: 1.5rem;
+    color: var(--theme-primary);
+    animation: breathe 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px var(--theme-primary));
+}
+
+@keyframes breathe {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+}
+
+.floating-accents {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.accent {
+    position: absolute;
+    font-size: 0.6rem;
+    color: var(--theme-primary);
+    opacity: 0.4;
+    animation: floatAround 8s ease-in-out infinite;
+    animation-delay: calc(var(--accent-index) * 0.6s);
+}
+
+.accent:nth-child(1) {
+    left: 50%;
+    top: 0;
+}
+
+.accent:nth-child(2) {
+    left: 86%;
+    top: 25%;
+}
+
+.accent:nth-child(3) {
+    left: 86%;
+    top: 75%;
+}
+
+.accent:nth-child(4) {
+    left: 50%;
+    top: 100%;
+}
+
+.accent:nth-child(5) {
+    left: 14%;
+    top: 75%;
+}
+
+.accent:nth-child(6) {
+    left: 14%;
+    top: 25%;
+}
+
+@keyframes floatAround {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.2;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.6;
+    }
+}
+
+.decorative-text {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 0.8rem;
+    color: var(--theme-meta-text);
+    letter-spacing: 0.2em;
+    margin: 0;
+    opacity: 0.7;
+    animation: textGlow 4s ease-in-out infinite;
+}
+
+@keyframes textGlow {
+
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 0.9;
+    }
 }
 
 /* === Sidebar Elements === */
