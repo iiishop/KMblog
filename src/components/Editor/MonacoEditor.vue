@@ -661,6 +661,32 @@ defineExpose({
     overflow: hidden;
 }
 
+/* 修复 minimap 遮挡内容的问题 */
+.monaco-editor-container :deep(.monaco-editor .minimap) {
+    pointer-events: auto;
+    z-index: 1;
+}
+
+.monaco-editor-container :deep(.monaco-scrollable-element.editor-scrollable) {
+    z-index: 0;
+}
+
+/* 确保滚动条在正确的层级 */
+.monaco-editor-container :deep(.monaco-scrollable-element .scrollbar) {
+    z-index: 2;
+}
+
+/* 确保 minimap 不会遮挡文字内容 */
+.monaco-editor-container :deep(.monaco-editor .overflow-guard) {
+    position: relative;
+}
+
+/* 调整编辑器内容区域，为 minimap 留出空间 */
+.monaco-editor-container :deep(.monaco-editor .monaco-scrollable-element) {
+    /* 确保内容区域不会延伸到 minimap 下方 */
+    box-sizing: border-box;
+}
+
 /* 确保行号和内容之间有间距 */
 .monaco-editor-container :deep(.monaco-editor .margin) {
     padding-right: 8px;

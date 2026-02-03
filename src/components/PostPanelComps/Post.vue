@@ -583,6 +583,13 @@ onUnmounted(() => {
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     isolation: isolate;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+}
+
+.post-panel:hover {
+    transform: translateY(-8px) rotateX(2deg);
+    filter: drop-shadow(0 25px 50px var(--theme-shadow-lg));
 }
 
 /* === 粒子背景 === */
@@ -664,6 +671,21 @@ onUnmounted(() => {
 
 .post-panel:hover .glow-orb {
     opacity: 1;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+    }
 }
 
 /* === Image Panel === */
@@ -725,12 +747,14 @@ onUnmounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
     display: block;
+    filter: brightness(0.95) saturate(0.9);
 }
 
 .post-panel:hover .image-border-frame img {
-    transform: scale(1.1) rotate(2deg);
+    transform: scale(1.15) rotate(3deg);
+    filter: brightness(1.1) saturate(1.2) contrast(1.05);
 }
 
 /* 图片光芒效果 */
@@ -780,12 +804,54 @@ onUnmounted(() => {
     z-index: 2;
 }
 
+/* 霓虹光边框效果 */
+.content-panel::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 20px;
+    padding: 2px;
+    background: linear-gradient(45deg,
+            var(--theme-primary),
+            var(--theme-secondary),
+            var(--theme-primary));
+    background-size: 300% 300%;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: -1;
+    filter: blur(8px);
+}
+
+.post-panel:hover .content-panel::before {
+    opacity: 0.8;
+    animation: neonFlow 3s ease-in-out infinite;
+}
+
+@keyframes neonFlow {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
 .post-panel:hover .content-panel {
     transform: translateY(-3px);
     box-shadow:
         0 20px 60px var(--theme-shadow-lg),
         0 0 0 1px var(--theme-border-light),
-        inset 0 1px 0 var(--theme-surface-default);
+        inset 0 1px 0 var(--theme-surface-default),
+        0 0 40px rgba(102, 126, 234, 0.3);
     background: var(--theme-panel-bg);
 }
 
@@ -804,6 +870,7 @@ onUnmounted(() => {
 .post-panel:hover .deco-geometry {
     opacity: 0.1;
     transform: rotate(45deg) scale(1.2);
+    filter: hue-rotate(90deg) drop-shadow(0 0 10px var(--theme-primary));
 }
 
 .deco-circle {
@@ -924,11 +991,35 @@ onUnmounted(() => {
 .title-panel:hover .title-char {
     color: var(--theme-primary);
     transform: translateY(-2px);
-    text-shadow: 0 5px 15px var(--theme-shadow-md);
+    text-shadow:
+        0 5px 15px var(--theme-shadow-md),
+        0 0 20px var(--theme-primary),
+        0 0 40px var(--theme-primary);
+    filter: brightness(1.3);
 }
 
 .title-panel:hover .title-char:nth-child(even) {
     animation: bounce 0.6s ease-in-out;
+}
+
+.title-panel:hover .title-char:nth-child(3n) {
+    animation: wiggle 0.8s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+
+    0%,
+    100% {
+        transform: translateY(-2px) rotate(0deg);
+    }
+
+    25% {
+        transform: translateY(-4px) rotate(-3deg);
+    }
+
+    75% {
+        transform: translateY(-4px) rotate(3deg);
+    }
 }
 
 @keyframes bounce {
@@ -971,9 +1062,44 @@ onUnmounted(() => {
     min-height: 120px;
 }
 
+/* 波浪渐变背景 */
+.pre-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            transparent 0%,
+            rgba(102, 126, 234, 0.05) 50%,
+            transparent 100%);
+    background-size: 200% 200%;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 0;
+}
+
 .pre-panel:hover {
     background: var(--theme-surface-active);
-    transform: translateX(5px);
+    transform: translateX(8px) scale(1.02);
+    box-shadow:
+        0 10px 30px var(--theme-shadow-md),
+        inset 0 0 30px rgba(102, 126, 234, 0.1);
+}
+
+.pre-panel:hover::before {
+    opacity: 1;
+    animation: waveGradient 3s ease-in-out infinite;
+}
+
+@keyframes waveGradient {
+
+    0%,
+    100% {
+        background-position: 0% 0%;
+    }
+
+    50% {
+        background-position: 100% 100%;
+    }
 }
 
 .pre-text {
@@ -1226,11 +1352,43 @@ onUnmounted(() => {
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.meta-icon-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 12px;
+    background: conic-gradient(from 0deg,
+            var(--theme-primary),
+            var(--theme-secondary),
+            var(--theme-primary));
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+    filter: blur(5px);
+}
+
 .meta-item:hover .meta-icon-wrapper {
     background: var(--theme-gradient);
     opacity: 1;
-    box-shadow: 0 5px 15px var(--theme-shadow-md);
-    transform: scale(1.1) rotate(5deg);
+    box-shadow:
+        0 5px 15px var(--theme-shadow-md),
+        0 0 20px var(--theme-primary);
+    transform: scale(1.15) rotate(10deg);
+}
+
+.meta-item:hover .meta-icon-wrapper::before {
+    opacity: 0.6;
+    animation: iconRotate 2s linear infinite;
+}
+
+@keyframes iconRotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .meta-icon {
@@ -1324,6 +1482,7 @@ onUnmounted(() => {
             transparent 100%);
     opacity: 0;
     filter: blur(5px);
+    box-shadow: 0 0 10px var(--theme-primary);
 }
 
 .post-panel:hover .divider-glow {
@@ -1371,6 +1530,8 @@ onUnmounted(() => {
 
 .animated-tag:hover {
     transform: translateY(-3px) scale(1.05);
+    filter: drop-shadow(0 5px 15px var(--theme-primary));
+    box-shadow: 0 0 20px var(--theme-primary);
 }
 
 /* === 光效扫描线 === */
