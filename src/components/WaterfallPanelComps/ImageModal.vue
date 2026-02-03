@@ -40,9 +40,7 @@
 
                     <!-- 评论区域 -->
                     <div class="comments-section">
-                        <UtterancesComments 
-                            :issueTitle="`图片: ${image.alt || image.src}`"
-                        />
+                        <UtterancesComments :issueTitle="`图片: ${image.alt || image.src}`" />
                     </div>
                 </div>
             </div>

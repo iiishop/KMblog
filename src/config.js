@@ -44,7 +44,7 @@ const config = {
     MainListDown: [
     ],//Main列表，在页面默认添加的MainList的下面出现
     InfoListFloat: [
-        
+
     ],//Info浮动列表，开始时显示在InfoList的最下方，之后根据页面滚动位置自动调整位置
     TipListFloat: [
     ],//Tip浮动列表，开始时显示在TipList的最下方，之后根据页面滚动位置自动调整位置
@@ -53,6 +53,25 @@ const config = {
     // Get a token from: https://github.com/settings/tokens (no scopes needed for public repos)
     // Increases rate limit from 60 to 5000 requests/hour
     GitHubToken: '', // Leave empty for unauthenticated requests (60/hour limit)
+
+    // Utterances Comments Configuration
+    // Learn more: https://utteranc.es/
+    UtterancesConfig: {
+        enabled: false,                    // Enable/disable comments
+        repo: '',                          // GitHub repository (format: 'username/repo')
+        issueMapping: 'pathname',          // How to map pages to issues: 'pathname', 'url', 'title', 'og:title'
+        label: 'comment',                  // Label for GitHub issues
+        theme: '',                         // Leave empty to auto-match blog theme, or specify: 'github-light', 'github-dark', 'preferred-color-scheme', etc.
+
+        // Advanced: Custom theme mapping for different blog themes
+        // Maps blog themes to Utterances themes
+        themeMapping: {
+            'day': 'github-light',
+            'dark': 'github-dark',
+            'night': 'github-dark',
+            'bright': 'github-light'
+        }
+    },
 
     // Social Links. 社交链接
     Links: [

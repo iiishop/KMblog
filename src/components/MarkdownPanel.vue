@@ -60,10 +60,7 @@
     </article>
 
     <!-- 评论区域 -->
-    <UtterancesComments 
-      v-if="metadata.title"
-      :issueTitle="metadata.title"
-    />
+    <UtterancesComments v-if="metadata.title" :issueTitle="metadata.title" />
 
     <!-- 回到顶部按钮 -->
     <transition name="fade">
@@ -75,13 +72,8 @@
     </transition>
 
     <!-- 图片查看器 -->
-    <ImageViewer 
-      v-model:visible="viewerVisible"
-      :imageSrc="viewerImageSrc"
-      :imageAlt="viewerImageAlt"
-      :imageType="viewerImageType"
-      :svgContent="viewerSvgContent"
-    />
+    <ImageViewer v-model:visible="viewerVisible" :imageSrc="viewerImageSrc" :imageAlt="viewerImageAlt"
+      :imageType="viewerImageType" :svgContent="viewerSvgContent" />
   </div>
 </template>
 
@@ -410,11 +402,11 @@ const setupImageClickHandlers = () => {
   images?.forEach(img => {
     // 添加可点击样式类
     img.classList.add('clickable-image');
-    
+
     // 移除旧的点击事件监听器（如果存在）
     img.replaceWith(img.cloneNode(true));
   });
-  
+
   // 重新获取克隆后的图片并添加事件监听器
   const newImages = contentRef.value?.querySelectorAll('.markdown img');
   newImages?.forEach(img => {
@@ -432,12 +424,12 @@ const setupImageClickHandlers = () => {
   mermaidContainers?.forEach(container => {
     // 添加可点击样式类
     container.classList.add('clickable-mermaid');
-    
+
     // 移除旧的点击事件监听器（如果存在）
     const newContainer = container.cloneNode(true);
     container.parentNode?.replaceChild(newContainer, container);
   });
-  
+
   // 重新获取克隆后的容器并添加事件监听器
   const newMermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
   newMermaidContainers?.forEach(container => {
