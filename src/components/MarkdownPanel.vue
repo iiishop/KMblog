@@ -428,24 +428,38 @@ const setupImageClickHandlers = () => {
     // 添加可点击样式类
     container.classList.add('clickable-mermaid');
 
-    // 移除旧的点击事件监听器（如果存在）
-    const newContainer = container.cloneNode(true);
-    container.parentNode?.replaceChild(newContainer, container);
-  });
+    // 直接添加点击事件，不使用克隆
+    // 先移除可能存在的旧事件
+    const oldHandler = container._clickHandler;
+    if (oldHandler) {
+      container.removeEventListener('click', oldHandler);
+    }
 
-  // 重新获取克隆后的容器并添加事件监听器
-  const newMermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
-  newMermaidContainers?.forEach(container => {
-    container.classList.add('clickable-mermaid');
-    container.addEventListener('click', () => {
+    // 创建新的处理函数
+    const clickHandler = () => {
       const mermaidDiv = container.querySelector('.mermaid');
       if (mermaidDiv) {
-        viewerImageType.value = 'svg';
-        viewerSvgContent.value = mermaidDiv.innerHTML;
-        viewerImageAlt.value = 'Mermaid 图表';
-        viewerVisible.value = true;
+        // 获取完整的 SVG 内容
+        const svgElement = mermaidDiv.querySelector('svg');
+        if (svgElement) {
+          // 克隆 SVG 以保留所有属性和样式
+          const clonedSvg = svgElement.cloneNode(true);
+          console.log('[Mermaid Click] SVG found, outer HTML length:', clonedSvg.outerHTML.length);
+          viewerImageType.value = 'svg';
+          viewerSvgContent.value = clonedSvg.outerHTML;
+          viewerImageAlt.value = 'Mermaid 图表';
+          viewerVisible.value = true;
+        } else {
+          console.warn('[Mermaid Click] SVG element not found in mermaid div');
+        }
+      } else {
+        console.warn('[Mermaid Click] Mermaid div not found');
       }
-    });
+    };
+
+    // 保存处理函数引用
+    container._clickHandler = clickHandler;
+    container.addEventListener('click', clickHandler);
   });
 };
 
