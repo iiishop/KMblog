@@ -63,7 +63,12 @@ const getEditorOptions = () => {
         language: props.language,
         theme: props.theme,
         automaticLayout: true,
-        wordWrap: 'on',
+        wordWrap: 'bounded', // 使用bounded模式，结合wordWrapColumn
+        wordWrapColumn: 120, // 初始值，会动态调整
+        wordWrapBreakAfterCharacters: '\t})]?|/&,;¢°′″‰℃、。｡､￠，．：；？！％・･ゝゞヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻ｧｨｩｪｫｬｭｮｯｰ', // 定义换行符号
+        wordWrapBreakBeforeCharacters: '([{\'"〈《「『【〔（［｛｢£¥$£€¤', // 换行前的符号
+        wrappingStrategy: 'advanced', // 使用高级换行策略
+        wrappingIndent: 'same', // 换行缩进与原行相同
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
         fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
@@ -78,15 +83,18 @@ const getEditorOptions = () => {
         // 移动端优化配置
         return {
             ...baseOptions,
+            wordWrapColumn: 60, // 移动端初始值
             fontSize: 13, // 稍小的字体
             lineHeight: 20, // 更紧凑的行高
             tabSize: 2, // 更小的缩进
             insertSpaces: true, // 使用空格而不是制表符
             minimap: {
-                enabled: true, // 移动端也启用小地图
+                enabled: true,
                 side: 'right',
                 showSlider: 'mouseover',
-                scale: 1
+                scale: 1,
+                renderCharacters: false,
+                size: 'proportional',
             },
             lineNumbers: 'on', // 移动端也显示行号
             lineNumbersMinChars: 3, // 行号最小宽度
@@ -110,6 +118,7 @@ const getEditorOptions = () => {
         // 桌面端配置
         return {
             ...baseOptions,
+            wordWrapColumn: 120, // 桌面端初始值
             fontSize: 14,
             lineHeight: 24,
             tabSize: 4, // 标准缩进
@@ -117,7 +126,9 @@ const getEditorOptions = () => {
             minimap: {
                 enabled: true,
                 side: 'right',
-                showSlider: 'mouseover'
+                showSlider: 'mouseover',
+                renderCharacters: false,
+                size: 'proportional',
             },
             lineNumbersMinChars: 4, // 桌面端更宽的行号区域
             glyphMargin: true,
@@ -305,6 +316,49 @@ onMounted(() => {
 
     // Create editor instance with responsive options
     editor = monaco.editor.create(editorContainer.value, getEditorOptions());
+
+    // 动态调整换行列数以适应minimap
+    const updateWrapColumn = () => {
+        if (!editor) return;
+
+        const layoutInfo = editor.getLayoutInfo();
+        const contentWidth = layoutInfo.contentWidth; // 内容区域宽度
+        const minimapWidth = layoutInfo.minimap.minimapWidth || 0; // minimap宽度
+
+        // 计算可用宽度（减去minimap和一些边距）
+        const availableWidth = contentWidth - minimapWidth - 20; // 20px额外边距
+
+        // 根据字体大小计算每个字符的平均宽度
+        const fontSize = isMobile ? 13 : 14;
+        const charWidth = fontSize * 0.6; // 等宽字体大约是fontSize的0.6倍
+
+        // 计算可以容纳的字符数
+        const calculatedColumns = Math.floor(availableWidth / charWidth);
+
+        // 设置一个合理的范围
+        const minColumns = isMobile ? 40 : 80;
+        const maxColumns = isMobile ? 100 : 150;
+        const wrapColumn = Math.max(minColumns, Math.min(maxColumns, calculatedColumns));
+
+        console.log('[MonacoEditor] 动态调整换行列数:', {
+            contentWidth,
+            minimapWidth,
+            availableWidth,
+            charWidth,
+            calculatedColumns,
+            finalWrapColumn: wrapColumn
+        });
+
+        editor.updateOptions({ wordWrapColumn: wrapColumn });
+    };
+
+    // 初始调整
+    setTimeout(updateWrapColumn, 100);
+
+    // 监听布局变化
+    editor.onDidLayoutChange(() => {
+        updateWrapColumn();
+    });
 
     // 注册右键菜单
     editor.addAction({
@@ -526,6 +580,20 @@ onMounted(() => {
             console.log('[MonacoEditor] 找到 textarea，直接绑定粘贴事件（捕获阶段）');
             textArea.addEventListener('paste', handlePaste, { capture: true });
         } else {
+            // 设备类型变化后也需要重新计算换行列数
+            setTimeout(() => {
+                const layoutInfo = editor.getLayoutInfo();
+                const contentWidth = layoutInfo.contentWidth;
+                const minimapWidth = layoutInfo.minimap.minimapWidth || 0;
+                const availableWidth = contentWidth - minimapWidth - 20;
+                const fontSize = isMobile ? 13 : 14;
+                const charWidth = fontSize * 0.6;
+                const calculatedColumns = Math.floor(availableWidth / charWidth);
+                const minColumns = isMobile ? 40 : 80;
+                const maxColumns = isMobile ? 100 : 150;
+                const wrapColumn = Math.max(minColumns, Math.min(maxColumns, calculatedColumns));
+                editor.updateOptions({ wordWrapColumn: wrapColumn });
+            }, 100);
             console.log('[MonacoEditor] 未找到 textarea');
         }
     }, 100);
@@ -681,21 +749,30 @@ defineExpose({
     position: relative;
 }
 
-/* 调整编辑器内容区域，为 minimap 留出空间 */
-.monaco-editor-container :deep(.monaco-editor .monaco-scrollable-element) {
-    /* 确保内容区域不会延伸到 minimap 下方 */
+/* 调整编辑器内容区域，为 minimap 留出空间 - 关键修复 */
+.monaco-editor-container :deep(.monaco-editor .lines-content.monaco-editor-background) {
+    /* 为 minimap 留出右侧空间，防止文本延伸到 minimap 下方 */
+    margin-right: 0 !important;
+}
+
+/* 确保 minimap 容器正确定位 */
+.monaco-editor-container :deep(.monaco-editor .minimap-decorations-layer) {
+    pointer-events: none;
+}
+
+/* 优化视口宽度计算，让换行考虑 minimap */
+.monaco-editor-container :deep(.monaco-editor .view-lines) {
     box-sizing: border-box;
+}
+
+/* 确保内容区域布局正确 */
+.monaco-editor-container :deep(.monaco-editor .lines-content) {
+    padding-left: 8px;
 }
 
 /* 确保行号和内容之间有间距 */
 .monaco-editor-container :deep(.monaco-editor .margin) {
     padding-right: 8px;
-    /* 行号右侧间距 */
-}
-
-.monaco-editor-container :deep(.monaco-editor .lines-content) {
-    padding-left: 8px;
-    /* 内容左侧间距 */
 }
 
 /* 移动端优化 */
@@ -709,9 +786,9 @@ defineExpose({
     /* 移动端保持行号和内容的间距 */
     .monaco-editor-container :deep(.monaco-editor .margin) {
         padding-right: 6px;
-        /* 移动端稍小的间距 */
     }
 
+    /* 移动端 lines-content 的间距 */
     .monaco-editor-container :deep(.monaco-editor .lines-content) {
         padding-left: 6px;
     }
