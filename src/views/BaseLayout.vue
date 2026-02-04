@@ -476,8 +476,6 @@ body {
     font-family: 'Noto Sans SC', sans-serif;
     background: transparent;
     color: var(--body-text-color);
-    overflow-x: hidden;
-    overflow-y: auto;
 }
 
 /* BaseLayout 背景遮挡层 */

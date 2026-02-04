@@ -196,32 +196,26 @@ watch(dynamicPostsPerPage, () => {
 const goToPage = (page) => {
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
-        // 滚动到顶部
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 };
 
 const goToFirstPage = () => {
     currentPage.value = 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const goToLastPage = () => {
     currentPage.value = totalPages.value;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const goToNextPage = () => {
     if (currentPage.value < totalPages.value) {
         currentPage.value += 1;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 };
 
 const goToPreviousPage = () => {
     if (currentPage.value > 1) {
         currentPage.value -= 1;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 };
 
@@ -310,24 +304,54 @@ function onLeave(el, done) {
 .pagination button {
     padding: 0.5rem 1rem;
     border-radius: 1rem;
-    border: none;
+    border: 2px solid var(--theme-primary);
     background: var(--theme-panel-bg);
-    color: var(--theme-panel-text);
-    box-shadow: 1px 1px 5px var(--theme-shadow-sm);
+    color: var(--theme-heading-text);
+    box-shadow: 0 2px 8px var(--theme-shadow-sm);
     cursor: pointer;
     transition: all 0.3s ease;
     font-size: 0.9rem;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
 }
 
-.pagination button:hover {
-    box-shadow: 2px 2px 10px var(--theme-shadow-md);
-    background-color: var(--theme-nav-hover-bg);
-    color: var(--theme-link-color);
+.pagination button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.pagination button:hover:not(:disabled) {
+    box-shadow: 0 4px 16px var(--theme-shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--theme-secondary);
+}
+
+.pagination button:hover:not(:disabled)::before {
+    opacity: 0.1;
 }
 
 .pagination button:disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    border-color: var(--theme-border-medium);
+    color: var(--theme-meta-text);
+    opacity: 0.6;
+    background: var(--theme-surface-hover);
+}
+
+/* 当前页特殊样式 */
+.pagination button:disabled:not(:first-child):not(:nth-child(2)):not(:last-child):not(:nth-last-child(2)) {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
+    color: var(--theme-button-text);
+    border-color: var(--theme-primary);
+    opacity: 1;
+    box-shadow: 0 4px 20px var(--theme-primary);
+    font-weight: 700;
 }
 
 /* 移动端优化 */
