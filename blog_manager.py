@@ -4498,14 +4498,15 @@ class BlogManagerGUI:
         form_rows.append(ft.Divider())
         form_rows.append(ft.Text('Utterances 评论配置' if self.current_lang == 'zh' else 'Utterances Comments Configuration',
                          size=20, weight=ft.FontWeight.BOLD))
-        
+
         # 从配置中读取 Utterances 设置
         utterances_config = current_config.get('UtterancesConfig', {})
-        
+
         # 尝试从 GitHub 部署配置中读取仓库信息
         github_repo = ''
         try:
-            config_path = os.path.join(os.path.dirname(__file__), 'src', 'config.js')
+            config_path = os.path.join(
+                os.path.dirname(__file__), 'src', 'config.js')
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     content = f.read()
@@ -4514,18 +4515,18 @@ class BlogManagerGUI:
                     pass
         except:
             pass
-        
+
         # 如果配置中没有仓库信息，从用户输入获取
         if not github_repo:
             github_repo = utterances_config.get('repo', '')
-        
+
         # Utterances 启用开关
         utterances_enabled = ft.Checkbox(
             label='启用 Utterances 评论系统' if self.current_lang == 'zh' else 'Enable Utterances Comments',
             value=utterances_config.get('enabled', False),
         )
         form_rows.append(ft.Container(content=utterances_enabled, padding=5))
-        
+
         # GitHub 仓库配置
         utterances_repo_field = ft.TextField(
             label='GitHub 仓库 (格式: username/repo)' if self.current_lang == 'zh' else 'GitHub Repository (format: username/repo)',
@@ -4533,40 +4534,41 @@ class BlogManagerGUI:
             width=400,
             hint_text="例如: iiishop/KMblog",
         )
-        
-        # 从部署配置获取仓库信息的按钮
+
+        # 从 GitHub 配置获取仓库信息的按钮
         def load_from_deploy_config(e):
-            """从部署配置中加载仓库信息"""
+            """从 GitHub 配置中加载仓库信息"""
             try:
-                # 尝试从存储的部署配置中读取
-                deploy_config_file = os.path.join(os.path.dirname(__file__), '.github_deploy_config.json')
-                if os.path.exists(deploy_config_file):
-                    with open(deploy_config_file, 'r', encoding='utf-8') as f:
-                        deploy_config = json.load(f)
-                        repo_name = deploy_config.get('repo_name', '')
+                # 从 github_config.json 中读取
+                github_config_file = os.path.join(
+                    os.path.dirname(__file__), 'github_config.json')
+                if os.path.exists(github_config_file):
+                    with open(github_config_file, 'r', encoding='utf-8') as f:
+                        github_config = json.load(f)
+                        repo_name = github_config.get('repo_name', '')
                         if repo_name:
                             utterances_repo_field.value = repo_name
-                            self.snack('✅ 已从部署配置中加载仓库信息', False)
+                            self.snack('✅ 已从 GitHub 配置中加载仓库信息', False)
                             self.page.update()
                             return
-                
-                self.snack('⚠️ 未找到部署配置，请手动输入仓库信息', False)
+
+                self.snack('⚠️ 未找到 GitHub 配置，请手动输入仓库信息', False)
             except Exception as ex:
                 self.snack(f'❌ 读取部署配置失败: {ex}', True)
-        
+
         load_deploy_btn = ft.TextButton(
-            '从部署配置加载' if self.current_lang == 'zh' else 'Load from Deploy Config',
+            '从GitHub配置加载' if self.current_lang == 'zh' else 'Load from GitHub Config',
             icon=ft.Icons.DOWNLOAD,
             on_click=load_from_deploy_config,
         )
-        
+
         repo_row = ft.Row([
             utterances_repo_field,
             load_deploy_btn,
         ], spacing=10)
-        
+
         form_rows.append(ft.Container(content=repo_row, padding=5))
-        
+
         # Issue 映射方式
         utterances_issue_mapping = ft.Dropdown(
             label='Issue 映射方式' if self.current_lang == 'zh' else 'Issue Mapping',
@@ -4579,8 +4581,9 @@ class BlogManagerGUI:
             ],
             width=400,
         )
-        form_rows.append(ft.Container(content=utterances_issue_mapping, padding=5))
-        
+        form_rows.append(ft.Container(
+            content=utterances_issue_mapping, padding=5))
+
         # Issue 标签
         utterances_label_field = ft.TextField(
             label='Issue 标签' if self.current_lang == 'zh' else 'Issue Label',
@@ -4588,8 +4591,9 @@ class BlogManagerGUI:
             width=300,
             hint_text="例如: comment, blog-comment",
         )
-        form_rows.append(ft.Container(content=utterances_label_field, padding=5))
-        
+        form_rows.append(ft.Container(
+            content=utterances_label_field, padding=5))
+
         # 主题选择
         utterances_theme = ft.Dropdown(
             label='主题 (留空自动匹配博客主题)' if self.current_lang == 'zh' else 'Theme (leave empty to auto-match)',
@@ -4598,7 +4602,8 @@ class BlogManagerGUI:
                 ft.dropdown.Option('', '自动匹配 (Auto)'),
                 ft.dropdown.Option('github-light', 'GitHub Light'),
                 ft.dropdown.Option('github-dark', 'GitHub Dark'),
-                ft.dropdown.Option('preferred-color-scheme', 'Preferred Color Scheme'),
+                ft.dropdown.Option('preferred-color-scheme',
+                                   'Preferred Color Scheme'),
                 ft.dropdown.Option('github-dark-orange', 'GitHub Dark Orange'),
                 ft.dropdown.Option('icy-dark', 'Icy Dark'),
                 ft.dropdown.Option('dark-blue', 'Dark Blue'),
@@ -4607,7 +4612,7 @@ class BlogManagerGUI:
             width=400,
         )
         form_rows.append(ft.Container(content=utterances_theme, padding=5))
-        
+
         # 帮助文本
         help_text = ft.Text(
             '💡 提示: 使用 Utterances 需要先在 GitHub 仓库中安装 Utterances App\n'
@@ -4618,7 +4623,7 @@ class BlogManagerGUI:
             color="#718096",
         )
         form_rows.append(ft.Container(content=help_text, padding=10))
-        
+
         # 存储 Utterances 配置字段
         config_fields['UtterancesConfig'] = {
             'enabled': utterances_enabled,
@@ -5069,18 +5074,6 @@ class BlogManagerGUI:
                 self.page.update()
 
                 result = deploy_cmd.execute(token, repo_name)
-
-                # 保存部署配置到文件（用于 Utterances 等功能）
-                try:
-                    deploy_config = {
-                        'repo_name': repo_name,
-                        'last_deploy_time': time.time(),
-                    }
-                    config_file = os.path.join(os.path.dirname(__file__), '.github_deploy_config.json')
-                    with open(config_file, 'w', encoding='utf-8') as f:
-                        json.dump(deploy_config, f, indent=2)
-                except Exception as config_ex:
-                    print(f"保存部署配置失败: {config_ex}")
 
                 # 阶段5: 完成
                 progress_bar.value = 1.0
