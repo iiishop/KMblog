@@ -1,0 +1,218 @@
+/**
+ * Post.vue 性能优化 CSS 覆盖
+ * 将此文件导入到 Post.vue 的 <style> 中以应用激进的性能优化
+ * 
+ * 使用方法：
+ * 在 Post.vue 的 <style scoped> 后添加：
+ * <style scoped src="./Post.performance.css"></style>
+ */
+
+/* 禁用所有耗性能的 hover 效果 */
+.post-panel {
+    will-change: transform;
+    contain: layout style paint;
+}
+
+.post-panel:hover {
+    transform: translateY(-4px) !important;
+    filter: none !important;
+}
+
+/* 禁用粒子系统 */
+.particle-canvas {
+    display: none !important;
+}
+
+/* 简化 Collection 主题背景 */
+.collection-theme-bg {
+    transition: opacity 0.2s ease !important;
+    filter: none !important;
+    transform: none !important;
+}
+
+.collection-theme-bg::before,
+.collection-theme-bg::after {
+    display: none !important;
+}
+
+/* 禁用光晕效果 */
+.glow-orb {
+    display: none !important;
+}
+
+/* 禁用装饰几何图形 */
+.deco-geometry,
+.deco-circle,
+.deco-triangle {
+    display: none !important;
+}
+
+/* 简化图片边框效果 */
+.image-border-frame {
+    box-shadow: 0 4px 16px var(--theme-shadow-md) !important;
+}
+
+.image-border-frame::before {
+    display: none !important;
+}
+
+.post-panel:hover .image-border-frame img {
+    transform: scale(1.05) !important;
+    filter: brightness(1.05) !important;
+}
+
+/* 禁用图片光芒效果 */
+.image-shimmer {
+    display: none !important;
+}
+
+/* 简化内容面板效果 */
+.content-panel {
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    backdrop-filter: none !important;
+}
+
+.content-panel::before {
+    display: none !important;
+}
+
+.post-panel:hover .content-panel {
+    transform: none !important;
+    box-shadow: 0 8px 24px var(--theme-shadow-md) !important;
+}
+
+/* 禁用扫描线效果 */
+.scan-line {
+    display: none !important;
+}
+
+/* 简化标题字符动画 */
+.title-char {
+    animation: none !important;
+    transition: color 0.2s ease !important;
+}
+
+.title-panel:hover .title-char {
+    transform: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    animation: none !important;
+}
+
+/* 简化元数据图标效果 */
+.meta-icon-wrapper {
+    transition: transform 0.2s ease !important;
+}
+
+.meta-icon-wrapper::before {
+    display: none !important;
+}
+
+.meta-item:hover .meta-icon-wrapper {
+    transform: scale(1.1) !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+.icon-ripple {
+    display: none !important;
+}
+
+/* 禁用分隔线光晕 */
+.divider-glow {
+    display: none !important;
+}
+
+/* 简化标签动画 */
+.animated-tag {
+    animation-duration: 0.2s !important;
+}
+
+.animated-tag:hover {
+    transform: translateY(-2px) !important;
+    filter: none !important;
+    box-shadow: 0 2px 8px var(--theme-shadow-sm) !important;
+}
+
+/* 简化预览面板效果 */
+.pre-panel::before {
+    display: none !important;
+}
+
+.pre-panel:hover {
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 12px var(--theme-shadow-sm) !important;
+}
+
+.pre-gradient-overlay {
+    display: none !important;
+}
+
+/* 简化装饰性占位符动画 */
+.pattern-line::after {
+    animation: none !important;
+}
+
+.center-ornament,
+.floating-accents,
+.decorative-text {
+    animation: none !important;
+}
+
+/* 简化过渡动画 */
+.transition-overlay {
+    backdrop-filter: blur(10px) !important;
+}
+
+.floating-shapes {
+    display: none !important;
+}
+
+.text-particles {
+    display: none !important;
+}
+
+.radial-waves {
+    display: none !important;
+}
+
+.transition-spinner {
+    filter: none !important;
+}
+
+.spinner-ring {
+    animation-duration: 0.6s !important;
+}
+
+.transition-text {
+    animation: none !important;
+    text-shadow: 0 0 10px var(--theme-button-text) !important;
+}
+
+/* 移动端完全禁用特效 */
+@media (max-width: 768px) {
+    .post-panel:hover {
+        transform: none !important;
+        filter: none !important;
+    }
+
+    .post-panel:hover .image-border-frame img {
+        transform: none !important;
+    }
+
+    .title-panel:hover .title-char {
+        color: inherit !important;
+    }
+
+    .meta-item:hover .meta-icon-wrapper {
+        transform: none !important;
+    }
+
+    .animated-tag:hover {
+        transform: none !important;
+    }
+
+    .pre-panel:hover {
+        transform: none !important;
+    }
+}

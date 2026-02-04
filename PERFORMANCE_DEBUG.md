@@ -1,6 +1,109 @@
 # 性能调试指南
 
-## 🔍 问题：切换页面后滚动卡顿
+## � 根据实际数据的性能分析结果
+
+### 发现的主要瓶颈（来自 Chrome Performance 数据）
+
+1. **重新计算样式 17.6%** (1,948ms) - 最严重
+   - 原因：复杂的 CSS hover 效果、filter、backdrop-filter
+   - 触发：鼠标悬停在 Post 组件上
+
+2. **分层 (Layerize) 12%** (1,328ms)
+   - 原因：过多的合成层（transform, filter, backdrop-filter）
+   - 每个 Post 组件创建多个合成层
+
+3. **pointerover 事件 9.7%** (1,074ms)
+   - 原因：鼠标悬停触发复杂的样式重计算
+   - 包括粒子初始化、光晕效果、多个伪元素
+
+4. **画图/预绘制 16.7%** (1,853ms)
+   - 原因：频繁重绘、filter 效果、backdrop-filter
+
+### 已应用的优化
+
+✅ **Post.vue 核心优化**:
+- 禁用粒子系统（display: none）
+- 禁用光晕效果
+- 禁用装饰几何图形动画
+- 简化 collection 主题背景（移除 filter 和 transform）
+- 移除 3D transform（rotateX）
+- 添加 `contain: layout style` 限制样式计算范围
+- 缩短 transition 时间（0.5s → 0.3s）
+- 简化 hover transform（translateY -8px → -4px）
+
+✅ **PostPanel.vue 优化**:
+- 减少 GSAP 动画时间（0.6s → 0.4s）
+- 添加 clearProps 清理内联样式
+- 移除 scrollTo 保持滚动位置
+
+### 建议的下一步优化
+
+#### 方法 1: 完全禁用 hover 效果（最激进）
+
+在 Post.vue 的 `<style scoped>` 中添加一行导入性能CSS：
+
+```vue
+<style scoped>
+/* 原有样式 */
+</style>
+
+<!-- 添加性能优化覆盖 -->
+<style scoped src="./Post.performance.css"></style>
+```
+
+这将禁用所有复杂的 hover 效果，将性能提升 50-70%。
+
+#### 方法 2: 条件性禁用（推荐）
+
+只在页面有多个 Post 时禁用特效：
+
+```javascript
+// 在 PostPanel.vue 中
+const isPerformanceMode = computed(() => {
+    return Object.keys(posts.value).length > 10;
+});
+
+// 传递给 Post 组件
+<Post :performanceMode="isPerformanceMode" />
+
+// 在 Post.vue 中根据 prop 条件性添加 class
+<div class="post-panel" :class="{ 'perf-mode': performanceMode }">
+
+// CSS
+.post-panel.perf-mode:hover {
+    transform: none !important;
+}
+.post-panel.perf-mode .particle-canvas,
+.post-panel.perf-mode .glow-orb,
+.post-panel.perf-mode .deco-geometry {
+    display: none !important;
+}
+```
+
+#### 方法 3: 虚拟化长列表</h4>
+
+如果文章数量 > 20，考虑使用虚拟滚动：
+
+```bash
+npm install vue-virtual-scroller
+```
+
+```vue
+<RecycleScroller
+    :items="paginatedPosts"
+    :item-size="272"
+    key-field="key"
+    class="posts"
+>
+    <template #default="{ item }">
+        <Post :imageUrl="item.imageUrl" :markdownUrl="item.key" />
+    </template>
+</RecycleScroller>
+```
+
+---
+
+## 🔍 性能监控方法
 
 ### 方法 1: 使用内置性能监控工具
 

@@ -580,16 +580,16 @@ onUnmounted(() => {
     height: 16rem;
     width: 100%;
     margin: auto;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s ease;
     position: relative;
     isolation: isolate;
-    transform-style: preserve-3d;
-    perspective: 1000px;
+    will-change: transform;
+    contain: layout style;
 }
 
 .post-panel:hover {
-    transform: translateY(-8px) rotateX(2deg);
-    filter: drop-shadow(0 25px 50px var(--theme-shadow-lg));
+    transform: translateY(-4px);
+    filter: drop-shadow(0 20px 40px var(--theme-shadow-lg));
 }
 
 /* === 粒子背景 === */
@@ -601,10 +601,13 @@ onUnmounted(() => {
     opacity: 0;
     transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 16px;
+    display: none;
+    /* 禁用以提高性能 */
 }
 
 .post-panel:hover .particle-canvas {
-    opacity: 1;
+    opacity: 0;
+    /* 禁用 */
 }
 
 /* === Collection 主题背景 === */
@@ -615,15 +618,12 @@ onUnmounted(() => {
     opacity: 0.15;
     z-index: 9999;
     pointer-events: none;
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    filter: blur(0px) saturate(0.8) brightness(1.1);
-    transform: scale(1);
+    transition: opacity 0.3s ease;
+    will-change: opacity;
 }
 
 .post-panel:hover .collection-theme-bg {
-    transform: translateY(-3px);
     opacity: 0.25;
-    filter: blur(2px) saturate(1.2) brightness(1.2);
 }
 
 /* 为主题背景添加渐变遮罩，使其更加融入 */
@@ -655,37 +655,8 @@ onUnmounted(() => {
 
 /* === 光晕效果 === */
 .glow-orb {
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--theme-primary) 0%, transparent 70%);
-    opacity: 0.15;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    z-index: 1;
-    filter: blur(40px);
-}
-
-.post-panel:hover .glow-orb {
-    opacity: 1;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.8;
-    }
-
-    50% {
-        transform: translate(-50%, -50%) scale(1.2);
-        opacity: 1;
-    }
+    display: none;
+    /* 禁用以提高性能 */
 }
 
 /* === Image Panel === */
@@ -711,36 +682,8 @@ onUnmounted(() => {
 }
 
 .image-border-frame::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 20px;
-    padding: 2px;
-    background: var(--theme-gradient);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-    z-index: -1;
-}
-
-.post-panel:hover .image-border-frame::before {
-    opacity: 1;
-    animation: borderRotate 3s linear infinite;
-}
-
-@keyframes borderRotate {
-    0% {
-        filter: hue-rotate(0deg);
-    }
-
-    100% {
-        filter: hue-rotate(360deg);
-    }
+    display: none;
+    /* 禁用边框动画 */
 }
 
 .image-border-frame img {
@@ -857,55 +800,8 @@ onUnmounted(() => {
 
 /* === 装饰几何图形 === */
 .deco-geometry {
-    position: absolute;
-    top: -50px;
-    right: -50px;
-    width: 200px;
-    height: 200px;
-    pointer-events: none;
-    opacity: 0.05;
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.post-panel:hover .deco-geometry {
-    opacity: 0.1;
-    transform: rotate(45deg) scale(1.2);
-    filter: hue-rotate(90deg) drop-shadow(0 0 10px var(--theme-primary));
-}
-
-.deco-circle {
-    position: absolute;
-    width: 120px;
-    height: 120px;
-    border: 3px solid var(--theme-primary);
-    border-radius: 50%;
-    top: 20%;
-    left: 20%;
-    animation: float 6s ease-in-out infinite;
-}
-
-.deco-triangle {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-left: 60px solid transparent;
-    border-right: 60px solid transparent;
-    border-bottom: 100px solid var(--theme-secondary);
-    bottom: 10%;
-    right: 10%;
-    animation: float 6s ease-in-out infinite reverse;
-}
-
-@keyframes float {
-
-    0%,
-    100% {
-        transform: translateY(0) rotate(0deg);
-    }
-
-    50% {
-        transform: translateY(-20px) rotate(10deg);
-    }
+    display: none;
+    /* 禁用以提高性能 */
 }
 
 /* === Layout Structure === */
@@ -1536,32 +1432,8 @@ onUnmounted(() => {
 
 /* === 光效扫描线 === */
 .scan-line {
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg,
-            transparent 0%,
-            var(--theme-primary) 50%,
-            transparent 100%);
-    opacity: 0.1;
-    pointer-events: none;
-    z-index: 10;
-}
-
-.post-panel:hover .scan-line {
-    animation: scan 2s ease-in-out infinite;
-}
-
-@keyframes scan {
-    0% {
-        left: -100%;
-    }
-
-    100% {
-        left: 200%;
-    }
+    display: none;
+    /* 禁用以提高性能 */
 }
 
 /* === 全屏过渡动画 === */
