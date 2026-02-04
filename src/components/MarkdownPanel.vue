@@ -330,8 +330,14 @@ const parseMarkdown = async (url, decryptedText = null) => {
       metadata.value.date += ' 晚上';
     }
 
+    // 预处理：修复带空格的图片路径（添加尖括号）
+    const processedBody = body.replace(
+      /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
+      '![$1](<$2>)'
+    );
+
     // 解析 Markdown 内容
-    htmlContent.value = md.render(body);
+    htmlContent.value = md.render(processedBody);
 
     // 计算文章统计信息
     calculateStats(htmlContent.value);

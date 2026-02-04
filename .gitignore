@@ -61,7 +61,8 @@ coverage/
 .env.production.local
 *.pem
 *.key
-github_config.json  
+github_config.json
+.github_deploy_config.json
 public/assets/Crypto.json
 
 

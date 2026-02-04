@@ -59,8 +59,14 @@ const renderMarkdown = async (markdown) => {
         // 解析front-matter
         const { body } = fm(markdown);
 
+        // 预处理：修复带空格的图片路径（添加尖括号）
+        const processedBody = body.replace(
+            /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
+            '![$1](<$2>)'
+        );
+
         // 使用相同的markdown-it实例渲染
-        htmlContent.value = md.render(body);
+        htmlContent.value = md.render(processedBody);
 
         // 在nextTick中渲染动态组件
         await nextTick();

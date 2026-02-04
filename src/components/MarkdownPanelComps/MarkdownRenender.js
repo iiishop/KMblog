@@ -367,7 +367,10 @@ md.use((md) => {
         if (srcIndex >= 0) {
             const src = token.attrs[srcIndex][1];
             if (!src.startsWith('http')) {
-                token.attrs[srcIndex][1] = `/Posts/Images/${src}`;
+                // 先解码再编码，避免双重编码
+                const decodedSrc = decodeURIComponent(src);
+                const encodedSrc = encodeURI(decodedSrc);
+                token.attrs[srcIndex][1] = `/Posts/Images/${encodedSrc}`;
             }
         }
         return defaultRender(tokens, idx, options, env, self);
@@ -412,8 +415,9 @@ md.use((md) => {
                 const match = line.match(/!\[([^\]]*)\]\(([^)]+?)(?:\s+"([^"]*)")?\)/);
                 if (match) {
                     const [, alt, src, title] = match;
-                    // 处理图片路径
-                    const imageSrc = src.startsWith('http') ? src : `/Posts/Images/${src}`;
+                    // 处理图片路径，先解码再编码避免双重编码
+                    const decodedSrc = decodeURIComponent(src);
+                    const imageSrc = src.startsWith('http') ? src : `/Posts/Images/${encodeURI(decodedSrc)}`;
                     const imageObj = {
                         src: imageSrc,
                         alt: alt || '',
