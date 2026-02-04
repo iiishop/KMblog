@@ -63,19 +63,31 @@ const getEditorOptions = () => {
         language: props.language,
         theme: props.theme,
         automaticLayout: true,
-        wordWrap: 'bounded', // 使用bounded模式，结合wordWrapColumn
-        wordWrapColumn: 120, // 初始值，会动态调整
-        wordWrapBreakAfterCharacters: '\t})]?|/&,;¢°′″‰℃、。｡､￠，．：；？！％・･ゝゞヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻ｧｨｩｪｫｬｭｮｯｰ', // 定义换行符号
-        wordWrapBreakBeforeCharacters: '([{\'"〈《「『【〔（［｛｢£¥$£€¤', // 换行前的符号
-        wrappingStrategy: 'advanced', // 使用高级换行策略
-        wrappingIndent: 'same', // 换行缩进与原行相同
+        // ✅ 修复1: 使用 'on' 模式实现真正的自动换行
+        wordWrap: 'on',
+        wrappingIndent: 'indent',
+        wordWrapBreakAfterCharacters: '\t})]?|/&,;¢°′″‰℃、。｡､￠，．：；？！％・･ゝゞヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻ｧｨｩｪｫｬｭｮｯｰ',
+        wordWrapBreakBeforeCharacters: '([{\'"〈《「『【〔（［｛｢£¥$£€¤',
+        // ✅ 修复2: 关闭横向滚动条
+        scrollbar: {
+            horizontal: 'hidden',
+            vertical: 'auto',
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10
+        },
+        // ✅ 关键修复: padding.right 改回 0，不要通过 padding 补偿
+        padding: {
+            top: 0,
+            bottom: 0,
+            right: 0,  // 改回 0，避免把内容往右挤
+            left: 0
+        },
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
         fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
         'bracketPairColorization.enabled': false,
-        // 行号配置
-        lineNumbersMinChars: 3, // 行号最小字符数
-        glyphMargin: true, // 启用字形边距（在行号和内容之间）
+        lineNumbersMinChars: 3,
+        glyphMargin: true,
         ...props.options
     };
 
@@ -83,57 +95,52 @@ const getEditorOptions = () => {
         // 移动端优化配置
         return {
             ...baseOptions,
-            wordWrapColumn: 60, // 移动端初始值
-            fontSize: 13, // 稍小的字体
-            lineHeight: 20, // 更紧凑的行高
-            tabSize: 2, // 更小的缩进
-            insertSpaces: true, // 使用空格而不是制表符
+            fontSize: 13,
+            lineHeight: 20,
+            tabSize: 2,
+            insertSpaces: true,
+            // ✅ 移动端关闭 minimap（最推荐）
             minimap: {
-                enabled: true,
-                side: 'right',
-                showSlider: 'mouseover',
-                scale: 1,
-                renderCharacters: false,
-                size: 'proportional',
+                enabled: false
             },
-            lineNumbers: 'on', // 移动端也显示行号
-            lineNumbersMinChars: 3, // 行号最小宽度
-            glyphMargin: true, // 保留字形边距
-            folding: true, // 启用代码折叠
-            lineDecorationsWidth: 10, // 装饰宽度
-            renderLineHighlight: 'line', // 高亮当前行
-            scrollbar: {
-                vertical: 'auto',
-                horizontal: 'auto',
-                verticalScrollbarSize: 10, // 稍粗的滚动条便于触摸
-                horizontalScrollbarSize: 10
-            },
-            overviewRulerLanes: 2, // 启用概览标尺
+            lineNumbers: 'on',
+            lineNumbersMinChars: 3,
+            glyphMargin: true,
+            folding: true,
+            lineDecorationsWidth: 10,     // 改回 10，保持一致
+            renderLineHighlight: 'line',
+            overviewRulerLanes: 2,
+            // 移动端 padding 配置
             padding: {
                 top: 8,
-                bottom: 8
+                bottom: 8,
+                right: 0,  // 改回 0
+                left: 0
             }
         };
     } else {
         // 桌面端配置
         return {
             ...baseOptions,
-            wordWrapColumn: 120, // 桌面端初始值
             fontSize: 14,
             lineHeight: 24,
-            tabSize: 4, // 标准缩进
+            tabSize: 4,
             insertSpaces: true,
+            // ✅ 关键修复：minimap 移到左侧，避免遮挡右侧内容
             minimap: {
                 enabled: true,
-                side: 'right',
+                side: 'left',  // 从 'right' 改为 'left'，避免遮挡行尾
                 showSlider: 'mouseover',
                 renderCharacters: false,
-                size: 'proportional',
+                size: 'proportional'
             },
-            lineNumbersMinChars: 4, // 桌面端更宽的行号区域
+            lineNumbersMinChars: 4,
             glyphMargin: true,
             folding: true,
-            lineDecorationsWidth: 10
+            // ✅ lineDecorationsWidth 改回 10（不要用0）
+            lineDecorationsWidth: 10,     // 改回 10，保持正常布局
+            overviewRulerLanes: 0,        // 保持 0，关闭 overview ruler
+            overviewRulerBorder: false
         };
     }
 };
@@ -317,48 +324,16 @@ onMounted(() => {
     // Create editor instance with responsive options
     editor = monaco.editor.create(editorContainer.value, getEditorOptions());
 
-    // 动态调整换行列数以适应minimap
-    const updateWrapColumn = () => {
-        if (!editor) return;
+    // ✅ 不再需要动态调整 wordWrapColumn，因为使用了 wordWrap: 'on' 模式
+    // Monaco 会自动根据容器宽度进行换行，无需手动计算
 
-        const layoutInfo = editor.getLayoutInfo();
-        const contentWidth = layoutInfo.contentWidth; // 内容区域宽度
-        const minimapWidth = layoutInfo.minimap.minimapWidth || 0; // minimap宽度
-
-        // 计算可用宽度（减去minimap和一些边距）
-        const availableWidth = contentWidth - minimapWidth - 20; // 20px额外边距
-
-        // 根据字体大小计算每个字符的平均宽度
-        const fontSize = isMobile ? 13 : 14;
-        const charWidth = fontSize * 0.6; // 等宽字体大约是fontSize的0.6倍
-
-        // 计算可以容纳的字符数
-        const calculatedColumns = Math.floor(availableWidth / charWidth);
-
-        // 设置一个合理的范围
-        const minColumns = isMobile ? 40 : 80;
-        const maxColumns = isMobile ? 100 : 150;
-        const wrapColumn = Math.max(minColumns, Math.min(maxColumns, calculatedColumns));
-
-        console.log('[MonacoEditor] 动态调整换行列数:', {
-            contentWidth,
-            minimapWidth,
-            availableWidth,
-            charWidth,
-            calculatedColumns,
-            finalWrapColumn: wrapColumn
-        });
-
-        editor.updateOptions({ wordWrapColumn: wrapColumn });
-    };
-
-    // 初始调整
-    setTimeout(updateWrapColumn, 100);
-
-    // 监听布局变化
-    editor.onDidLayoutChange(() => {
-        updateWrapColumn();
-    });
+    // ✅ 手动触发布局计算，确保 minimap 和内容区域正确对齐
+    setTimeout(() => {
+        if (editor) {
+            editor.layout();
+            console.log('[MonacoEditor] 布局已重新计算');
+        }
+    }, 100);
 
     // 注册右键菜单
     editor.addAction({
@@ -727,6 +702,23 @@ defineExpose({
     width: 100%;
     height: 100%;
     overflow: hidden;
+    /* ✅ 确保容器不压榨编辑器内容区 */
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    min-width: 300px;
+}
+
+/* ✅ 可选：如果想要 minimap 在右侧，取消下面注释来收窄 minimap 宽度 */
+/*
+.monaco-editor-container :deep(.monaco-editor .minimap) {
+    width: 60px !important;
+}
+*/
+
+/* ✅ 减少垂直滚动条占位，给内容区更多空间 */
+.monaco-editor-container :deep(.monaco-editor .scrollbar.vertical) {
+    width: 8px !important;
 }
 
 /* 修复 minimap 遮挡内容的问题 */
@@ -831,5 +823,15 @@ defineExpose({
         min-height: 40px;
         /* 增加滑块高度便于触摸 */
     }
+}
+
+/* ✅ 可选优化：减少垂直滚动条的视觉占位 */
+.monaco-editor-container :deep(.monaco-editor .scrollbar.vertical) {
+    width: 8px !important;
+    opacity: 0.6;
+}
+
+.monaco-editor-container :deep(.monaco-editor .scrollbar.vertical:hover) {
+    opacity: 1;
 }
 </style>
