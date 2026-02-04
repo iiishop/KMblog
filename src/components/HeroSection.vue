@@ -41,6 +41,44 @@ const overlayStyle = computed(() => {
     };
 });
 
+// 标题视差滚动效果
+const titleParallaxStyle = computed(() => {
+    const maxScroll = heroHeight.value;
+    const scrollProgress = Math.min(scrollY.value / maxScroll, 1);
+
+    // 视差移动：速度是滚动速度的0.5倍（越来越慢的效果）
+    const translateY = scrollY.value * 0.5;
+
+    // 渐隐效果：在滚动到70%时开始渐隐
+    const fadeStart = 0.5;
+    const opacity = scrollProgress < fadeStart
+        ? 1
+        : 1 - ((scrollProgress - fadeStart) / (1 - fadeStart));
+
+    return {
+        transform: `translateY(${translateY}px)`,
+        opacity: opacity
+    };
+});
+
+// 大标题样式（包含颜色、阴影和视差效果）
+const heroTitleStyle = computed(() => {
+    const parallax = titleParallaxStyle.value;
+    return {
+        color: titleColors.value.main,
+        textShadow: `
+            0 0 10px ${titleColors.value.shadow},
+            0 0 20px ${titleColors.value.shadow},
+            0 0 30px ${titleColors.value.shadow},
+            0 0 40px ${titleColors.value.shadow},
+            2px 2px 4px rgba(0,0,0,0.8),
+            -2px -2px 4px rgba(255,255,255,0.3)
+        `,
+        transform: parallax.transform,
+        opacity: parallax.opacity
+    };
+});
+
 // 大标题颜色提取（简化版，从背景图片色系提取）
 const titleColors = ref({
     main: '#ffffff',
@@ -263,22 +301,12 @@ const extractColorsFromImage = () => {
         <!-- 内容区域 -->
         <div class="hero-content">
             <!-- 大标题 -->
-            <h1 class="hero-title" :style="{
-                color: titleColors.main,
-                textShadow: `
-            0 0 10px ${titleColors.shadow},
-            0 0 20px ${titleColors.shadow},
-            0 0 30px ${titleColors.shadow},
-            0 0 40px ${titleColors.shadow},
-            2px 2px 4px rgba(0,0,0,0.8),
-            -2px -2px 4px rgba(255,255,255,0.3)
-          `
-            }">
+            <h1 class="hero-title" :style="heroTitleStyle">
                 {{ config.HeroTitle || config.BlogName }}
             </h1>
 
             <!-- 小标题（打字机效果） -->
-            <div class="hero-subtitle-container">
+            <div class="hero-subtitle-container" :style="titleParallaxStyle">
                 <TypewriterText :texts="config.HeroSubtitles || [config.ShortDesc]" :color="titleColors.main" />
             </div>
         </div>
@@ -369,7 +397,9 @@ export default defineComponent({
     padding: 0;
     text-align: center;
     letter-spacing: 0.05em;
-    animation: titleFloat 3s ease-in-out infinite;
+    transition: opacity 0.2s ease-out;
+    will-change: transform, opacity;
+    /* 移除 animation，会覆盖 inline style 的 transform */
 
     /* 描边效果 */
     -webkit-text-stroke: 2px rgba(0, 0, 0, 0.3);
@@ -394,6 +424,8 @@ export default defineComponent({
 .hero-subtitle-container {
     margin-top: 2rem;
     min-height: 3rem;
+    transition: opacity 0.2s ease-out;
+    will-change: transform, opacity;
 }
 
 .hero-bottom-panels {
