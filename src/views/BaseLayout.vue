@@ -2,11 +2,11 @@
     <div>
         <!-- 全局背景遮挡层 - 在BaseLayout区域显示 -->
         <div class="baselayout-background-overlay"></div>
-        
+
         <HeadMenu />
         <div class="Scene">
             <!-- 桌面端：左侧切换按钮 -->
-            <button v-if="showTipList && !isInfoLeftPosition && !isMobile && isScrolledPastHero"
+            <button v-if="showTipList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && !isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'LeftList', { hidden: isTipListHidden }]" ref="tipListRef">
@@ -25,7 +25,7 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showInfoList && isInfoLeftPosition && !isMobile && isScrolledPastHero"
+            <button v-if="showInfoList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
             <div v-if="showInfoList && isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]" ref="infoListRef">
@@ -54,7 +54,7 @@
             </div>
 
             <!-- 桌面端：右侧切换按钮 -->
-            <button v-if="showInfoList && !isInfoLeftPosition && !isMobile && isScrolledPastHero"
+            <button v-if="showInfoList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
             <div v-if="showInfoList && !isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]" ref="infoListRef">
@@ -74,7 +74,7 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showTipList && isInfoLeftPosition && !isMobile && isScrolledPastHero"
+            <button v-if="showTipList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
             <div v-if="showTipList && isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'RightList', { hidden: isTipListHidden }]" ref="tipListRef">
@@ -182,6 +182,7 @@
 
 <script setup>
 import { ref, shallowRef, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { useRoute } from 'vue-router';
 import config from '@/config';
 import { themeManager } from '@/composables/useTheme';
 
@@ -224,6 +225,18 @@ const activeDrawer = ref(''); // 'info' or 'tip'
 // 滚动相关状态 - 用于控制toggle-btn显示
 const isScrolledPastHero = ref(false);
 
+// 检测是否为首页（有 HeroSection 的页面）
+const route = useRoute();
+const isHomePage = computed(() => route.name === 'HomePage' || route.path === '/');
+
+// toggle-btn 显示逻辑：首页需要滚动后显示，其他页面立即显示
+const shouldShowToggleBtn = computed(() => {
+    if (isHomePage.value) {
+        return isScrolledPastHero.value;
+    }
+    return true; // 非首页立即显示
+});
+
 // 根据配置决定抽屉位置
 // 如果 ChangeInfoAndTipPosition 为 false（默认）：info在右，tip在左
 // 如果 ChangeInfoAndTipPosition 为 true：info在左，tip在右
@@ -247,8 +260,14 @@ const checkMobile = () => {
     }
 };
 
-// 检测是否滚动过Hero区域
+// 检测是否滚动过Hero区域（只在首页生效）
 const checkScrollPosition = () => {
+    // 非首页不需要检测
+    if (!isHomePage.value) {
+        isScrolledPastHero.value = true; // 非首页直接设为 true
+        return;
+    }
+
     // Hero区域高度为100vh
     const heroHeight = window.innerHeight;
     isScrolledPastHero.value = window.scrollY > heroHeight * 0.3; // 滚动超过30%后显示
