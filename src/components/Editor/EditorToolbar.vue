@@ -519,7 +519,7 @@ const commonSymbols = [
 
 // Block templates
 const blockTemplates = {
-    'carousel': '```carousel\n/path/to/image1.jpg | 图片1描述\n/path/to/image2.jpg | 图片2描述\n/path/to/image3.jpg | 图片3描述\n```',
+    'carousel': '```carousel\n文章名/1.png | 第一张图片描述\n文章名/2.png | 第二张图片描述\n![第三张图片](文章名/3.png)\n```',
     'bilibili-video': '```bilibili-video\nhttps://www.bilibili.com/video/BV...\n```',
     'steam-game': '```steam-game\nhttps://store.steampowered.com/app/...\n```',
     'bangumi-card': '```bangumi-card\nhttps://bgm.tv/subject/...\n```',

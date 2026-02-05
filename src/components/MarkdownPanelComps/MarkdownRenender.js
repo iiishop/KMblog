@@ -411,19 +411,64 @@ md.use((md) => {
             console.log('[Carousel] Found lines:', lines);
 
             for (const line of lines) {
-                // 匹配 markdown 图片语法: ![alt](src "title")
-                const match = line.match(/!\[([^\]]*)\]\(([^)]+?)(?:\s+"([^"]*)")?\)/);
-                if (match) {
-                    const [, alt, src, title] = match;
-                    // 处理图片路径，先解码再编码避免双重编码
-                    const decodedSrc = decodeURIComponent(src);
-                    const imageSrc = src.startsWith('http') ? src : `/Posts/Images/${encodeURI(decodedSrc)}`;
-                    const imageObj = {
+                let imageObj = null;
+
+                // 格式1: Markdown 图片语法 - 支持所有标准格式
+                // ![alt](path), ![alt](path "title"), ![alt](<path>), ![alt](<path> "title"), ![alt](<path "title">)
+                const mdMatch = line.match(/!\[([^\]]*)\]\(<?([^>\s"]+)>?(?:\s+"([^"]*)")?>?\)/);
+                if (mdMatch) {
+                    const [, alt, src, title] = mdMatch;
+                    const imageSrc = src.startsWith('http') || src.startsWith('/')
+                        ? src
+                        : `/Posts/Images/${src}`;
+
+                    imageObj = {
                         src: imageSrc,
                         alt: alt || '',
-                        title: title || '',
+                        title: title || alt || '',
                         description: alt || ''
                     };
+                }
+                // 格式2: 简化格式 path | description
+                else if (line.includes('|')) {
+                    const [path, description] = line.split('|').map(s => s.trim());
+                    if (path) {
+                        const cleanPath = path.trim();
+                        const imageSrc = cleanPath.startsWith('http') || cleanPath.startsWith('/')
+                            ? cleanPath
+                            : `/Posts/Images/${cleanPath}`;
+
+                        imageObj = {
+                            src: imageSrc,
+                            alt: description || '',
+                            title: description || '',
+                            description: description || ''
+                        };
+                    }
+                }
+                // 格式3: 仅路径（需要验证是图片文件）
+                else if (line.trim()) {
+                    const cleanPath = line.trim();
+                    // 验证是否是有效的图片路径（有图片扩展名或是网络URL）
+                    const isValidImagePath = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(cleanPath)
+                        || cleanPath.startsWith('http')
+                        || cleanPath.startsWith('/');
+
+                    if (isValidImagePath) {
+                        const imageSrc = cleanPath.startsWith('http') || cleanPath.startsWith('/')
+                            ? cleanPath
+                            : `/Posts/Images/${cleanPath}`;
+
+                        imageObj = {
+                            src: imageSrc,
+                            alt: '',
+                            title: '',
+                            description: ''
+                        };
+                    }
+                }
+
+                if (imageObj) {
                     console.log('[Carousel] Adding image:', imageObj);
                     images.push(imageObj);
                 }
