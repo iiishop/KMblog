@@ -6,9 +6,9 @@
         <HeadMenu />
         <div class="Scene">
             <!-- 桌面端：左侧切换按钮 -->
-            <button v-if="showTipList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
+            <button v-if="shouldShowTipList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
-            <div v-if="showTipList && !isInfoLeftPosition && !isMobile"
+            <div v-if="shouldShowTipList && !isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'LeftList', { hidden: isTipListHidden }]" ref="tipListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in tipListUpComponents" :is="componentName" :key="index" />
@@ -25,9 +25,9 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showInfoList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
+            <button v-if="shouldShowInfoList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'right-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
-            <div v-if="showInfoList && isInfoLeftPosition && !isMobile"
+            <div v-if="shouldShowInfoList && isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'LeftList', { hidden: isInfoListHidden }]" ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
@@ -54,9 +54,9 @@
             </div>
 
             <!-- 桌面端：右侧切换按钮 -->
-            <button v-if="showInfoList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
+            <button v-if="shouldShowInfoList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'left-btn', { hidden: isInfoListHidden }]" @click="toggleInfoList">→</button>
-            <div v-if="showInfoList && !isInfoLeftPosition && !isMobile"
+            <div v-if="shouldShowInfoList && !isInfoLeftPosition && !isMobile"
                 :class="['InfoList', 'RightList', { hidden: isInfoListHidden }]" ref="infoListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in infoListUpComponents" :is="componentName"
@@ -74,9 +74,9 @@
                     </div>
                 </div>
             </div>
-            <button v-if="showTipList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
+            <button v-if="shouldShowTipList && isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'left-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
-            <div v-if="showTipList && isInfoLeftPosition && !isMobile"
+            <div v-if="shouldShowTipList && isInfoLeftPosition && !isMobile"
                 :class="['TipList', 'RightList', { hidden: isTipListHidden }]" ref="tipListRef">
                 <div class="context">
                     <component v-for="(componentName, index) in tipListUpComponents" :is="componentName" :key="index" />
@@ -201,6 +201,37 @@ const props = defineProps({
 });
 
 const isInfoLeftPosition = config.ChangeInfoAndTipPosition;
+
+// 获取 slots
+const slots = defineSlots();
+
+// 判断是否应该显示 TipList
+const shouldShowTipList = computed(() => {
+    // 如果页面明确禁用，则不显示
+    if (props.showTipList === false) {
+        return false;
+    }
+    // 如果配置中有内容，或页面有 tip/float-tip slot，则显示
+    const hasConfig = (config.TipListUp && config.TipListUp.length > 0) ||
+        (config.TipListDown && config.TipListDown.length > 0) ||
+        (config.TipListFloat && config.TipListFloat.length > 0);
+    const hasSlot = slots.tip || slots['float-tip'];
+    return hasConfig || hasSlot;
+});
+
+// 判断是否应该显示 InfoList
+const shouldShowInfoList = computed(() => {
+    // 如果页面明确禁用，则不显示
+    if (props.showInfoList === false) {
+        return false;
+    }
+    // 如果配置中有内容，或页面有 info/float-info slot，则显示
+    const hasConfig = (config.InfoListUp && config.InfoListUp.length > 0) ||
+        (config.InfoListDown && config.InfoListDown.length > 0) ||
+        (config.InfoListFloat && config.InfoListFloat.length > 0);
+    const hasSlot = slots.info || slots['float-info'];
+    return hasConfig || hasSlot;
+});
 
 const tipListUpComponents = shallowRef([]);
 const tipListDownComponents = shallowRef([]);
@@ -385,12 +416,12 @@ const mainListStyle = computed(() => {
     const sidebarMargin = '4rem'; // 2rem * 2 (左右边距)
 
     // 检查左右侧边栏的显示状态
-    const hasLeftSidebar = (isInfoLeftPosition && props.showInfoList && !isInfoListHidden.value) ||
-        (!isInfoLeftPosition && props.showTipList && !isTipListHidden.value);
-    const hasRightSidebar = (isInfoLeftPosition && props.showTipList && !isTipListHidden.value) ||
-        (!isInfoLeftPosition && props.showInfoList && !isInfoListHidden.value);
+    const hasLeftSidebar = (isInfoLeftPosition && shouldShowInfoList.value && !isInfoListHidden.value) ||
+        (!isInfoLeftPosition && shouldShowTipList.value && !isTipListHidden.value);
+    const hasRightSidebar = (isInfoLeftPosition && shouldShowTipList.value && !isTipListHidden.value) ||
+        (!isInfoLeftPosition && shouldShowInfoList.value && !isInfoListHidden.value);
 
-    if (!props.showTipList && !props.showInfoList) {
+    if (!shouldShowTipList.value && !shouldShowInfoList.value) {
         // 没有任何侧边栏：左右各留 2rem 间隔
         return {
             minWidth: 'calc(100% - 4rem)',
@@ -492,6 +523,7 @@ onUnmounted(() => {
 body {
     margin: 0;
     padding: 0;
+
     font-family: 'Noto Sans SC', sans-serif;
     background: transparent;
     color: var(--body-text-color);

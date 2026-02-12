@@ -8,7 +8,7 @@ import AnnouncementPanel from '@/components/AnnouncementPanel.vue';
 <template>
   <div class="home-page">
     <HeroSection />
-    <BaseLayout :showTipList="false">
+    <BaseLayout>
       <template #main>
         <AnnouncementPanel />
         <PostPanel />

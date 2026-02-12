@@ -38,6 +38,10 @@ const props = defineProps({
     apiBase: {
         type: String,
         default: 'http://127.0.0.1:8000/api'
+    },
+    scrollSync: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -46,6 +50,7 @@ const emit = defineEmits(['update:modelValue', 'scroll', 'change', 'format-reque
 const editorContainer = ref(null);
 let editor = null;
 let isUpdatingFromProp = false;
+let isScrollingFromPreview = false; // 标记是否来自预览面板的滚动
 let isMobile = false; // 检测是否为移动设备
 
 // 检测移动设备
@@ -83,8 +88,8 @@ const getEditorOptions = () => {
         },
         // 内边距配置
         padding: {
-            top: 8,
-            bottom: 8,
+            top: 16,
+            bottom: 200,
             right: 0,
             left: 0
         },
@@ -95,7 +100,7 @@ const getEditorOptions = () => {
         folding: true,
         lineDecorationsWidth: 10,
         // 其他编辑器选项
-        scrollBeyondLastLine: false,
+        scrollBeyondLastLine: true,
         smoothScrolling: true,
         cursorBlinking: 'smooth',
         cursorSmoothCaretAnimation: 'on',
@@ -578,6 +583,8 @@ onMounted(() => {
 
     // Listen to scroll events
     editor.onDidScrollChange((e) => {
+        if (isScrollingFromPreview) return; // 如果是预览面板触发的滚动，忽略
+
         const scrollTop = e.scrollTop;
         const scrollHeight = editor.getScrollHeight();
         const clientHeight = editorContainer.value?.clientHeight || 0;
@@ -694,6 +701,24 @@ watch(() => props.language, (newLanguage) => {
         if (model) {
             monaco.editor.setModelLanguage(model, newLanguage);
         }
+    }
+});
+
+// Watch for scroll sync from preview panel
+watch(() => props.scrollSync, (scrollPercentage) => {
+    if (editor && editorContainer.value) {
+        isScrollingFromPreview = true;
+        const scrollHeight = editor.getScrollHeight();
+        const clientHeight = editorContainer.value.clientHeight;
+        const maxScroll = scrollHeight - clientHeight;
+        const targetScrollTop = maxScroll * scrollPercentage;
+
+        editor.setScrollTop(targetScrollTop);
+
+        // 重置标记
+        setTimeout(() => {
+            isScrollingFromPreview = false;
+        }, 100);
     }
 });
 

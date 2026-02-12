@@ -139,7 +139,12 @@ const handlePreviewScroll = (event) => {
     if (isScrollingFromEditor) return; // 如果是编辑器触发的滚动，忽略
 
     const container = event.target;
-    const scrollPercentage = container.scrollTop / (container.scrollHeight - container.clientHeight);
+    const maxScroll = container.scrollHeight - container.clientHeight;
+
+    // 防止除以0
+    if (maxScroll <= 0) return;
+
+    const scrollPercentage = container.scrollTop / maxScroll;
     emit('scroll', scrollPercentage);
 };
 

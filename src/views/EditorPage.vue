@@ -38,8 +38,9 @@
                 <!-- Edit Panel -->
                 <div class="edit-panel" :class="{ 'mobile-hidden': mobileView === 'preview' }">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
-                        :current-file-name="currentFileName" :api-base="API_BASE" @change="handleContentChange"
-                        @scroll="handleEditorScroll" @format-request="handleInsertFormat" ref="monacoEditorRef" />
+                        :current-file-name="currentFileName" :api-base="API_BASE" :scroll-sync="previewScrollTop"
+                        @change="handleContentChange" @scroll="handleEditorScroll" @format-request="handleInsertFormat"
+                        ref="monacoEditorRef" />
                 </div>
 
                 <!-- Preview Panel -->
@@ -212,6 +213,8 @@ const content = ref('');
 const saveStatus = ref('saved'); // 'saved', 'saving', 'unsaved'
 const lastSaveTime = ref(null); // 上次保存时间戳
 const editorScrollTop = ref(0);
+const previewScrollTop = ref(0);
+const isScrollingFromPreview = ref(false);
 const monacoEditorRef = ref(null);
 const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
@@ -219,7 +222,6 @@ const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
 const showPostPreview = ref(true); // 控制文章卡片预览的显示/隐藏
 const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
 const postPreviewKey = ref(0); // 用于强制刷新 Post 组件
-let isScrollingFromPreview = false; // 标记是否来自预览的滚动
 
 // Theme management
 const { currentMode, isDarkMode } = useTheme();
@@ -999,29 +1001,18 @@ const handleExternalFileDrop = async ({ files, targetFolder }) => {
 
 // Handle editor scroll
 const handleEditorScroll = (scrollPercentage) => {
-    if (isScrollingFromPreview) return; // 如果是预览触发的滚动，忽略
+    if (isScrollingFromPreview.value) return; // 如果是预览触发的滚动，忽略
     editorScrollTop.value = scrollPercentage;
 };
 
 // Handle preview scroll
 const handlePreviewScroll = (scrollPercentage) => {
-    if (!monacoEditorRef.value) return;
-
-    isScrollingFromPreview = true;
-    const editor = monacoEditorRef.value.getEditor();
-    if (editor) {
-        const model = editor.getModel();
-        if (model) {
-            const totalLines = model.getLineCount();
-            const targetLine = Math.floor(totalLines * scrollPercentage);
-
-            editor.revealLineInCenter(Math.max(1, targetLine));
-        }
-    }
+    isScrollingFromPreview.value = true;
+    previewScrollTop.value = scrollPercentage;
 
     // 重置标记
     setTimeout(() => {
-        isScrollingFromPreview = false;
+        isScrollingFromPreview.value = false;
     }, 100);
 };
 

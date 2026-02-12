@@ -44,10 +44,10 @@ const config = {
         'CollectionPanel',
     ],//Info列表，在页面默认添加的InfoList的上面出现
     InfoListDown: [
-        'ClockPanel',
-        'CalendarPanel',
     ],//Info列表，在页面默认添加的InfoList的下面出现
     TipListUp: [
+        'ClockPanel',
+        'CalendarPanel',
     ],//Tip列表，在页面默认添加的TipList的上面出现
     TipListDown: [
     ],//Tip列表，在页面默认添加的TipList的下面出现

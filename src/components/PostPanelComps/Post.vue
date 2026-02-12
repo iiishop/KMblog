@@ -859,10 +859,13 @@ onUnmounted(() => {
     font-size: 1.75rem;
     color: var(--theme-heading-text);
     margin: 0;
-    line-height: 1.3;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.1em;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
 }
 
 .title-char {
@@ -875,12 +878,12 @@ onUnmounted(() => {
 @keyframes titleAppear {
     from {
         opacity: 0;
-        transform: translateY(20px) rotateX(-90deg);
+        transform: translateY(20px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0) rotateX(0);
+        transform: translateY(0);
     }
 }
 

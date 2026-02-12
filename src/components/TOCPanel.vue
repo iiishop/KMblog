@@ -49,7 +49,7 @@ const extractTOC = () => {
     const container = document.querySelector(props.contentSelector);
     if (!container) return;
 
-    const headings = container.querySelectorAll('h2, h3, h4');
+    const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
     const items = [];
 
     headings.forEach((heading, index) => {
@@ -303,12 +303,21 @@ defineExpose({
 }
 
 /* 目录层级缩进 */
-.toc-level-2 {
+.toc-level-1 {
     padding-left: 0;
 }
 
+.toc-level-1 .toc-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.toc-level-2 {
+    padding-left: 0.8rem;
+}
+
 .toc-level-3 {
-    padding-left: 1rem;
+    padding-left: 1.6rem;
 }
 
 .toc-level-3 .toc-text {
@@ -316,12 +325,30 @@ defineExpose({
 }
 
 .toc-level-4 {
-    padding-left: 2rem;
+    padding-left: 2.4rem;
 }
 
 .toc-level-4 .toc-text {
     font-size: 0.8rem;
     opacity: 0.9;
+}
+
+.toc-level-5 {
+    padding-left: 3.2rem;
+}
+
+.toc-level-5 .toc-text {
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+
+.toc-level-6 {
+    padding-left: 4rem;
+}
+
+.toc-level-6 .toc-text {
+    font-size: 0.75rem;
+    opacity: 0.8;
 }
 
 /* 活动状态 */
