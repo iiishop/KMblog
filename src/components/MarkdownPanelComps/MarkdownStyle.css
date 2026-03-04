@@ -263,16 +263,11 @@
   color: var(--theme-code-block-text);
 }
 
-/* 代码行样式 */
+/* 代码行样式 - 无 hover，专注阅读 */
 .markdown .code-line {
   display: block;
   min-height: 1.6em;
   line-height: 1.6em;
-}
-
-.markdown .code-line:hover {
-  background-color: var(--theme-surface-hover);
-  opacity: 0.5;
 }
 
 /* 行号样式 */
@@ -323,11 +318,9 @@
 .markdown .markdown-it-code-copy:hover {
   background: var(--theme-surface-active);
   border-color: var(--theme-border-medium);
-  transform: translateY(-1px);
 }
 
 .markdown .markdown-it-code-copy:active {
-  transform: translateY(0);
   background: var(--theme-code-block-bg);
 }
 

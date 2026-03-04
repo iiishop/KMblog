@@ -1,15 +1,8 @@
 <template>
     <div class="post-wrapper">
-        <div class="post-panel" @mouseenter="handleMouseEnter" @mousemove="handleMouseMove"
-            @mouseleave="handleMouseLeave" :style="{ '--mouse-x': mouseX, '--mouse-y': mouseY }">
+        <div class="post-panel">
             <!-- Collection 主题背景层 -->
             <div v-if="collectionThemeImage" class="collection-theme-bg" :style="backgroundStyle"></div>
-
-            <!-- 粒子背景容器 -->
-            <canvas ref="particleCanvas" class="particle-canvas"></canvas>
-
-            <!-- 光晕效果 -->
-            <div class="glow-orb" :style="glowStyle"></div>
 
             <div class="image-panel" v-if="imageSrc && imageSrc !== loadingGif" :style="{ width: imagePanelWidth }">
                 <div class="image-border-frame">
@@ -181,126 +174,12 @@ const collectionThemeImage = ref('');
 // 定义 imagePanelWidth
 const imagePanelWidth = ref('auto');
 
-// 鼠标位置追踪
-const mouseX = ref(0);
-const mouseY = ref(0);
-const glowStyle = ref({});
-
 // 过渡动画状态
 const isTransitioning = ref(false);
-
-// 粒子系统
-const particleCanvas = ref(null);
-let particleAnimationFrame = null;
-let particles = [];
 
 // 过渡画布
 const transitionCanvas = ref(null);
 let transitionAnimationFrame = null;
-
-class Particle {
-    constructor(canvasWidth, canvasHeight) {
-        this.x = Math.random() * canvasWidth;
-        this.y = Math.random() * canvasHeight;
-        this.size = Math.random() * 2 + 0.5;
-        this.speedX = Math.random() * 0.5 - 0.25;
-        this.speedY = Math.random() * 0.5 - 0.25;
-        this.opacity = Math.random() * 0.5 + 0.2;
-    }
-
-    update(canvasWidth, canvasHeight) {
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        if (this.x > canvasWidth) this.x = 0;
-        if (this.x < 0) this.x = canvasWidth;
-        if (this.y > canvasHeight) this.y = 0;
-        if (this.y < 0) this.y = canvasHeight;
-    }
-
-    draw(ctx) {
-        ctx.fillStyle = `rgba(102, 126, 234, ${this.opacity})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-function initParticles() {
-    if (!particleCanvas.value) return;
-
-    const canvas = particleCanvas.value;
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-
-    particles = [];
-    const particleCount = Math.floor((canvas.width * canvas.height) / 15000);
-    for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle(canvas.width, canvas.height));
-    }
-}
-
-function animateParticles() {
-    if (!particleCanvas.value) return;
-
-    const canvas = particleCanvas.value;
-    const ctx = canvas.getContext('2d');
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    particles.forEach(particle => {
-        particle.update(canvas.width, canvas.height);
-        particle.draw(ctx);
-    });
-
-    // 连接附近的粒子
-    for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-            const dx = particles[i].x - particles[j].x;
-            const dy = particles[i].y - particles[j].y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 100) {
-                ctx.strokeStyle = `rgba(102, 126, 234, ${0.1 * (1 - distance / 100)})`;
-                ctx.lineWidth = 0.5;
-                ctx.beginPath();
-                ctx.moveTo(particles[i].x, particles[i].y);
-                ctx.lineTo(particles[j].x, particles[j].y);
-                ctx.stroke();
-            }
-        }
-    }
-
-    particleAnimationFrame = requestAnimationFrame(animateParticles);
-}
-
-// 鼠标事件处理
-function handleMouseEnter() {
-    initParticles();
-    animateParticles();
-}
-
-function handleMouseMove(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width);
-    const y = ((e.clientY - rect.top) / rect.height);
-
-    mouseX.value = x;
-    mouseY.value = y;
-
-    glowStyle.value = {
-        left: `${e.clientX - rect.left}px`,
-        top: `${e.clientY - rect.top}px`,
-    };
-}
-
-function handleMouseLeave() {
-    if (particleAnimationFrame) {
-        cancelAnimationFrame(particleAnimationFrame);
-        particleAnimationFrame = null;
-    }
-}
 
 // 图片加载时调整 image-panel 宽度
 const adjustImagePanelWidth = (event) => {
@@ -559,9 +438,6 @@ function navigateToPost() {
 
 // 清理
 onUnmounted(() => {
-    if (particleAnimationFrame) {
-        cancelAnimationFrame(particleAnimationFrame);
-    }
     if (transitionAnimationFrame) {
         cancelAnimationFrame(transitionAnimationFrame);
     }
@@ -590,24 +466,6 @@ onUnmounted(() => {
 .post-panel:hover {
     transform: translateY(-4px);
     filter: drop-shadow(0 20px 40px var(--theme-shadow-lg));
-}
-
-/* === 粒子背景 === */
-.particle-canvas {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0;
-    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 16px;
-    display: none;
-    /* 禁用以提高性能 */
-}
-
-.post-panel:hover .particle-canvas {
-    opacity: 0;
-    /* 禁用 */
 }
 
 /* === Collection 主题背景 === */
@@ -651,12 +509,6 @@ onUnmounted(() => {
     border-radius: 16px;
     opacity: 0.5;
     z-index: 2;
-}
-
-/* === 光晕效果 === */
-.glow-orb {
-    display: none;
-    /* 禁用以提高性能 */
 }
 
 /* === Image Panel === */
@@ -1904,8 +1756,6 @@ onUnmounted(() => {
         flex: 1;
     }
 
-    /* 保持桌面端的粒子效果 */
-    .particle-canvas,
     .mouse-glow,
     .deco-geometry,
     .scan-line {
@@ -2046,8 +1896,7 @@ onUnmounted(() => {
         flex: 1;
     }
 
-    /* 禁用移动端的粒子和复杂动画 */
-    .particle-canvas,
+    /* 禁用移动端的复杂动画 */
     .mouse-glow,
     .deco-geometry,
     .scan-line {
