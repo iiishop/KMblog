@@ -1023,6 +1023,54 @@ class Generate(Command):
             print(f"[图片清理] 读取文件失败 {file_path}: {e}")
             return []
 
+    def _build_metadata(self):
+        """Build a single Metadata.json with all article frontmatter, sorted by date desc."""
+        posts_path = get_posts_path()
+        base_path = get_base_path()
+        result = []
+
+        for root, _, files in os.walk(posts_path):
+            for f in files:
+                if not f.endswith('.md'):
+                    continue
+                full = os.path.join(root, f)
+                meta = parse_markdown_metadata(full)
+                if not meta:
+                    continue
+                rel = full
+                if rel.startswith(base_path):
+                    rel = rel[len(base_path):].replace('\\', '/')
+                    if rel.startswith('/public/'):
+                        rel = rel[7:]
+                tags = meta.get('tags')
+                if tags is None:
+                    tags = []
+                elif isinstance(tags, str):
+                    tags = [tags]
+                categories = meta.get('categories')
+                if categories is None:
+                    categories = []
+                elif isinstance(categories, str):
+                    categories = [categories]
+                # Coerce date to string — YAML may parse it as datetime.date/datetime.datetime
+                date_val = meta.get('date', '')
+                if hasattr(date_val, 'strftime'):
+                    date_val = date_val.strftime('%Y-%m-%d %H:%M:%S') if isinstance(date_val, datetime) else date_val.strftime('%Y-%m-%d')
+                elif not isinstance(date_val, str):
+                    date_val = str(date_val) if date_val else ''
+                result.append({
+                    'path': rel,
+                    'title': meta.get('title', ''),
+                    'date': date_val,
+                    'tags': tags,
+                    'categories': categories,
+                    'pre': meta.get('pre', ''),
+                    'img': f"/Posts/Images/{meta['img']}" if meta.get('img') else None,
+                })
+
+        result.sort(key=lambda x: x.get('date', '') or '', reverse=True)
+        return result
+
     def execute(self):
         posts_path = get_posts_path()
         assets_path = get_assets_path()
@@ -1069,6 +1117,13 @@ class Generate(Command):
         os.makedirs(os.path.dirname(tags_output_path), exist_ok=True)
         os.makedirs(os.path.dirname(categories_output_path), exist_ok=True)
         os.makedirs(os.path.dirname(crypto_output_path), exist_ok=True)
+
+        # Build metadata summary (single file with all article frontmatter)
+        metadata_output_path = os.path.join(assets_path, 'Metadata.json')
+        print("[Generate] 生成文章元数据...")
+        metadata = self._build_metadata()
+        with open(metadata_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(metadata, json_file, indent=2, ensure_ascii=False)
 
         # Output posts directory to JSON file
         with open(posts_output_path, 'w', encoding='utf-8') as json_file:
@@ -1139,7 +1194,7 @@ class Generate(Command):
 
             print(f"[Crypto] 加密完成: {encrypted_count}/{len(crypto_posts)} 篇文章")
 
-        return f"Post directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)\nEncrypted: {encrypted_count} files\n{cleanup_result}"
+        return f"Metadata output to {metadata_output_path} ({len(metadata)} articles)\nPost directory output to {posts_output_path}\nTags output to {tags_output_path}\nCategories output to {categories_output_path}\nCrypto posts output to {crypto_output_path} ({len(crypto_posts)} posts)\nEncrypted: {encrypted_count} files\n{cleanup_result}"
 
 
 class AddPost(Command):
@@ -2224,7 +2279,7 @@ class StartEditor(Command):
             token = server_info['token']
 
             # 打开浏览器,URL中包含token和端口
-            editor_url = f"http://localhost:5173/#/editor?token={token}&api_port={port}"
+            editor_url = f"http://localhost:3000/#/editor?token={token}&api_port={port}"
             print(f"\nOpening editor in browser: {editor_url}")
             print(f"Server running on port: {port}")
             print(f"Auth token: {token[:16]}...")

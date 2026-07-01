@@ -6,7 +6,8 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig({
   server: {
-    host: '127.0.0.1'
+    host: '127.0.0.1',
+    port: 3000
   },
   plugins: [
     vue(),

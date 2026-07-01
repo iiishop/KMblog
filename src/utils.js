@@ -12,28 +12,6 @@ async function loadJsonFile(filePath) {
   }
 }
 
-// 递归函数，用于遍历 JSON 数据并提取所有 Markdown 文件链接
-function extractMarkdownLinks(data) {
-  let links = [];
-
-  function traverse(obj) {
-    for (let key in obj) {
-      if (Array.isArray(obj[key])) {
-        obj[key].forEach(item => {
-          if (item.path && item.id) {
-            links.push(item);
-          }
-        });
-      } else if (typeof obj[key] === 'object') {
-        traverse(obj[key]);
-      }
-    }
-  }
-
-  traverse(data);
-  return links;
-}
-
 // 私有函数：解析 PostDirectory.json，过滤掉最顶层 "Markdowns"，并统计其余子项的数量
 function parsePostDirectory(postDirectoryData) {
   const result = {};
@@ -82,41 +60,24 @@ export async function parseMarkdownMetadata(content) {
   }
 }
 
-// 异步函数，用于加载和解析 PostDirectory.json 文件
+// 异步函数，加载单文件 Metadata.json（预生成的全部文章摘要，替代 N+1 逐个 fetch）
 export async function loadMarkdownLinks() {
-  const data = await loadJsonFile('/assets/PostDirectory.json');
-  if (data) {
-    const markdownLinks = extractMarkdownLinks(data);
+  const list = await loadJsonFile('/assets/Metadata.json');
+  if (!list || !Array.isArray(list)) return {};
 
-    const markdownWithImages = await Promise.all(markdownLinks.map(async (item) => {
-      const { path: markdownUrl } = item;
-      const normalizedMarkdownUrl = markdownUrl.replace(/\\/g, '/'); // 将反斜杠替换为正斜杠
-      console.debug('Loading Markdown file:', normalizedMarkdownUrl); // 输出 Markdown 文件路径
-      const markdownContent = await loadJsonFile(normalizedMarkdownUrl);
-      if (markdownContent) {
-        const { meta } = await parseMarkdownMetadata(markdownContent); // 使用异步解析函数
-        const imageName = meta.img;
-        const imageUrl = imageName ? `/Posts/Images/${imageName}` : null;
-        return { markdownUrl: normalizedMarkdownUrl, imageUrl, date: meta.date, title: meta.title, pre: meta.pre, tags: meta.tags, categories: meta.categories };
-      }
-      return null;
-    }));
-
-    // Filter out null values and sort by date
-    const sortedMarkdownWithImages = markdownWithImages
-      .filter(item => item !== null)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Create a dictionary
-    const markdownDict = sortedMarkdownWithImages.reduce((acc, { markdownUrl, imageUrl, date, title, pre, tags, categories }) => {
-      acc[markdownUrl] = { imageUrl, date, title, pre, tags, categories }; // 包含所有 metadata 信息
-      return acc;
-    }, {});
-
-    console.log('Markdown Dictionary:', markdownDict);
-    return markdownDict;
-  }
-  return {};
+  return list.reduce((acc, item) => {
+    const markdownUrl = (item.path || '').replace(/\\/g, '/');
+    if (!markdownUrl) return acc;
+    acc[markdownUrl] = {
+      imageUrl: item.img || null,
+      date: item.date || '',
+      title: item.title || '',
+      pre: item.pre || '',
+      tags: item.tags || [],
+      categories: item.categories || [],
+    };
+    return acc;
+  }, {});
 }
 
 // 异步函数，用于加载和解析 Tags.json 文件

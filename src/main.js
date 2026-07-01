@@ -10,10 +10,17 @@ import config from './config';
 const app = createApp(App);
 
 async function initGlobalVars() {
-  globalVar.markdowns = await loadMarkdownLinks();
-  globalVar.tags = await loadTags();
-  globalVar.categories = await loadCategories();
-  globalVar.collections = await loadCollections();
+  const [markdowns, tags, categories, collections] = await Promise.all([
+    loadMarkdownLinks(),
+    loadTags(),
+    loadCategories(),
+    loadCollections(),
+  ]);
+
+  globalVar.markdowns = markdowns;
+  globalVar.tags = tags;
+  globalVar.categories = categories;
+  globalVar.collections = collections;
 
   console.log(globalVar);
 }
