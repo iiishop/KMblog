@@ -155,3 +155,5 @@ UPDATE_REPORT.md
 # Giscus 配置文件（包含敏感的仓库信息）
 src/giscus.config.js
 .agents/
+AGENTS.md
+CLAUDE.md
