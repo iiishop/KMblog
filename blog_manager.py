@@ -3,14 +3,18 @@ KMBlog 管理工具 - 现代化 Flet GUI
 具有可视化仪表板和直观的用户界面
 """
 
-
+import builtins
 import flet as ft
-import sys
-import os
 import importlib
 import inspect
 import json
+import os
+import sys
+import threading
+import time
+import traceback
 import webbrowser
+from contextlib import contextmanager
 
 # 添加 mainTools 目录到路径
 if getattr(sys, 'frozen', False):
@@ -23,7 +27,48 @@ else:
 from mainTools.commands import Command
 
 
+@contextmanager
+def mock_input(*responses):
+    """Context manager: temporarily replace builtins.input with canned responses.
+
+    Usage:
+        with mock_input('post_name', 'collection', 'y'):
+            SomeCommand().execute()
+    """
+    idx = [0]
+    orig = builtins.input
+    def _mock(prompt=''):
+        if idx[0] < len(responses):
+            v = responses[idx[0]]
+            idx[0] += 1
+            return v
+        return ''
+    builtins.input = _mock
+    try:
+        yield
+    finally:
+        builtins.input = orig
+
+
 class BlogManagerGUI:
+    # Refined editorial color system — warm paper + deep ink
+    CLR_BG = "#f5f3ef"
+    CLR_SIDEBAR = "#161921"
+    CLR_SIDEBAR_HOVER = "#212633"
+    CLR_SIDEBAR_ACTIVE = "#2a3040"
+    CLR_SURFACE = "#ffffff"
+    CLR_BORDER = "#e4e0d9"
+    CLR_BORDER_LIGHT = "#eeebe5"
+    CLR_TEXT = "#1a1d28"
+    CLR_TEXT_SECONDARY = "#6b6776"
+    CLR_TEXT_MUTED = "#96929e"
+    CLR_ACCENT = "#4b5e7f"
+    CLR_ACCENT_HOVER = "#3d4f6b"
+    CLR_ACCENT_SOFT = "#eef1f5"
+    CLR_GOOD = "#5c8a6f"
+    CLR_BAD = "#b85c5c"
+    CLR_WARN = "#c0864a"
+
     def __init__(self, page: ft.Page):
         self.page = page
 
@@ -123,7 +168,7 @@ class BlogManagerGUI:
             self.scale_factor = 1.0
 
         self.page.padding = 0
-        self.page.bgcolor = ft.Colors.GREY_50
+        self.page.bgcolor = self.CLR_BG
 
     def scale(self, value):
         """根据缩放因子调整数值
@@ -386,12 +431,12 @@ class BlogManagerGUI:
                 'build_complete': '构建完成！',
                 'init_complete': '初始化完成！',
                 'start_complete': '启动完成！',
-                'editor_closed': '✅ 编辑器已关闭',
+                'editor_closed': '编辑器已关闭',
                 'close_failed': '关闭失败',
                 'configuring_firewall': '正在配置防火墙...',
-                'firewall_success': '✅ 防火墙规则已添加成功！',
-                'firewall_failed_admin': '❌ 添加失败，请以管理员身份运行程序',
-                'firewall_failed': '❌ 配置失败',
+                'firewall_success': '防火墙规则已添加成功',
+                'firewall_failed_admin': '添加失败，请以管理员身份运行程序',
+                'firewall_failed': '配置失败',
                 'has_commits': '有 {} 个新提交',
                 'latest_version': '最新版本: {}',
                 'cancel_btn': '取消',
@@ -528,12 +573,12 @@ class BlogManagerGUI:
                 'build_complete': 'Build Complete!',
                 'init_complete': 'Initialization Complete!',
                 'start_complete': 'Start Complete!',
-                'editor_closed': '✅ Editor Closed',
+                'editor_closed': 'Editor Closed',
                 'close_failed': 'Close Failed',
                 'configuring_firewall': 'Configuring firewall...',
-                'firewall_success': '✅ Firewall rule added successfully!',
-                'firewall_failed_admin': '❌ Failed, please run as administrator',
-                'firewall_failed': '❌ Configuration failed',
+                'firewall_success': 'Firewall rule added successfully',
+                'firewall_failed_admin': 'Failed, please run as administrator',
+                'firewall_failed': 'Configuration failed',
                 'has_commits': '{} new commits available',
                 'latest_version': 'Latest version: {}',
                 'cancel_btn': 'Cancel',
@@ -576,16 +621,46 @@ class BlogManagerGUI:
         self.page.controls.clear()
         layout = ft.Row([
             self.build_sidebar(),
-            ft.VerticalDivider(width=1, color=ft.Colors.GREY_300),
+            ft.VerticalDivider(width=0, color="transparent"),
             ft.Container(content=self.get_current_view(),
-                         expand=True, padding=30),
+                         expand=True, padding=28),
         ], spacing=0, expand=True)
         self.page.add(layout)
         self.page.update()
         print(f"[性能-时间戳] UI更新完成: {time.time():.3f}")
 
+    # ═══════════════════════════════════════════════════════════════
+    # Reusable helpers
+    # ═══════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _pick_image_file(title="选择图片"):
+        """Open tkinter file picker for images. Returns path or None."""
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        file_path = filedialog.askopenfilename(
+            title=title,
+            filetypes=[
+                ("图片文件", "*.png *.jpg *.jpeg *.webp *.gif"),
+                ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"),
+                ("WebP", "*.webp"), ("GIF", "*.gif"),
+                ("所有文件", "*.*"),
+            ],
+        )
+        root.destroy()
+        return file_path if file_path else None
+
+    @staticmethod
+    def _card_hover(e, normal_bg, hover_bg):
+        """Standard card hover: swap background on enter/leave."""
+        e.control.bgcolor = hover_bg if e.data == "true" else normal_bg
+        e.control.update()
+
     def build_sidebar(self):
-        """侧边栏"""
+        """Sidebar — refined dark panel"""
         nav_items = [
             ('dashboard', ft.Icons.DASHBOARD, self.t('dashboard')),
             ('posts', ft.Icons.ARTICLE, self.t('posts')),
@@ -597,44 +672,46 @@ class BlogManagerGUI:
             selected = self.current_view == view
             buttons.append(ft.Container(
                 content=ft.Row([
-                    ft.Icon(
-                        icon, size=20, color=ft.Colors.WHITE if selected else ft.Colors.BLUE_GREY_400),
-                    ft.Text(
-                        label, color=ft.Colors.WHITE if selected else ft.Colors.BLUE_GREY_400),
-                ], spacing=12),
-                padding=ft.Padding(15, 12, 15, 12),
-                bgcolor=ft.Colors.BLUE_700 if selected else None,
-                border_radius=10,
+                    ft.Icon(icon, size=18,
+                            color="#c0c8d4" if selected else "#6e7686"),
+                    ft.Text(label, size=13, weight=ft.FontWeight.W_500 if selected else ft.FontWeight.W_400,
+                            color="#c0c8d4" if selected else "#6e7686"),
+                ], spacing=10),
+                padding=ft.Padding(12, 10, 12, 10),
+                bgcolor=self.CLR_SIDEBAR_ACTIVE if selected else None,
+                border_radius=6,
                 on_click=lambda e, v=view: self.switch_view(v),
-                ink=True,
             ))
 
         return ft.Container(
             content=ft.Column([
                 ft.Container(
                     content=ft.Row([
-                        ft.Icon(ft.Icons.ARTICLE, size=36,
-                                color=ft.Colors.BLUE_400),
-                        ft.Text("KMBlog", size=26,
-                                weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                    ], spacing=12),
-                    padding=20,
+                        ft.Text("Blog", size=22,
+                                weight=ft.FontWeight.W_700, color="#d0d6e0",
+                                font_family="Georgia"),
+                        ft.Container(width=4, height=4, bgcolor="#6e7686", border_radius=2),
+                        ft.Text("Manage", size=15,
+                                weight=ft.FontWeight.W_400, color="#6e7686"),
+                    ], spacing=8),
+                    padding=ft.Padding(20, 24, 20, 20),
                 ),
-                ft.Divider(height=1, color=ft.Colors.BLUE_GREY_700),
-                ft.Container(content=ft.Column(
-                    buttons, spacing=8), padding=15),
+                ft.Divider(height=1, color="#252a36"),
+                ft.Container(content=ft.Column(buttons, spacing=2), padding=ft.Padding(12, 8, 12, 8)),
                 ft.Container(expand=True),
-                ft.Divider(height=1, color=ft.Colors.BLUE_GREY_700),
+                ft.Divider(height=1, color="#252a36"),
                 ft.Container(
-                    content=ft.Button(
-                        self.t('switch_lang'), icon=ft.Icons.LANGUAGE,
-                        on_click=self.switch_lang, width=210,
+                    content=ft.TextButton(
+                        self.t('switch_lang'),
+                        icon=ft.Icons.LANGUAGE,
+                        on_click=self.switch_lang,
+                        style=ft.ButtonStyle(color="#6e7686"),
                     ),
-                    padding=20,
+                    padding=ft.Padding(16, 8, 16, 16),
                 ),
             ], spacing=0),
-            width=260,
-            bgcolor=ft.Colors.BLUE_GREY_900,
+            width=220,
+            bgcolor=self.CLR_SIDEBAR,
         )
 
     def get_current_view(self):
@@ -648,181 +725,107 @@ class BlogManagerGUI:
         return ft.Text("Unknown view")
 
     def build_dashboard(self):
-        """仪表板"""
+        """Dashboard — editorial layout"""
         stats = self.get_stats()
 
         stat_cards = ft.Row([
-            self.stat_card(self.t('total_posts'), str(
-                stats['posts']), ft.Icons.ARTICLE, ft.Colors.BLUE_500),
-            self.stat_card(self.t('total_collections'), str(
-                stats['collections']), ft.Icons.FOLDER, ft.Colors.ORANGE_500),
-        ], spacing=20)
+            self.stat_card(self.t('total_posts'), str(stats['posts']), ft.Icons.ARTICLE),
+            self.stat_card(self.t('total_collections'), str(stats['collections']), ft.Icons.FOLDER),
+        ], spacing=16)
 
-        # 构建快速操作区域 - 扁平化网格设计
-        action_buttons = []
-
-        # 检查是否已初始化
         is_initialized = self.is_blog_initialized()
 
         if not is_initialized:
-            # 未初始化：只显示初始化按钮（大号、醒目）
-            action_buttons.append(
-                ft.Container(
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.ROCKET_LAUNCH,
-                                size=64, color=ft.Colors.WHITE),
-                        ft.Text(self.t('init_blog'), size=20, weight=ft.FontWeight.BOLD,
-                                color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
-                        ft.Text(self.t('click_to_init'), size=14, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
-                                text_align=ft.TextAlign.CENTER),
-                    ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    width=400,
-                    height=200,
-                    padding=30,
-                    bgcolor=ft.Colors.PURPLE_600,
-                    border_radius=16,
-                    shadow=ft.BoxShadow(
-                        blur_radius=20, color=ft.Colors.with_opacity(0.3, ft.Colors.PURPLE_600)),
-                    on_click=self.exec_init,
-                    animate=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
-                )
-            )
+            action_buttons = [ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.ROCKET_LAUNCH, size=48, color=self.CLR_TEXT),
+                    ft.Text(self.t('init_blog'), size=18, weight=ft.FontWeight.W_600,
+                            color=self.CLR_TEXT),
+                    ft.Text(self.t('click_to_init'), size=13, color=self.CLR_TEXT_SECONDARY),
+                ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER),
+                width=360, height=160, padding=24,
+                bgcolor=self.CLR_SURFACE,
+                border=ft.Border.all(1, self.CLR_BORDER),
+                border_radius=4,
+                on_click=self.exec_init,
+            )]
         else:
-            # 已初始化：显示所有功能按钮
             action_buttons = [
-                self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE,
-                                self.show_add_dialog, ft.Colors.GREEN_600, '新建文章'),
-                self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE,
-                                self.exec_generate, ft.Colors.BLUE_600, '生成配置'),
-                self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION,
-                                self.exec_build, ft.Colors.ORANGE_600, '构建项目'),
-                self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD,
-                                self.show_github_dialog, ft.Colors.INDIGO_600, '部署到GitHub'),
-                self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM,
-                                self.show_migrate_dialog, ft.Colors.TEAL_600, 'Hexo迁移'),
-                self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE,
-                                self.show_update_options_dialog, ft.Colors.DEEP_PURPLE_600, '更新',
+                self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE, self.show_add_dialog, 'New post'),
+                self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE, self.exec_generate, 'Generate config'),
+                self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION, self.exec_build, 'Build output'),
+                self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD, self.show_github_dialog, 'Deploy'),
+                self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM, self.show_migrate_dialog, 'Import'),
+                self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE, self.show_update_options_dialog, 'Update',
                                 badge=(self.update_info['commits_behind'] + (1 if self.update_info['manager_has_update'] else 0)) if (self.update_info['has_updates'] or self.update_info['manager_has_update']) else None),
             ]
-
-            # 编辑器按钮 - 根据状态显示不同的按钮
             if self.editor_running:
-                action_buttons.append(
-                    self.action_btn('打开编辑器', ft.Icons.OPEN_IN_BROWSER,
-                                    self.open_editor_window, ft.Colors.PURPLE_600, '打开已运行的编辑器')
-                )
-                action_buttons.append(
-                    self.action_btn(self.t('close_editor'), ft.Icons.STOP_CIRCLE,
-                                    self.stop_editor, ft.Colors.RED_600, '停止编辑器服务')
-                )
+                action_buttons.append(self.action_btn('Open editor', ft.Icons.OPEN_IN_BROWSER, self.open_editor_window, 'Running'))
+                action_buttons.append(self.action_btn(self.t('close_editor'), ft.Icons.STOP_CIRCLE, self.stop_editor, 'Stop'))
             else:
-                action_buttons.append(
-                    self.action_btn('启动编辑器', ft.Icons.EDIT,
-                                    self.start_editor, ft.Colors.PURPLE_600, '本地Markdown编辑器')
-                )
+                action_buttons.append(self.action_btn('Start editor', ft.Icons.EDIT, self.start_editor, 'Markdown IDE'))
 
-        actions_content = ft.Column([
-            ft.Text(self.t('quick_actions'), size=22,
-                    weight=ft.FontWeight.BOLD),
-            ft.Container(height=15),
-            ft.Row(action_buttons, spacing=20, run_spacing=20, wrap=True),
-        ])
-
-        actions = ft.Container(
-            content=actions_content,
-            padding=30,
-            bgcolor=ft.Colors.WHITE,
-            border_radius=12,
-            shadow=ft.BoxShadow(
-                blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
+        actions_section = ft.Container(
+            content=ft.Column([
+                ft.Text(self.t('quick_actions'), size=15, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+                ft.Container(height=12),
+                ft.Row(action_buttons, spacing=12, run_spacing=12, wrap=True),
+            ]),
+            padding=ft.Padding(24, 20, 24, 24),
+            bgcolor=self.CLR_SURFACE,
+            border=ft.Border.all(1, self.CLR_BORDER),
+            border_radius=4,
         )
 
         recent = self.build_recent_posts()
 
         return ft.Column([
-            ft.Text(self.t('dashboard'), size=32, weight=ft.FontWeight.BOLD),
-            ft.Container(height=25),
+            ft.Text(self.t('dashboard'), size=22, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+            ft.Container(height=16),
             stat_cards,
-            ft.Container(height=25),
-            actions,
-            ft.Container(height=25),
+            ft.Container(height=16),
+            actions_section,
+            ft.Container(height=16),
             recent,
         ], scroll=ft.ScrollMode.AUTO, expand=True)
 
-    def stat_card(self, title, value, icon, color):
-        """统计卡片"""
+    def stat_card(self, title, value, icon):
+        """Stat card — minimal with accent stripe"""
         return ft.Container(
-            content=ft.Row([
-                ft.Container(
-                    content=ft.Icon(icon, size=42, color=ft.Colors.WHITE),
-                    bgcolor=color, border_radius=12, padding=18,
-                ),
-                ft.Column([
-                    ft.Text(title, size=14, color=ft.Colors.GREY_600),
-                    ft.Text(value, size=36, weight=ft.FontWeight.BOLD),
-                ], spacing=2),
-            ], spacing=18),
-            padding=25,
-            bgcolor=ft.Colors.WHITE,
-            border_radius=12,
-            shadow=ft.BoxShadow(
-                blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
+            content=ft.Column([
+                ft.Row([
+                    ft.Icon(icon, size=16, color=self.CLR_TEXT_SECONDARY),
+                    ft.Text(title, size=12, color=self.CLR_TEXT_SECONDARY),
+                ], spacing=6),
+                ft.Container(height=4),
+                ft.Text(value, size=36, weight=ft.FontWeight.W_300, color=self.CLR_TEXT),
+            ], spacing=0),
+            padding=ft.Padding(20, 16, 20, 20),
+            bgcolor=self.CLR_SURFACE,
+            border=ft.Border(left=ft.BorderSide(3, self.CLR_ACCENT), right=ft.BorderSide(1, self.CLR_BORDER), top=ft.BorderSide(1, self.CLR_BORDER), bottom=ft.BorderSide(1, self.CLR_BORDER)),
+            border_radius=4,
             expand=True,
         )
 
-    def action_btn(self, text, icon, onclick, color, desc="", badge=None):
-        """操作按钮 - 改进版（支持徽章）
-
-        Args:
-            text: 按钮文本
-            icon: 图标
-            onclick: 点击事件
-            color: 背景颜色
-            desc: 描述文本
-            badge: 徽章数字（如果 > 0 则显示红色徽章）
-        """
+    def action_btn(self, text, icon, onclick, desc="", badge=None):
+        """Action button — refined, no gradients, no scale on hover"""
         def on_hover(e):
-            if e.data == "true":
-                e.control.shadow = ft.BoxShadow(
-                    blur_radius=20, spread_radius=2,
-                    color=ft.Colors.with_opacity(0.4, color))
-                e.control.scale = 1.02
-            else:
-                e.control.shadow = ft.BoxShadow(
-                    blur_radius=10, color=ft.Colors.with_opacity(0.2, color))
-                e.control.scale = 1.0
+            e.control.border = ft.Border.all(1, self.CLR_ACCENT if e.data == "true" else self.CLR_BORDER)
             e.control.update()
 
-        # 按钮内容
         button_content = ft.Column([
-            ft.Icon(icon, size=36, color=ft.Colors.WHITE),
-            ft.Text(text, size=14, weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.WHITE, text_align=ft.TextAlign.CENTER),
-            ft.Text(desc, size=11, color=ft.Colors.with_opacity(0.9, ft.Colors.WHITE),
-                    text_align=ft.TextAlign.CENTER) if desc else ft.Container(height=0),
-        ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ft.Icon(icon, size=22, color=self.CLR_ACCENT),
+            ft.Text(text, size=12, weight=ft.FontWeight.W_500, color=self.CLR_TEXT),
+        ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-        # 如果有徽章，使用 Stack 叠加徽章
         if badge and badge > 0:
             content = ft.Stack([
                 button_content,
                 ft.Container(
-                    content=ft.Text(
-                        str(badge) if badge < 100 else "99+",
-                        size=11,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.WHITE,
-                        text_align=ft.TextAlign.CENTER,
-                    ),
-                    bgcolor=ft.Colors.RED_600,
-                    border_radius=12,
-                    padding=ft.Padding(6, 2, 6, 2),
-                    right=5,
-                    top=5,
-                    shadow=ft.BoxShadow(
-                        blur_radius=4,
-                        color=ft.Colors.with_opacity(0.3, ft.Colors.BLACK)
-                    ),
+                    content=ft.Text(str(badge) if badge < 100 else "99+", size=10, weight=ft.FontWeight.W_600, color="#ffffff"),
+                    bgcolor=self.CLR_BAD, border_radius=10,
+                    padding=ft.Padding(6, 1, 6, 1),
+                    right=4, top=4,
                 ),
             ])
         else:
@@ -830,107 +833,88 @@ class BlogManagerGUI:
 
         return ft.Container(
             content=content,
-            width=160,
-            height=120,
-            padding=15,
-            bgcolor=color,
-            border_radius=12,
-            shadow=ft.BoxShadow(
-                blur_radius=10, color=ft.Colors.with_opacity(0.2, color)),
+            width=130, height=100,
+            padding=16,
+            bgcolor=self.CLR_SURFACE,
+            border=ft.Border.all(1, self.CLR_BORDER),
+            border_radius=4,
             on_hover=on_hover,
             on_click=onclick,
         )
 
     def build_recent_posts(self):
-        """最近文章"""
+        """Recent posts list"""
         try:
             result = self.commands['ListAllPosts']().execute()
             lines = [l for l in result.split('\n')[:6] if 'Post:' in l]
             items = [self.post_item(l) for l in lines] if lines else [
-                ft.Text(self.t('no_posts'), color=ft.Colors.GREY_500)]
+                ft.Text(self.t('no_posts'), size=13, color=self.CLR_TEXT_MUTED)]
 
             return ft.Container(
                 content=ft.Column([
-                    ft.Text(self.t('recent_posts'), size=22,
-                            weight=ft.FontWeight.BOLD),
-                    ft.Container(height=15),
-                    ft.Column(items, spacing=12),
+                    ft.Text(self.t('recent_posts'), size=15, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+                    ft.Container(height=12),
+                    ft.Column(items, spacing=6),
                 ]),
-                padding=25,
-                bgcolor=ft.Colors.WHITE,
-                border_radius=12,
-                shadow=ft.BoxShadow(
-                    blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
+                padding=ft.Padding(24, 20, 24, 24),
+                bgcolor=self.CLR_SURFACE,
+                border=ft.Border.all(1, self.CLR_BORDER),
+                border_radius=4,
             )
         except:
             return ft.Container()
 
     def post_item(self, line):
-        """文章项"""
-        # 从列表中提取文章名，处理多种格式
+        """Post list item"""
         line_clean = line.replace('Post:', '').strip()
-        # 可能的格式: "name | collection | date" 或 "collection/name | date" 或只是 "name"
         parts = line_clean.split('|')
         post_info = parts[0].strip()
-
-        # 如果包含路径分隔符，取最后一部分
         if '/' in post_info:
             post_name = post_info.split('/')[-1].strip()
         else:
             post_name = post_info
 
-        def on_hover(e):
-            e.control.bgcolor = ft.Colors.BLUE_100 if e.data == "true" else ft.Colors.BLUE_50
-            e.control.update()
-
         def on_click(e):
-            print(f"Clicking post: '{post_name}' from line: '{line}'")  # 调试信息
             self.show_post_preview(post_name)
 
         return ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.DESCRIPTION, size=22,
-                        color=ft.Colors.BLUE_400),
-                ft.Text(line.strip()[:80], size=13),
-            ], spacing=12),
-            padding=12,
-            border=ft.Border.all(1, ft.Colors.BLUE_100),
-            border_radius=8,
-            bgcolor=ft.Colors.BLUE_50,
-            on_hover=on_hover,
+                ft.Icon(ft.Icons.DESCRIPTION, size=16, color=self.CLR_TEXT_SECONDARY),
+                ft.Text(line.strip()[:80], size=13, color=self.CLR_TEXT),
+            ], spacing=10),
+            padding=ft.Padding(12, 10, 12, 10),
+            border=ft.Border(bottom=ft.BorderSide(1, self.CLR_BORDER_LIGHT)),
+            bgcolor="transparent",
+            on_hover=lambda e: self._card_hover(e, "transparent", self.CLR_ACCENT_SOFT),
             on_click=on_click,
-            animate=200,
-            tooltip="点击查看详情",
         )
 
     def build_posts_view(self):
-        """文章视图 - 合集包裹式"""
-        self.post_field = ft.TextField(label=self.t('post_name'), width=350)
-        self.coll_field = ft.TextField(
-            label=self.t('collection_name'), width=350)
+        """Posts view"""
+        self.post_field = ft.TextField(label=self.t('post_name'), width=300, border_radius=4, border_color=self.CLR_BORDER)
+        self.coll_field = ft.TextField(label=self.t('collection_name'), width=300, border_radius=4, border_color=self.CLR_BORDER)
 
         header = ft.Container(
             content=ft.Column([
-                ft.Text(self.t('post_list'), size=28,
-                        weight=ft.FontWeight.BOLD),
-                ft.Container(height=15),
-                ft.Row([self.post_field, self.coll_field], spacing=20),
-                ft.Container(height=15),
+                ft.Text(self.t('post_list'), size=18, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+                ft.Container(height=12),
+                ft.Row([self.post_field, self.coll_field], spacing=12),
+                ft.Container(height=12),
                 ft.Row([
-                    ft.Button(self.t('add_post'), icon=ft.Icons.ADD, on_click=lambda e: self.exec_add_post(
-                    ), bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE),
-                    ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.force_refresh(
-                    ), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
-                ], spacing=12),
+                    ft.ElevatedButton(self.t('add_post'), icon=ft.Icons.ADD, on_click=lambda e: self.exec_add_post(),
+                                      bgcolor=self.CLR_ACCENT, color="#ffffff",
+                                      style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=4))),
+                    ft.TextButton(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.force_refresh(),
+                                  style=ft.ButtonStyle(color=self.CLR_TEXT_SECONDARY)),
+                ], spacing=8),
             ]),
-            padding=25,
-            bgcolor=ft.Colors.WHITE,
-            border_radius=12,
-            shadow=ft.BoxShadow(
-                blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
+            padding=ft.Padding(24, 20, 24, 20),
+            bgcolor=self.CLR_SURFACE,
+            border=ft.Border.all(1, self.CLR_BORDER),
+            border_radius=4,
         )
 
-        return ft.Column([header, ft.Container(height=20), self.build_collection_groups()], scroll=ft.ScrollMode.AUTO, expand=True)
+        return ft.Column([header, ft.Container(height=12), self.build_collection_groups()], scroll=ft.ScrollMode.AUTO, expand=True)
 
     def update_draggable_map(self, control=None):
         """递归更新 Draggable 控件的 ID 映射"""
@@ -984,7 +968,7 @@ class BlogManagerGUI:
             if 'Markdowns' in posts_data and posts_data['Markdowns']:
                 collection_widgets.append(
                     self.build_collection_group(
-                        '📄 无合集', 'Markdowns', posts_data['Markdowns'], is_default=True)
+                        '无合集', 'Markdowns', posts_data['Markdowns'], is_default=True)
                 )
 
             # 然后显示其他合集
@@ -992,25 +976,24 @@ class BlogManagerGUI:
                 if coll_name != 'Markdowns' and posts_data[coll_name]:
                     collection_widgets.append(
                         self.build_collection_group(
-                            f'📁 {coll_name}', coll_name, posts_data[coll_name])
+                            f'{coll_name}', coll_name, posts_data[coll_name])
                     )
 
             if not collection_widgets:
                 return ft.Container(
-                    content=ft.Text(self.t('no_posts'), size=18,
-                                    color=ft.Colors.GREY_500),
-                    padding=25,
-                    bgcolor=ft.Colors.WHITE,
-                    border_radius=12,
+                    content=ft.Text(self.t('no_posts'), size=14, color=self.CLR_TEXT_MUTED),
+                    padding=ft.Padding(24, 24, 24, 24),
+                    bgcolor=self.CLR_SURFACE,
+                    border=ft.Border.all(1, self.CLR_BORDER),
+                    border_radius=4,
                 )
 
             container = ft.Container(
-                content=ft.Column(collection_widgets, spacing=15),
-                padding=25,
-                bgcolor=ft.Colors.WHITE,
-                border_radius=12,
-                shadow=ft.BoxShadow(
-                    blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
+                content=ft.Column(collection_widgets, spacing=8),
+                padding=ft.Padding(24, 16, 24, 24),
+                bgcolor=self.CLR_SURFACE,
+                border=ft.Border.all(1, self.CLR_BORDER),
+                border_radius=4,
             )
 
             elapsed = time.time() - start_time
@@ -1022,7 +1005,7 @@ class BlogManagerGUI:
             print(f"Error building collection groups: {e}")
             import traceback
             traceback.print_exc()
-            return ft.Container(content=ft.Text(f"Error: {e}", color=ft.Colors.RED_500))
+            return ft.Container(content=ft.Text(f"Error: {e}", color=self.CLR_BAD))
 
     def get_posts_grouped_by_collection(self, force_refresh=False):
         """获取按合集分组的文章数据（带缓存）"""
@@ -1093,27 +1076,7 @@ class BlogManagerGUI:
 
         def pick_image(e):
             """打开文件选择器"""
-            import tkinter as tk
-            from tkinter import filedialog
-
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-
-            file_path = filedialog.askopenfilename(
-                title=f"选择{label}",
-                filetypes=[
-                    ("图片文件", "*.png *.jpg *.jpeg *.webp *.gif"),
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg *.jpeg"),
-                    ("WebP", "*.webp"),
-                    ("GIF", "*.gif"),
-                    ("所有文件", "*.*")
-                ]
-            )
-
-            root.destroy()
-
+            file_path = self._pick_image_file(f"选择{label}")
             if file_path:
                 on_upload_callback(file_path)
 
@@ -1250,7 +1213,7 @@ class BlogManagerGUI:
                 )
             delete_button = ft.IconButton(
                 icon=ft.Icons.DELETE,
-                icon_color=ft.Colors.RED_500,
+                icon_color=self.CLR_BAD,
                 tooltip=self.t('delete_collection'),
                 on_click=on_delete_collection,
             )
@@ -1264,30 +1227,7 @@ class BlogManagerGUI:
         # 创建文件选择器（用于选择图片）
         def pick_image(e):
             """打开文件选择器选择图片"""
-            # 使用 tkinter 的文件对话框
-            import tkinter as tk
-            from tkinter import filedialog
-
-            # 创建隐藏的 tkinter 窗口
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-
-            # 打开文件选择对话框
-            file_path = filedialog.askopenfilename(
-                title=f"选择 {collection_name} 的封面图片",
-                filetypes=[
-                    ("图片文件", "*.png *.jpg *.jpeg *.webp *.gif"),
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg *.jpeg"),
-                    ("WebP", "*.webp"),
-                    ("GIF", "*.gif"),
-                    ("所有文件", "*.*")
-                ]
-            )
-
-            root.destroy()
-
+            file_path = self._pick_image_file(f"选择 {collection_name} 的封面图片")
             if file_path:
                 # 检查是否已有图片
                 img_path = os.path.join(collection_path, 'image.png')
@@ -1297,10 +1237,6 @@ class BlogManagerGUI:
                 else:
                     self.process_collection_image(
                         file_path, collection_name, collection_path)
-
-        def handle_file_pick(result, coll_name, coll_path):
-            """处理文件选择结果（已废弃，使用 tkinter 代替）"""
-            pass
 
         # 构建图片上传区域（仅支持点击上传，Flet 不支持从外部拖放文件）
         image_upload_area = ft.Container(
@@ -1314,13 +1250,13 @@ class BlogManagerGUI:
                 ) if has_image else ft.Container(
                     content=ft.Column([
                         ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE,
-                                size=36, color=ft.Colors.GREY_400),
+                                size=36, color=self.CLR_TEXT_MUTED),
                         ft.Text(self.t('click_upload_cover'),
-                                size=12, color=ft.Colors.GREY_500),
+                                size=12, color=self.CLR_TEXT_MUTED),
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
                     width=150,
                     height=100,
-                    bgcolor=ft.Colors.GREY_200,
+                    bgcolor=self.CLR_BORDER_LIGHT,
                     border_radius=8,
                     alignment=ft.Alignment(0, 0),
                 ),
@@ -1341,112 +1277,65 @@ class BlogManagerGUI:
             ink=True if not is_default else False,
         ) if not is_default else ft.Container()
 
-        # 构建头部容器（增加高度以显示图片）
+        # Collection header
         header_content = ft.Column([
             ft.Row([
-                ft.Icon(
-                    ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT,
-                    size=24,
-                    color=ft.Colors.GREY_700
-                ),
-                ft.Text(
-                    f"{display_name} ({len(posts)})",
-                    size=18,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.GREY_900,
-                    expand=True
-                ),
+                ft.Icon(ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT,
+                        size=18, color=self.CLR_TEXT_SECONDARY),
+                ft.Text(f"{display_name} ({len(posts)})", size=14, weight=ft.FontWeight.W_600,
+                        color=self.CLR_TEXT, expand=True),
                 delete_button if delete_button else ft.Container(),
             ], spacing=10),
-            # 显示封面图片（如果有）或上传按钮
             image_upload_area,
         ], spacing=5)
 
         header_container = ft.Container(
             content=header_content,
-            padding=ft.Padding(12, 12, 12, 12),
-            bgcolor=ft.Colors.BLUE_GREY_50 if not is_default else ft.Colors.GREY_100,
-            border_radius=8,
+            padding=ft.Padding(16, 12, 16, 12),
+            bgcolor=self.CLR_ACCENT_SOFT if not is_default else self.CLR_BORDER_LIGHT,
+            border_radius=4,
             on_click=toggle_expand,
-            ink=True,
         )
 
-        # 不再使用 DragTarget，直接返回容器
-        header = header_container
-
-        # 文章列表 (展开时显示) - 移除拖拽功能
         posts_list = None
         if is_expanded:
-            post_widgets = []
-            for post_line in posts:
-                post_widgets.append(self.build_post_item(
-                    post_line, collection_name))
-
+            post_widgets = [self.build_post_item(line, collection_name) for line in posts]
             posts_list = ft.Container(
-                content=ft.Column(post_widgets, spacing=8),
-                padding=ft.Padding(35, 10, 10, 10),
+                content=ft.Column(post_widgets, spacing=2),
+                padding=ft.Padding(28, 4, 4, 4),
             )
 
-        return ft.Column([
-            header,
-            posts_list if posts_list else ft.Container(),
-        ], spacing=5)
+        return ft.Column([header_container, posts_list if posts_list else ft.Container()], spacing=4)
 
     def build_post_item(self, line, source_collection):
-        """构建文章项（不可拖拽）"""
-        # 从列表中提取文章名
+        """Post item — refined list style"""
         line_clean = line.replace('Post:', '').strip()
         parts = line_clean.split('|')
         post_info = parts[0].strip()
-
-        # 处理文件名
         if '/' in post_info:
             post_name = post_info.split('/')[-1].strip()
         else:
             post_name = post_info
-
-        # 移除 .md 扩展名
         if post_name.endswith('.md'):
             post_name = post_name[:-3]
 
-        def on_hover(e):
-            if e.data == "true":
-                e.control.bgcolor = ft.Colors.BLUE_100
-            else:
-                e.control.bgcolor = ft.Colors.BLUE_50
-            e.control.update()
-
         def on_delete(e):
             e.stop_propagation()
-            self.confirm(
-                self.t('confirm_delete'),
-                self.t('confirm_delete_post').format(post_name),
-                lambda: self.do_del_post(
-                    post_name, None if source_collection == 'Markdowns' else source_collection)
-            )
+            self.confirm(self.t('confirm_delete'), self.t('confirm_delete_post').format(post_name),
+                         lambda: self.do_del_post(post_name, None if source_collection == 'Markdowns' else source_collection))
 
-        # 构建文章卡片（不可拖拽）
-        post_card = ft.Container(
+        return ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.ARTICLE, size=22, color=ft.Colors.BLUE_600),
-                ft.Text(line.strip(), size=13, expand=True),
-                ft.IconButton(
-                    icon=ft.Icons.DELETE,
-                    icon_size=18,
-                    icon_color=ft.Colors.RED_400,
-                    tooltip=self.t('delete_post'),
-                    on_click=on_delete,
-                ),
-            ], spacing=10),
-            padding=12,
-            border=ft.Border.all(1, ft.Colors.BLUE_200),
-            border_radius=8,
-            bgcolor=ft.Colors.BLUE_50,
-            on_hover=on_hover,
-            animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+                ft.Icon(ft.Icons.ARTICLE, size=16, color=self.CLR_TEXT_MUTED),
+                ft.Text(line.strip(), size=13, color=self.CLR_TEXT, expand=True),
+                ft.IconButton(icon=ft.Icons.DELETE, icon_size=16, icon_color=self.CLR_BAD,
+                              tooltip=self.t('delete_post'), on_click=on_delete),
+            ], spacing=8),
+            padding=ft.Padding(12, 8, 8, 8),
+            border=ft.Border(bottom=ft.BorderSide(1, self.CLR_BORDER_LIGHT)),
+            bgcolor="transparent",
+            on_hover=lambda e: self._card_hover(e, "transparent", self.CLR_ACCENT_SOFT),
         )
-
-        return post_card
 
     def process_collection_image(self, source_path, collection_name, collection_path):
         """处理合集封面图片"""
@@ -1502,7 +1391,7 @@ class BlogManagerGUI:
 
             # 刷新UI
             self.build_ui()
-            self.snack(f"✅ 已设置 {collection_name} 的封面图片", False)
+            self.snack(f"已设置 {collection_name} 的封面图片", False)
 
         except Exception as ex:
             print(f"[Image] Error processing image: {ex}")
@@ -1530,7 +1419,7 @@ class BlogManagerGUI:
                     border_radius=8,
                 ),
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
-            ft.Icon(ft.Icons.ARROW_FORWARD, size=32, color=ft.Colors.BLUE_600),
+            ft.Icon(ft.Icons.ARROW_FORWARD, size=32, color=self.CLR_ACCENT),
             ft.Column([
                 ft.Text(self.t('new_image'), size=14,
                         weight=ft.FontWeight.BOLD),
@@ -1574,8 +1463,8 @@ class BlogManagerGUI:
                 ft.Button(
                     self.t('replace'),
                     on_click=lambda e: confirm_replace(),
-                    bgcolor=ft.Colors.GREEN_600,
-                    color=ft.Colors.WHITE,
+                    bgcolor=self.CLR_GOOD,
+                    color=self.CLR_SURFACE,
                 ),
             ],
         )
@@ -1606,7 +1495,7 @@ class BlogManagerGUI:
                 self.is_cache_valid = False
 
                 # 显示简短提示（不刷新UI）
-                self.snack(f"✓ 已移动 {post_name} → 点击刷新按钮查看")
+                self.snack(f"已移动 {post_name} → 点击刷新按钮查看")
             else:
                 self.snack(result['message'], True)
         except Exception as e:
@@ -1699,172 +1588,6 @@ class BlogManagerGUI:
         self.generate_timer = threading.Timer(2.0, do_generate)
         self.generate_timer.start()
 
-    def post_card(self, line):
-        """文章卡片"""
-        # 从列表中提取文章名，处理多种格式
-        line_clean = line.replace('Post:', '').strip()
-        parts = line_clean.split('|')
-        post_info = parts[0].strip()
-
-        # 如果包含路径分隔符，取最后一部分
-        if '/' in post_info:
-            post_name = post_info.split('/')[-1].strip()
-            coll_name = post_info.split('/')[0].strip()
-        else:
-            post_name = post_info
-            coll_name = None
-
-        # 移除 .md 扩展名
-        if post_name.endswith('.md'):
-            post_name = post_name[:-3]
-
-        print(
-            f"DEBUG: post_name='{post_name}', coll_name='{coll_name}', line='{line}'")
-
-        def on_hover(e):
-            if e.data == "true":
-                e.control.bgcolor = ft.Colors.BLUE_100
-                e.control.shadow = ft.BoxShadow(
-                    blur_radius=20, color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK))
-            else:
-                e.control.bgcolor = ft.Colors.BLUE_50
-                e.control.shadow = None
-            e.control.update()
-
-        def on_click(e):
-            print(f"Clicking post: '{post_name}' from line: '{line}'")  # 调试信息
-            self.show_post_preview(post_name)
-
-        def on_delete(e):
-            self.confirm(
-                self.t('confirm_delete'),
-                self.t('confirm_delete_post').format(post_name),
-                lambda: self.do_del_post(post_name, coll_name)
-            )
-
-        return ft.Container(
-            content=ft.Row([
-                ft.Icon(ft.Icons.ARTICLE, size=26, color=ft.Colors.BLUE_600),
-                ft.Text(line.strip(), size=14, expand=True),
-                ft.IconButton(
-                    icon=ft.Icons.DELETE,
-                    icon_color=ft.Colors.RED_500,
-                    tooltip=self.t('delete_post'),
-                    on_click=on_delete,
-                ),
-            ], spacing=15),
-            padding=18,
-            border=ft.Border.all(1, ft.Colors.BLUE_200),
-            border_radius=10,
-            bgcolor=ft.Colors.BLUE_50,
-            on_hover=on_hover,
-            on_click=on_click,
-            animate=200,
-            tooltip="点击查看详情",
-        )
-
-    def build_collections_view(self):
-        """合集视图"""
-        self.coll_name_field = ft.TextField(
-            label=self.t('collection_name'), width=400)
-
-        header = ft.Container(
-            content=ft.Column([
-                ft.Text(self.t('collection_list'), size=28,
-                        weight=ft.FontWeight.BOLD),
-                ft.Container(height=15),
-                ft.Row([
-                    ft.Button(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.build_ui(
-                    ), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
-                ], spacing=12),
-            ]),
-            padding=25,
-            bgcolor=ft.Colors.WHITE,
-            border_radius=12,
-            shadow=ft.BoxShadow(
-                blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
-        )
-
-        return ft.Column([header, ft.Container(height=20), self.build_coll_list()], scroll=ft.ScrollMode.AUTO, expand=True)
-
-    def build_coll_list(self):
-        """合集列表"""
-        try:
-            result = self.commands['ListCollections']().execute()
-            if not result or not result.strip():
-                return ft.Container(content=ft.Text(self.t('no_collections'), size=18, color=ft.Colors.GREY_500))
-
-            lines = [l for l in result.split('\n') if 'Collection:' in l]
-            cards = [self.coll_card(l) for l in lines] if lines else [
-                ft.Text(self.t('no_collections'), color=ft.Colors.GREY_500)]
-
-            return ft.Container(
-                content=ft.Column(cards, spacing=18),
-                padding=25,
-                bgcolor=ft.Colors.WHITE,
-                border_radius=12,
-                shadow=ft.BoxShadow(
-                    blur_radius=15, color=ft.Colors.with_opacity(0.08, ft.Colors.BLACK)),
-            )
-        except:
-            return ft.Container(content=ft.Text(self.t('no_collections'), color=ft.Colors.GREY_500))
-
-    def coll_card(self, line):
-        """合集卡片"""
-        parts = line.split('|')
-        name = parts[0].replace('Collection:', '').strip()
-        info = parts[1].strip() if len(parts) > 1 else ''
-        date = parts[2].strip() if len(parts) > 2 else ''
-
-        def on_hover(e):
-            if e.data == "true":
-                e.control.bgcolor = ft.Colors.ORANGE_100
-                e.control.shadow = ft.BoxShadow(
-                    blur_radius=20, color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK))
-            else:
-                e.control.bgcolor = ft.Colors.ORANGE_50
-                e.control.shadow = None
-            e.control.update()
-
-        def on_click(e):
-            self.show_collection_preview(name)
-
-        def on_delete(e):
-            self.confirm(
-                self.t('confirm_delete'),
-                self.t('confirm_delete_collection').format(name),
-                lambda: self.do_del_coll(name)
-            )
-
-        return ft.Container(
-            content=ft.Row([
-                ft.Container(
-                    content=ft.Icon(ft.Icons.FOLDER, size=44,
-                                    color=ft.Colors.WHITE),
-                    bgcolor=ft.Colors.ORANGE_600, border_radius=12, padding=20,
-                ),
-                ft.Column([
-                    ft.Text(name, size=20, weight=ft.FontWeight.BOLD),
-                    ft.Text(info, size=13, color=ft.Colors.GREY_600),
-                    ft.Text(date, size=12, color=ft.Colors.GREY_500),
-                ], spacing=4, expand=True),
-                ft.IconButton(
-                    icon=ft.Icons.DELETE,
-                    icon_color=ft.Colors.RED_500,
-                    tooltip=self.t('delete_collection'),
-                    on_click=on_delete,
-                ),
-            ], spacing=18),
-            padding=22,
-            border=ft.Border.all(1, ft.Colors.ORANGE_200),
-            border_radius=12,
-            bgcolor=ft.Colors.ORANGE_50,
-            on_hover=on_hover,
-            on_click=on_click,
-            animate=200,
-            tooltip="点击查看合集内容",
-        )
-
     def get_stats(self):
         """统计数据"""
         stats = {'posts': 0, 'collections': 0}
@@ -1891,10 +1614,10 @@ class BlogManagerGUI:
         return stats
 
     def snack(self, msg, error=False):
-        """消息提示"""
+        """Toast notification"""
         snack_bar = ft.SnackBar(
-            content=ft.Text(msg, color=ft.Colors.WHITE),
-            bgcolor=ft.Colors.RED_600 if error else ft.Colors.GREEN_600,
+            content=ft.Text(msg, color="#ffffff", size=13),
+            bgcolor=self.CLR_BAD if error else self.CLR_GOOD,
             duration=3000,
         )
         snack_bar.open = True
@@ -1943,105 +1666,45 @@ class BlogManagerGUI:
 
     def do_add_post(self, post, coll):
         """实际添加文章"""
-        inputs = [post, coll or '', 'y']
-        idx = [0]
-
-        def mock(p):
-            if idx[0] < len(inputs):
-                v = inputs[idx[0]]
-                idx[0] += 1
-                return v
-            return ''
-
-        import builtins
-        orig = builtins.input
-        builtins.input = mock
         try:
-            self.commands['AddPost']().execute()
+            with mock_input(post, coll or '', 'y'):
+                self.commands['AddPost']().execute()
             self.snack(self.t('operation_success'))
             self.build_ui()
         except Exception as e:
             self.snack(f"{self.t('error')}: {e}", True)
-        finally:
-            builtins.input = orig
-
-    def exec_del_post(self):
-        """执行删除文章"""
-        post = self.post_field.value.strip() if self.post_field.value else ""
-        coll = self.coll_field.value.strip() if self.coll_field.value else None
-        if not post:
-            self.snack(self.t('please_input_post'), True)
-            return
-        self.confirm(self.t('confirm_delete'), self.t('confirm_delete_post').format(
-            post), lambda: self.do_del_post(post, coll))
 
     def do_del_post(self, post, coll):
         """实际删除文章"""
         print(f"DEBUG do_del_post: post='{post}', coll='{coll}'")
-        inputs = [post, coll or '', 'y']
-        idx = [0]
-
-        def mock(p):
-            v = inputs[idx[0]] if idx[0] < len(inputs) else ''
-            print(f"DEBUG mock input: prompt='{p}', returning='{v}'")
-            idx[0] += 1
-            return v
-
-        import builtins
-        orig = builtins.input
-        builtins.input = mock
         try:
-            result = self.commands['DeletePost']().execute()
+            with mock_input(post, coll or '', 'y'):
+                result = self.commands['DeletePost']().execute()
             print(f"DEBUG delete result: {result}")
             self.snack(self.t('operation_success'))
             self.build_ui()
         except Exception as e:
             print(f"DEBUG delete error: {e}")
-            import traceback
             traceback.print_exc()
             self.snack(f"{self.t('error')}: {e}", True)
-        finally:
-            builtins.input = orig
-
-    def exec_del_coll(self):
-        """执行删除合集"""
-        coll = self.coll_name_field.value.strip() if self.coll_name_field.value else ""
-        if not coll:
-            self.snack(self.t('please_input_collection'), True)
-            return
-        self.confirm(self.t('confirm_delete'), self.t(
-            'confirm_delete_collection').format(coll), lambda: self.do_del_coll(coll))
 
     def do_del_coll(self, coll):
         """实际删除合集"""
         print(f"DEBUG do_del_coll: coll='{coll}'")
-        inputs = [coll, 'y']
-        idx = [0]
-
-        def mock(p):
-            v = inputs[idx[0]] if idx[0] < len(inputs) else ''
-            print(f"DEBUG mock input: prompt='{p}', returning='{v}'")
-            idx[0] += 1
-            return v
-
-        import builtins
-        orig_in = builtins.input
-        orig_pr = builtins.print
-        builtins.input = mock
-        builtins.print = lambda *a, **k: None
         try:
-            result = self.commands['DeleteCollection']().execute()
+            orig_pr = builtins.print
+            builtins.print = lambda *a, **k: None
+            with mock_input(coll, 'y'):
+                result = self.commands['DeleteCollection']().execute()
+            builtins.print = orig_pr
             print(f"DEBUG delete result: {result}")
             self.snack(self.t('operation_success'))
             self.build_ui()
         except Exception as e:
+            builtins.print = orig_pr
             print(f"DEBUG delete error: {e}")
-            import traceback
             traceback.print_exc()
             self.snack(f"{self.t('error')}: {e}", True)
-        finally:
-            builtins.input = orig_in
-            builtins.print = orig_pr
 
     def exec_generate(self, e):
         """生成配置"""
@@ -2056,9 +1719,9 @@ class BlogManagerGUI:
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=500, value=0)
         status_text = ft.Text("准备初始化...", size=14, weight=ft.FontWeight.BOLD)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
         log_text = ft.Text(
-            "", size=11, color=ft.Colors.GREY_700, selectable=True)
+            "", size=11, color=self.CLR_TEXT, selectable=True)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text("初始化博客框架"),
@@ -2073,7 +1736,7 @@ class BlogManagerGUI:
                         content=ft.Column(
                             [log_text], scroll=ft.ScrollMode.AUTO),
                         height=200,
-                        bgcolor=ft.Colors.GREY_100,
+                        bgcolor=self.CLR_ACCENT_SOFT,
                         border_radius=5,
                         padding=10,
                     ),
@@ -2089,10 +1752,8 @@ class BlogManagerGUI:
         def init_task():
             """在后台线程执行初始化"""
             try:
-                import time
-
                 # 创建一个自定义的 print 函数来捕获输出
-                original_print = __builtins__.print
+                original_print = builtins.print
 
                 def custom_print(*args, **kwargs):
                     """捕获 print 输出并显示在对话框中"""
@@ -2102,7 +1763,7 @@ class BlogManagerGUI:
                     original_print(*args, **kwargs)
 
                 # 替换 print 函数
-                __builtins__.print = custom_print
+                builtins.print = custom_print
 
                 try:
                     # 阶段1: 环境检查 (0-20%)
@@ -2139,7 +1800,7 @@ class BlogManagerGUI:
 
                 finally:
                     # 恢复原始 print 函数
-                    __builtins__.print = original_print
+                    builtins.print = original_print
 
                 # 关闭进度对话框
                 progress_dlg.open = False
@@ -2153,7 +1814,7 @@ class BlogManagerGUI:
 
             except Exception as ex:
                 # 恢复原始 print 函数
-                __builtins__.print = original_print
+                builtins.print = original_print
 
                 # 关闭进度对话框
                 progress_dlg.open = False
@@ -2161,11 +1822,9 @@ class BlogManagerGUI:
 
                 # 显示错误消息
                 self.snack(f"{self.t('error')}: {ex}", True)
-                import traceback
                 traceback.print_exc()
 
         # 使用Flet的run_thread在后台执行
-        import threading
         threading.Thread(target=lambda: self.page.run_thread(
             init_task), daemon=True).start()
 
@@ -2174,7 +1833,7 @@ class BlogManagerGUI:
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
         status_text = ft.Text("准备构建...", size=14)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text("正在构建项目"),
@@ -2257,14 +1916,14 @@ class BlogManagerGUI:
                             weight=ft.FontWeight.BOLD),
                     ft.Container(height=10),
                     ft.Text("• 仅本机：只能在本机访问（127.0.0.1）",
-                            size=13, color=ft.Colors.GREY_700),
+                            size=13, color=self.CLR_TEXT),
                     ft.Text("• 局域网：局域网内设备可通过本机IP访问", size=13,
-                            color=ft.Colors.GREY_700),
+                            color=self.CLR_TEXT),
                     ft.Container(height=10),
                     ft.Container(
-                        content=ft.Text("⚠️ 注意：允许局域网访问会暴露编辑器给局域网内所有设备",
-                                        size=12, color=ft.Colors.ORANGE_700),
-                        bgcolor=ft.Colors.ORANGE_50,
+                        content=ft.Text("注意：允许局域网访问会暴露编辑器给局域网内所有设备",
+                                        size=12, color=self.CLR_WARN),
+                        bgcolor=self.CLR_ACCENT_SOFT,
                         padding=10,
                         border_radius=8,
                     ),
@@ -2281,21 +1940,14 @@ class BlogManagerGUI:
                     "允许局域网",
                     on_click=lambda e: on_lan_choice(True),
                     icon=ft.Icons.WIFI,
-                    bgcolor=ft.Colors.BLUE_600,
-                    color=ft.Colors.WHITE,
+                    bgcolor=self.CLR_ACCENT,
+                    color=self.CLR_SURFACE,
                 ),
             ],
         )
         self.page.overlay.append(choice_dlg)
         choice_dlg.open = True
         self.page.update()
-
-    def _start_editor_with_option(self, allow_lan=False):
-        """实际启动编辑器（带局域网选项）"""
-        # 如果已经在运行，直接打开窗口
-        if self.editor_running and self.editor_url:
-            self.open_editor_window(e)
-            return
 
     def _start_editor_with_option(self, allow_lan=False):
         """实际启动编辑器（带局域网选项）"""
@@ -2310,7 +1962,7 @@ class BlogManagerGUI:
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
         status_text = ft.Text("准备启动编辑器...", size=14)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text("启动编辑器"),
@@ -2450,7 +2102,7 @@ class BlogManagerGUI:
                         match = port_pattern.search(line_clean)
                         if match:
                             frontend_port = int(match.group(1))
-                            print(f"[Editor] ✅ Port detected: {frontend_port}")
+                            print(f"[Editor] Port detected: {frontend_port}")
                             break
 
                     if self.dev_server_process.poll() is not None:
@@ -2563,7 +2215,7 @@ class BlogManagerGUI:
 
                     except Exception as e:
                         error_msg = f"Server startup error: {e}"
-                        print(f"[SERVER] ❌ {error_msg}")
+                        print(f"[SERVER] {error_msg}")
                         import traceback
                         traceback.print_exc()
                         server_error.append(error_msg)
@@ -2608,7 +2260,7 @@ class BlogManagerGUI:
                         if response.status_code == 200:
                             server_ready = True
                             print(
-                                f"[Editor] ✅ Server is ready! Response: {response.json()}")
+                                f"[Editor] Server is ready! Response: {response.json()}")
                             break
                         else:
                             print(
@@ -2676,24 +2328,24 @@ class BlogManagerGUI:
                                     cmd2, shell=True, capture_output=True, text=True)
 
                                 if result1.returncode == 0 and result2.returncode == 0:
-                                    firewall_status.value = "✅ 防火墙规则已添加成功！"
+                                    firewall_status.value = "防火墙规则已添加成功"
                                     firewall_status.color = ft.Colors.GREEN
                                 else:
-                                    firewall_status.value = "❌ 添加失败，请以管理员身份运行程序"
+                                    firewall_status.value = "添加失败，请以管理员身份运行程序"
                                     firewall_status.color = ft.Colors.RED
                             else:
-                                firewall_status.value = "⚠️ 仅支持 Windows 系统自动配置"
+                                firewall_status.value = "仅支持 Windows 系统自动配置"
                                 firewall_status.color = ft.Colors.ORANGE
 
                             self.page.update()
                         except Exception as ex:
-                            firewall_status.value = f"❌ 配置失败: {str(ex)}"
+                            firewall_status.value = f"配置失败: {str(ex)}"
                             firewall_status.color = ft.Colors.RED
                             self.page.update()
 
                     # 显示局域网访问信息
                     lan_info_dlg = ft.AlertDialog(
-                        title=ft.Text("✅ 编辑器已启动（局域网模式）"),
+                        title=ft.Text("编辑器已启动（局域网模式）"),
                         content=ft.Container(
                             content=ft.Column([
                                 ft.Text("本机访问地址：", size=14,
@@ -2704,7 +2356,7 @@ class BlogManagerGUI:
                                         size=12,
                                         selectable=True,
                                     ),
-                                    bgcolor=ft.Colors.GREY_100,
+                                    bgcolor=self.CLR_ACCENT_SOFT,
                                     padding=10,
                                     border_radius=5,
                                 ),
@@ -2717,31 +2369,31 @@ class BlogManagerGUI:
                                         size=12,
                                         selectable=True,
                                     ),
-                                    bgcolor=ft.Colors.BLUE_50,
+                                    bgcolor=self.CLR_ACCENT_SOFT,
                                     padding=10,
                                     border_radius=5,
                                 ),
                                 ft.Container(height=15),
-                                ft.Text("📱 局域网内其他设备可使用上方地址访问", size=13,
-                                        color=ft.Colors.BLUE_700),
+                                ft.Text("局域网内其他设备可使用上方地址访问", size=13,
+                                        color=self.CLR_ACCENT),
                                 ft.Container(height=5),
                                 ft.Text(
-                                    "⚠️ 防火墙配置提示：", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_700),
+                                    "防火墙配置提示：", size=12, weight=ft.FontWeight.BOLD, color=self.CLR_WARN),
                                 ft.Text(
-                                    f"  • 前端端口：{frontend_port}", size=11, color=ft.Colors.ORANGE_600),
+                                    f"  • 前端端口：{frontend_port}", size=11, color=self.CLR_ACCENT),
                                 ft.Text(
-                                    f"  • 后端端口：{self.editor_port}", size=11, color=ft.Colors.ORANGE_600),
+                                    f"  • 后端端口：{self.editor_port}", size=11, color=self.CLR_ACCENT),
                                 ft.Text("  • 如果其他设备无法访问，请点击下方按钮配置防火墙",
-                                        size=11, color=ft.Colors.ORANGE_600),
+                                        size=11, color=self.CLR_ACCENT),
                             ], spacing=5),
                             width=650,
                         ),
                         actions=[
                             ft.ElevatedButton(
-                                "🔧 自动配置防火墙",
+                                "配置防火墙",
                                 on_click=configure_firewall,
-                                bgcolor=ft.Colors.ORANGE_400,
-                                color=ft.Colors.WHITE,
+                                bgcolor=self.CLR_WARN,
+                                color=self.CLR_SURFACE,
                             ),
                             ft.TextButton(
                                 "关闭", on_click=lambda e: self.close_dlg(lan_info_dlg)),
@@ -2787,7 +2439,7 @@ class BlogManagerGUI:
                 # 刷新UI以显示新按钮
                 self.build_ui()
 
-                self.snack("✅ 编辑器已启动！", False)
+                self.snack("编辑器已启动", False)
 
             except Exception as ex:
                 # 关闭进度对话框
@@ -2805,7 +2457,7 @@ class BlogManagerGUI:
 
                     if returncode == 4294963238 or returncode == -1073741515:
                         error_details = [
-                            "❌ npm 命令未找到或无法执行",
+                            "npm 命令未找到或无法执行",
                             "",
                             "可能的原因：",
                             "1. Node.js/npm 未安装",
@@ -2823,7 +2475,7 @@ class BlogManagerGUI:
                         ]
                     else:
                         error_details = [
-                            f"❌ 开发服务器启动失败 (退出码: {returncode})",
+                            f"开发服务器启动失败 (退出码: {returncode})",
                             "",
                             "请检查：",
                             "1. 是否运行了 'npm install'",
@@ -2836,7 +2488,7 @@ class BlogManagerGUI:
 
                 elif "未找到 package.json" in error_msg:
                     error_details = [
-                        "❌ 博客框架未正确初始化",
+                        "博客框架未正确初始化",
                         "",
                         "解决方案：",
                         "1. 点击 '初始化博客框架' 按钮",
@@ -2852,7 +2504,7 @@ class BlogManagerGUI:
 
                 elif "未找到 node_modules" in error_msg:
                     error_details = [
-                        "❌ 依赖未安装",
+                        "依赖未安装",
                         "",
                         "解决方案：",
                         "在博客目录运行：",
@@ -2863,7 +2515,7 @@ class BlogManagerGUI:
 
                 else:
                     error_details = [
-                        f"❌ {error_msg}",
+                        f"{error_msg}",
                         "",
                         "请查看控制台输出获取详细信息",
                         "或参考 EDITOR_TROUBLESHOOTING.md"
@@ -2873,7 +2525,7 @@ class BlogManagerGUI:
                 error_text = "\n".join(error_details)
 
                 error_dlg = ft.AlertDialog(
-                    title=ft.Text("启动编辑器失败", color=ft.Colors.RED_700),
+                    title=ft.Text("启动编辑器失败", color=self.CLR_BAD),
                     content=ft.Container(
                         content=ft.Column([
                             ft.Text(
@@ -2925,7 +2577,7 @@ class BlogManagerGUI:
         if self.editor_url:
             import webbrowser
             webbrowser.open(self.editor_url)
-            self.snack("✅ 已打开编辑器窗口", False)
+            self.snack("已打开编辑器窗口", False)
         else:
             self.snack("编辑器未运行", True)
 
@@ -2963,7 +2615,7 @@ class BlogManagerGUI:
                 # 刷新UI
                 self.build_ui()
 
-                self.snack("✅ 编辑器已关闭", False)
+                self.snack("编辑器已关闭", False)
 
             except Exception as ex:
                 self.snack(f"关闭失败: {ex}", True)
@@ -3140,7 +2792,7 @@ class BlogManagerGUI:
             ft.Text(self.t('migrate_title'), size=20,
                     weight=ft.FontWeight.BOLD),
             ft.Container(height=10),
-            ft.Text(self.t('migrate_desc'), size=13, color=ft.Colors.GREY_700),
+            ft.Text(self.t('migrate_desc'), size=13, color=self.CLR_TEXT),
         ], tight=True)
 
         dlg = ft.AlertDialog(
@@ -3164,7 +2816,7 @@ class BlogManagerGUI:
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
         status_text = ft.Text(self.t('migrating'), size=14)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text(self.t('migrate_title')),
@@ -3337,20 +2989,20 @@ class BlogManagerGUI:
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(ft.Icons.CODE,
-                                color=ft.Colors.DEEP_PURPLE_600, size=30),
+                                color=self.CLR_ACCENT, size=30),
                         ft.Column([
                             ft.Text("更新博客框架", size=16,
                                     weight=ft.FontWeight.BOLD),
                             ft.Text(f"有 {self.update_info['commits_behind']} 个新提交",
-                                    size=12, color=ft.Colors.GREY_600),
+                                    size=12, color=self.CLR_TEXT_SECONDARY),
                         ], spacing=2, expand=True),
                         ft.Icon(ft.Icons.CHEVRON_RIGHT,
-                                color=ft.Colors.GREY_400),
+                                color=self.CLR_TEXT_MUTED),
                     ], spacing=15),
                     padding=15,
-                    border=ft.Border.all(1, ft.Colors.GREY_300),
+                    border=ft.Border.all(1, self.CLR_BORDER),
                     border_radius=8,
-                    bgcolor=ft.Colors.WHITE,
+                    bgcolor=self.CLR_SURFACE,
                     on_click=lambda e: self.close_and_show_framework_update(
                         dlg),
                     ink=True,
@@ -3363,20 +3015,20 @@ class BlogManagerGUI:
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(ft.Icons.SETTINGS_APPLICATIONS,
-                                color=ft.Colors.BLUE_600, size=30),
+                                color=self.CLR_ACCENT, size=30),
                         ft.Column([
                             ft.Text("更新管理工具", size=16,
                                     weight=ft.FontWeight.BOLD),
                             ft.Text(f"最新版本: {self.update_info['manager_version']}",
-                                    size=12, color=ft.Colors.GREY_600),
+                                    size=12, color=self.CLR_TEXT_SECONDARY),
                         ], spacing=2, expand=True),
                         ft.Icon(ft.Icons.CHEVRON_RIGHT,
-                                color=ft.Colors.GREY_400),
+                                color=self.CLR_TEXT_MUTED),
                     ], spacing=15),
                     padding=15,
-                    border=ft.Border.all(1, ft.Colors.GREY_300),
+                    border=ft.Border.all(1, self.CLR_BORDER),
                     border_radius=8,
-                    bgcolor=ft.Colors.WHITE,
+                    bgcolor=self.CLR_SURFACE,
                     on_click=lambda e: self.close_and_show_manager_update(dlg),
                     ink=True,
                 )
@@ -3388,8 +3040,8 @@ class BlogManagerGUI:
                 ft.Container(
                     content=ft.Column([
                         ft.Icon(ft.Icons.CHECK_CIRCLE,
-                                color=ft.Colors.GREEN_600, size=50),
-                        ft.Text("已是最新版本", size=16, color=ft.Colors.GREY_700),
+                                color=self.CLR_GOOD, size=50),
+                        ft.Text("已是最新版本", size=16, color=self.CLR_TEXT),
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                     padding=30,
                 )
@@ -3436,7 +3088,7 @@ class BlogManagerGUI:
                     weight=ft.FontWeight.BOLD),
             ft.Container(height=10),
             ft.Text(self.t('update_framework_desc'),
-                    size=13, color=ft.Colors.GREY_700),
+                    size=13, color=self.CLR_TEXT),
         ], tight=True)
 
         dlg = ft.AlertDialog(
@@ -3448,7 +3100,7 @@ class BlogManagerGUI:
                 ft.Button(self.t('update_confirm'),
                           on_click=lambda e: self.confirm_update_framework(
                               dlg),
-                          bgcolor=ft.Colors.DEEP_PURPLE_600,
+                          bgcolor=self.CLR_ACCENT,
                           color=ft.Colors.WHITE),
             ],
         )
@@ -3463,9 +3115,9 @@ class BlogManagerGUI:
         # 创建进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
         status_text = ft.Text(self.t('updating'), size=14)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
         log_text = ft.Text(
-            "", size=11, color=ft.Colors.GREY_500, selectable=True)
+            "", size=11, color=self.CLR_TEXT_MUTED, selectable=True)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text(self.t('update_framework_title')),
@@ -3479,7 +3131,7 @@ class BlogManagerGUI:
                     ft.Container(
                         content=log_text,
                         height=150,
-                        bgcolor=ft.Colors.GREY_100,
+                        bgcolor=self.CLR_ACCENT_SOFT,
                         border_radius=5,
                         padding=10,
                     ),
@@ -3516,7 +3168,7 @@ class BlogManagerGUI:
                 if not git_status['is_git_repo']:
                     raise Exception('当前目录不是 Git 仓库')
 
-                log_text.value += f"✓ Git 状态检查完成\n"
+                log_text.value += f"Git 状态检查完成\n"
                 log_text.value += f"  分支: {git_status.get('current_branch', 'unknown')}\n"
                 if git_status.get('has_changes'):
                     log_text.value += f"  警告: 检测到未提交的更改\n"
@@ -3532,7 +3184,7 @@ class BlogManagerGUI:
                 if not backup_result['success']:
                     raise Exception(backup_result.get('message', '备份失败'))
 
-                log_text.value += f"\n✓ 备份完成\n"
+                log_text.value += f"\n备份完成\n"
                 log_text.value += f"  位置: {backup_result['backup_path']}\n"
                 log_text.value += f"  文件数: {len(backup_result['backed_up_files'])}\n"
                 self.page.update()
@@ -3545,12 +3197,12 @@ class BlogManagerGUI:
 
                 pull_result = updater.pull_latest_code()
                 if not pull_result['success']:
-                    log_text.value += f"\n✗ 代码拉取失败，正在恢复备份...\n"
+                    log_text.value += f"\n代码拉取失败，正在恢复备份...\n"
                     self.page.update()
                     updater.restore_user_files(backup_result['backup_path'])
                     raise Exception(pull_result.get('message', '拉取代码失败'))
 
-                log_text.value += f"\n✓ 代码拉取成功\n"
+                log_text.value += f"\n代码拉取成功\n"
                 self.page.update()
 
                 # 4. 恢复用户文件
@@ -3564,7 +3216,7 @@ class BlogManagerGUI:
                 if not restore_result['success']:
                     raise Exception(restore_result.get('message', '恢复文件失败'))
 
-                log_text.value += f"\n✓ 用户文件恢复完成\n"
+                log_text.value += f"\n用户文件恢复完成\n"
                 self.page.update()
 
                 # 5. 安装 npm 依赖
@@ -3578,9 +3230,9 @@ class BlogManagerGUI:
 
                 npm_result = updater.install_dependencies()
                 if npm_result['success']:
-                    log_text.value += f"✓ npm 依赖安装完成\n"
+                    log_text.value += f"npm 依赖安装完成\n"
                 else:
-                    log_text.value += f"⚠ npm 依赖安装失败: {npm_result.get('message', '未知错误')}\n"
+                    log_text.value += f"npm 依赖安装失败: {npm_result.get('message', '未知错误')}\n"
                     log_text.value += f"  请手动运行 'npm install'\n"
                 self.page.update()
 
@@ -3596,7 +3248,7 @@ class BlogManagerGUI:
                     'differences', {}) if compare_result['success'] else {}
 
                 if differences:
-                    log_text.value += f"\n⚠ 检测到配置变化:\n"
+                    log_text.value += f"\n检测到配置变化:\n"
                     for file_name, diff in differences.items():
                         new_fields = diff.get('new_fields', [])
                         modified_fields = diff.get('modified_fields', [])
@@ -3605,14 +3257,14 @@ class BlogManagerGUI:
                         if modified_fields:
                             log_text.value += f"  {file_name}: 修改 {len(modified_fields)} 个字段\n"
                 else:
-                    log_text.value += f"\n✓ 无配置文件变化\n"
+                    log_text.value += f"\n无配置文件变化\n"
                 self.page.update()
 
                 # 7. 生成更新报告
                 report_result = updater.generate_update_report(
                     backup_result['backup_path'], differences)
                 if report_result['success']:
-                    log_text.value += f"\n✓ 更新报告已生成\n"
+                    log_text.value += f"\n更新报告已生成\n"
                     log_text.value += f"  位置: UPDATE_REPORT.md\n"
 
                 # 更新完成
@@ -3620,10 +3272,10 @@ class BlogManagerGUI:
                 status_text.value = self.t('update_success')
                 detail_text.value = "框架更新完成！"
                 log_text.value += f"\n{'='*40}\n"
-                log_text.value += f"✓ 更新完成！\n"
+                log_text.value += f"更新完成\n"
                 log_text.value += f"\n下一步:\n"
                 if npm_result['success']:
-                    log_text.value += f"1. ✓ npm 依赖已自动安装\n"
+                    log_text.value += f"1. npm 依赖已自动安装\n"
                     log_text.value += f"2. 运行 npm run dev 测试博客\n"
                     log_text.value += f"3. 检查 UPDATE_REPORT.md 了解详情\n"
                 else:
@@ -3659,7 +3311,7 @@ class BlogManagerGUI:
                 progress_bar.value = 0
                 status_text.value = self.t('update_failed')
                 detail_text.value = str(ex)
-                log_text.value += f"\n✗ 错误: {ex}\n"
+                log_text.value += f"\n错误: {ex}\n"
                 self.page.update()
 
                 import time
@@ -3690,7 +3342,7 @@ class BlogManagerGUI:
                 ft.Button(
                     "立即更新",
                     on_click=lambda e: self.close_and_update_manager(dlg),
-                    bgcolor=ft.Colors.BLUE_600,
+                    bgcolor=self.CLR_ACCENT,
                     color=ft.Colors.WHITE
                 ),
             ],
@@ -3755,12 +3407,12 @@ class BlogManagerGUI:
             title=ft.Text("管理工具更新"),
             content=ft.Column([
                 ft.Icon(ft.Icons.CHECK_CIRCLE, size=64,
-                        color=ft.Colors.GREEN_600),
+                        color=self.CLR_GOOD),
                 ft.Container(height=10),
                 ft.Text("已是最新版本", size=18, weight=ft.FontWeight.BOLD),
                 ft.Container(height=5),
                 ft.Text(f"当前版本: {current_version}",
-                        size=14, color=ft.Colors.GREY_600),
+                        size=14, color=self.CLR_TEXT_SECONDARY),
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, tight=True),
             actions=[
                 ft.Button("确定", on_click=lambda e: self.close_dlg(dlg)),
@@ -3802,16 +3454,16 @@ class BlogManagerGUI:
                     content=ft.Text(
                         display_notes,
                         size=12,
-                        color=ft.Colors.GREY_700
+                        color=self.CLR_TEXT
                     ),
                     height=100,
                     padding=10,
-                    border=ft.Border.all(1, ft.Colors.GREY_300),
+                    border=ft.Border.all(1, self.CLR_BORDER),
                     border_radius=5,
                 ),
                 ft.Container(height=10),
-                ft.Text("是否立即更新管理工具？", size=13, color=ft.Colors.GREY_700),
-                ft.Text("（程序将自动关闭并重启）", size=11, color=ft.Colors.ORANGE_700),
+                ft.Text("是否立即更新管理工具？", size=13, color=self.CLR_TEXT),
+                ft.Text("（程序将自动关闭并重启）", size=11, color=self.CLR_WARN),
             ], tight=True, scroll=ft.ScrollMode.AUTO)
 
             dlg = ft.AlertDialog(
@@ -3824,7 +3476,7 @@ class BlogManagerGUI:
                         "立即更新",
                         on_click=lambda e: self.confirm_manager_update(
                             dlg, update_info, updater),
-                        bgcolor=ft.Colors.BLUE_600,
+                        bgcolor=self.CLR_ACCENT,
                         color=ft.Colors.WHITE
                     ),
                 ],
@@ -3850,9 +3502,9 @@ class BlogManagerGUI:
         # 显示下载进度对话框
         progress_bar = ft.ProgressBar(width=450, value=0)
         status_text = ft.Text("正在下载...", size=14, weight=ft.FontWeight.BOLD)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
         log_text = ft.Text(
-            "", size=11, color=ft.Colors.GREY_700, selectable=True)
+            "", size=11, color=self.CLR_TEXT, selectable=True)
 
         progress_dlg = ft.AlertDialog(
             title=ft.Text("更新管理工具"),
@@ -3868,7 +3520,7 @@ class BlogManagerGUI:
                         content=ft.Column(
                             [log_text], scroll=ft.ScrollMode.AUTO),
                         height=120,
-                        bgcolor=ft.Colors.GREY_100,
+                        bgcolor=self.CLR_ACCENT_SOFT,
                         border_radius=5,
                         padding=10,
                     ),
@@ -3928,7 +3580,7 @@ class BlogManagerGUI:
                 )
 
                 if result['success']:
-                    log_text.value += "\n✓ 下载完成！\n"
+                    log_text.value += "\n下载完成\n"
                     status_text.value = "更新完成"
                     detail_text.value = "程序即将关闭并自动重启..."
                     progress_bar.value = 1.0
@@ -3949,7 +3601,7 @@ class BlogManagerGUI:
                 import traceback
                 error_details = traceback.format_exc()
 
-                log_text.value += f"\n✗ 错误: {ex}\n"
+                log_text.value += f"\n错误: {ex}\n"
                 log_text.value += f"\n详细信息:\n{error_details}\n"
                 status_text.value = "更新失败"
                 detail_text.value = str(ex)
@@ -3969,19 +3621,19 @@ class BlogManagerGUI:
         self.page.run_task(update_task)
 
     def confirm(self, title, msg, callback):
-        """确认对话框"""
+        """Confirmation dialog — refined style"""
         def ok(e):
             self.close_dlg(dlg)
             callback()
 
         dlg = ft.AlertDialog(
-            title=ft.Text(title),
-            content=ft.Text(msg),
+            title=ft.Text(title, size=16, weight=ft.FontWeight.W_600),
+            content=ft.Text(msg, size=13, color=self.CLR_TEXT_SECONDARY),
             actions=[
-                ft.TextButton(self.t('cancel'),
-                              on_click=lambda e: self.close_dlg(dlg)),
-                ft.Button(self.t('confirm'), on_click=ok,
-                          bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE),
+                ft.TextButton(self.t('cancel'), on_click=lambda e: self.close_dlg(dlg)),
+                ft.ElevatedButton(self.t('confirm'), on_click=ok,
+                                  bgcolor=self.CLR_BAD, color="#ffffff",
+                                  style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=4))),
             ],
         )
         self.page.overlay.append(dlg)
@@ -4045,7 +3697,7 @@ class BlogManagerGUI:
             # 构建预览内容
             preview_items = [
                 ft.Row([
-                    ft.Icon(ft.Icons.TITLE, size=20, color=ft.Colors.BLUE_600),
+                    ft.Icon(ft.Icons.TITLE, size=20, color=self.CLR_ACCENT),
                     ft.Text(metadata.get('title', post_name),
                             size=18, weight=ft.FontWeight.BOLD),
                 ], spacing=10),
@@ -4054,18 +3706,18 @@ class BlogManagerGUI:
             if metadata.get('date'):
                 preview_items.append(ft.Row([
                     ft.Icon(ft.Icons.CALENDAR_TODAY, size=16,
-                            color=ft.Colors.GREY_600),
+                            color=self.CLR_TEXT_SECONDARY),
                     ft.Text(f"日期: {metadata['date']}",
-                            size=13, color=ft.Colors.GREY_700),
+                            size=13, color=self.CLR_TEXT),
                 ], spacing=8))
 
             if metadata.get('tags'):
                 tags = metadata['tags'] if isinstance(
                     metadata['tags'], list) else [metadata['tags']]
                 preview_items.append(ft.Row([
-                    ft.Icon(ft.Icons.TAG, size=16, color=ft.Colors.GREY_600),
+                    ft.Icon(ft.Icons.TAG, size=16, color=self.CLR_TEXT_SECONDARY),
                     ft.Text(f"标签: {', '.join(tags)}", size=13,
-                            color=ft.Colors.GREY_700),
+                            color=self.CLR_TEXT),
                 ], spacing=8))
 
             if metadata.get('categories'):
@@ -4073,9 +3725,9 @@ class BlogManagerGUI:
                     metadata['categories']]
                 preview_items.append(ft.Row([
                     ft.Icon(ft.Icons.CATEGORY, size=16,
-                            color=ft.Colors.GREY_600),
+                            color=self.CLR_TEXT_SECONDARY),
                     ft.Text(f"分类: {', '.join(cats)}", size=13,
-                            color=ft.Colors.GREY_700),
+                            color=self.CLR_TEXT),
                 ], spacing=8))
 
             if metadata.get('pre'):
@@ -4084,9 +3736,9 @@ class BlogManagerGUI:
                     ft.Text("简介:", size=14, weight=ft.FontWeight.BOLD))
                 preview_items.append(ft.Container(
                     content=ft.Text(
-                        metadata['pre'], size=13, color=ft.Colors.GREY_800),
+                        metadata['pre'], size=13, color=self.CLR_TEXT),
                     padding=10,
-                    bgcolor=ft.Colors.GREY_100,
+                    bgcolor=self.CLR_ACCENT_SOFT,
                     border_radius=8,
                 ))
 
@@ -4098,105 +3750,17 @@ class BlogManagerGUI:
                     ft.Text("内容预览:", size=14, weight=ft.FontWeight.BOLD))
                 preview_items.append(ft.Container(
                     content=ft.Text(body + "...", size=12,
-                                    color=ft.Colors.GREY_800),
+                                    color=self.CLR_TEXT),
                     padding=10,
-                    bgcolor=ft.Colors.BLUE_50,
+                    bgcolor=self.CLR_ACCENT_SOFT,
                     border_radius=8,
                     height=150,
                 ))
 
             dlg = ft.AlertDialog(
-                title=ft.Text(f"📄 {post_name}"),
+                title=ft.Text(f"{post_name}"),
                 content=ft.Container(
                     content=ft.Column(preview_items, spacing=8,
-                                      scroll=ft.ScrollMode.AUTO),
-                    width=600,
-                    height=400,
-                ),
-                actions=[
-                    ft.TextButton(
-                        "关闭", on_click=lambda e: self.close_dlg(dlg)),
-                ],
-            )
-            self.page.overlay.append(dlg)
-            dlg.open = True
-            self.page.update()
-
-        except Exception as e:
-            self.snack(f"预览失败: {e}", True)
-
-    def show_collection_preview(self, collection_name):
-        """显示合集预览"""
-        try:
-            from mainTools.path_utils import get_posts_path
-            import os
-
-            posts_path = get_posts_path()
-            collection_path = os.path.join(posts_path, collection_name)
-
-            if not os.path.exists(collection_path):
-                self.snack(f"未找到合集: {collection_name}", True)
-                return
-
-            # 获取合集中的文章
-            posts = []
-            for file in os.listdir(collection_path):
-                if file.endswith('.md'):
-                    post_name = file[:-3]
-                    file_path = os.path.join(collection_path, file)
-
-                    try:
-                        from mainTools.utility import parse_markdown_metadata
-                        metadata = parse_markdown_metadata(file_path)
-                        posts.append({
-                            'name': post_name,
-                            'title': metadata.get('title', post_name),
-                            'date': metadata.get('date', ''),
-                            'pre': metadata.get('pre', '')[:100] + '...' if metadata.get('pre') else ''
-                        })
-                    except:
-                        posts.append({
-                            'name': post_name,
-                            'title': post_name,
-                            'date': '',
-                            'pre': ''
-                        })
-
-            # 构建预览内容
-            preview_items = [
-                ft.Text(f"合集共有 {len(posts)} 篇文章", size=16,
-                        color=ft.Colors.GREY_700),
-                ft.Divider(),
-            ]
-
-            for post in posts:
-                post_item = ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Icon(ft.Icons.ARTICLE, size=20,
-                                    color=ft.Colors.ORANGE_600),
-                            ft.Text(post['title'], size=15,
-                                    weight=ft.FontWeight.BOLD),
-                        ], spacing=10),
-                        ft.Text(
-                            post['date'], size=12, color=ft.Colors.GREY_600) if post['date'] else ft.Container(),
-                        ft.Text(
-                            post['pre'], size=12, color=ft.Colors.GREY_700) if post['pre'] else ft.Container(),
-                    ], spacing=4),
-                    padding=12,
-                    bgcolor=ft.Colors.ORANGE_50,
-                    border_radius=8,
-                    border=ft.Border.all(1, ft.Colors.ORANGE_200),
-                    on_click=lambda e, name=post['name']: self.show_post_preview(
-                        name),
-                    tooltip="点击查看详情",
-                )
-                preview_items.append(post_item)
-
-            dlg = ft.AlertDialog(
-                title=ft.Text(f"📁 {collection_name}"),
-                content=ft.Container(
-                    content=ft.Column(preview_items, spacing=10,
                                       scroll=ft.ScrollMode.AUTO),
                     width=600,
                     height=400,
@@ -4361,7 +3925,7 @@ class BlogManagerGUI:
             result = self.process_config_image(file_path, 'BackgroundImg')
             if result:
                 bg_img_uploaded[0] = result
-                self.snack(f"✅ 背景图片已上传", False)
+                self.snack(f"背景图片已上传", False)
                 self.build_ui()  # 刷新界面以显示新图片
 
         def on_head_upload(file_path):
@@ -4369,7 +3933,7 @@ class BlogManagerGUI:
             result = self.process_config_image(file_path, 'HeadImg')
             if result:
                 head_img_uploaded[0] = result
-                self.snack(f"✅ 头像图片已上传", False)
+                self.snack(f"头像图片已上传", False)
                 self.build_ui()  # 刷新界面以显示新图片
 
         # 图片上传组件
@@ -4537,13 +4101,13 @@ class BlogManagerGUI:
                         repo_name = github_config.get('repo_name', '')
                         if repo_name:
                             utterances_repo_field.value = repo_name
-                            self.snack('✅ 已从 GitHub 配置中加载仓库信息', False)
+                            self.snack('已从 GitHub 配置中加载仓库信息', False)
                             self.page.update()
                             return
 
-                self.snack('⚠️ 未找到 GitHub 配置，请手动输入仓库信息', False)
+                self.snack('未找到 GitHub 配置，请手动输入仓库信息', False)
             except Exception as ex:
-                self.snack(f'❌ 读取部署配置失败: {ex}', True)
+                self.snack(f'读取部署配置失败: {ex}', True)
 
         load_deploy_btn = ft.TextButton(
             '从GitHub配置加载' if self.current_lang == 'zh' else 'Load from GitHub Config',
@@ -4604,9 +4168,9 @@ class BlogManagerGUI:
 
         # 帮助文本
         help_text = ft.Text(
-            '💡 提示: 使用 Utterances 需要先在 GitHub 仓库中安装 Utterances App\n'
+            '提示: 使用 Utterances 需要先在 GitHub 仓库中安装 Utterances App\n'
             '访问 https://github.com/apps/utterances 进行安装' if self.current_lang == 'zh' else
-            '💡 Tip: You need to install Utterances App in your GitHub repository first\n'
+            'Tip: You need to install Utterances App in your GitHub repository first\n'
             'Visit https://github.com/apps/utterances to install',
             size=12,
             color="#718096",
@@ -4677,7 +4241,7 @@ class BlogManagerGUI:
 
             remove_btn = ft.IconButton(
                 icon=ft.Icons.DELETE,
-                icon_color=ft.Colors.RED_400,
+                icon_color=self.CLR_BAD,
                 on_click=remove_link,
             )
 
@@ -4797,8 +4361,8 @@ class BlogManagerGUI:
             self.t('save_config'),
             icon=ft.Icons.SAVE,
             on_click=save_config,
-            bgcolor=ft.Colors.GREEN_600,
-            color=ft.Colors.WHITE,
+            bgcolor=self.CLR_GOOD,
+            color=self.CLR_SURFACE,
         )
 
         # 添加底部保存按钮（方便滚动到最后时保存）
@@ -4809,26 +4373,26 @@ class BlogManagerGUI:
         save_reminder = ft.Container(
             content=ft.Row([
                 ft.Icon(ft.Icons.INFO_OUTLINE,
-                        color=ft.Colors.BLUE_600, size=20),
+                        color=self.CLR_ACCENT, size=20),
                 ft.Text(
                     self.t('config_save_reminder'),
                     size=13,
-                    color=ft.Colors.BLUE_700,
+                    color=self.CLR_ACCENT,
                     expand=True,
                 ),
                 ft.Button(
                     self.t('save_config'),
                     icon=ft.Icons.SAVE,
                     on_click=save_config,
-                    bgcolor=ft.Colors.GREEN_600,
-                    color=ft.Colors.WHITE,
+                    bgcolor=self.CLR_GOOD,
+                    color=self.CLR_SURFACE,
                     height=36,
                 ),
             ], spacing=10),
-            bgcolor=ft.Colors.BLUE_50,
+            bgcolor=self.CLR_ACCENT_SOFT,
             padding=15,
             border_radius=8,
-            border=ft.Border.all(1, ft.Colors.BLUE_200),
+            border=ft.Border.all(1, self.CLR_BORDER),
         )
 
         return ft.Column([
@@ -4899,7 +4463,7 @@ class BlogManagerGUI:
             ft.Text(self.t('github_repo'), size=16, weight=ft.FontWeight.BOLD),
             ft.Container(height=10),
             repo_field,
-            ft.Text('如果仓库不存在，将自动创建', size=12, color=ft.Colors.GREY_600),
+            ft.Text('如果仓库不存在，将自动创建', size=12, color=self.CLR_TEXT_SECONDARY),
         ], tight=True, spacing=15)
 
         # 创建对话框容器
@@ -4987,7 +4551,7 @@ class BlogManagerGUI:
         """验证GitHub Token"""
         token = token_field.value.strip()
         if not token:
-            status_text.value = "❌ 请输入Token"
+            status_text.value = "请输入Token"
             status_text.color = ft.Colors.RED
             self.page.update()
             return
@@ -4997,10 +4561,10 @@ class BlogManagerGUI:
         result = verify_cmd.execute(token)
 
         if result['success']:
-            status_text.value = f"✅ {result['message']}"
+            status_text.value = f"{result['message']}"
             status_text.color = ft.Colors.GREEN
         else:
-            status_text.value = f"❌ {result['message']}"
+            status_text.value = f"{result['message']}"
             status_text.color = ft.Colors.RED
 
         self.page.update()
@@ -5010,7 +4574,7 @@ class BlogManagerGUI:
         # 创建详细进度对话框
         progress_bar = ft.ProgressBar(width=400, value=0)
         status_text = ft.Text("准备部署...", size=14)
-        detail_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
+        detail_text = ft.Text("", size=12, color=self.CLR_TEXT_SECONDARY)
 
         loading_dlg = ft.AlertDialog(
             title=ft.Text(self.t('deploying')),
