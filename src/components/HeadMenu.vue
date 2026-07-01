@@ -137,21 +137,33 @@ function toggleTheme() {
   themeManager.toggleTheme();
 }
 
-// 处理滚动
+// 处理滚动（rAF 节流，避免 scroll 事件触发每帧多次重排）
+let scrollTicking = false;
 function handleScroll() {
-  isScrolled.value = window.scrollY > 50;
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(() => {
+    scrollTicking = false;
+    isScrolled.value = window.scrollY > 50;
 
-  // 计算滚动进度
-  const windowHeight = document.documentElement.scrollHeight - window.innerHeight;
-  scrollProgress.value = (window.scrollY / windowHeight) * 100;
+    // 滚动进度仅在必要时更新（进度条显示的，低频即可）
+    const windowHeight = document.documentElement.scrollHeight - window.innerHeight;
+    scrollProgress.value = (window.scrollY / windowHeight) * 100;
+  });
 }
 
-// 鼠标移动追踪
+// 鼠标移动追踪（节流，CSS 变量更新也是 paint 触发源）
+let mouseTicking = false;
 function handleMouseMove(e) {
-  const rect = e.currentTarget.getBoundingClientRect();
-  mouseX.value = ((e.clientX - rect.left) / rect.width);
-  mouseY.value = ((e.clientY - rect.top) / rect.height);
-  headerRect.value = rect;
+  if (mouseTicking) return;
+  mouseTicking = true;
+  requestAnimationFrame(() => {
+    mouseTicking = false;
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseX.value = ((e.clientX - rect.left) / rect.width);
+    mouseY.value = ((e.clientY - rect.top) / rect.height);
+    headerRect.value = rect;
+  });
 }
 
 // Logo 点击效果
@@ -181,7 +193,7 @@ watch(isDarkMode, () => {
 
 // 初始化
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('scroll', handleScroll, { passive: true });
 
   // Theme is already initialized by App.vue, no need to load here
 
@@ -190,7 +202,7 @@ onMounted(() => {
   animateParticles();
 
   // 监听窗口大小变化
-  window.addEventListener('resize', initParticles);
+  window.addEventListener('resize', initParticles, { passive: true });
 });
 
 onUnmounted(() => {
@@ -204,8 +216,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- 滚动进度条 -->
-  <div class="scroll-progress" :style="{ width: scrollProgress + '%' }"></div>
+  <!-- 滚动进度条（transform 代替 width，避免 layout 重排）-->
+  <div class="scroll-progress" :style="{ transform: `scaleX(${scrollProgress / 100})` }"></div>
 
   <!-- Header container -->
   <header :class="['header-menu', { scrolled: isScrolled, 'dark': isDarkMode }]" @mousemove="handleMouseMove"
@@ -308,7 +320,8 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   z-index: 9999;
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease, padding 0.3s ease, width 0.3s ease, top 0.3s ease, left 0.3s ease;
+  will-change: width, top, left;
   background: var(--theme-header-bg);
   backdrop-filter: blur(8px) saturate(180%);
   -webkit-backdrop-filter: blur(8px) saturate(180%);
@@ -317,15 +330,18 @@ onUnmounted(() => {
   color: var(--theme-nav-text);
 }
 
-/* === 滚动进度条 === */
+/* === 滚动进度条（transform 驱动，避免 width 触发布局重排）=== */
 .scroll-progress {
   position: fixed;
   top: 0;
   left: 0;
+  width: 100%;
   height: 3px;
   background: var(--theme-gradient);
   z-index: 10000;
-  transition: width 0.1s ease-out;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
   box-shadow: 0 0 10px var(--theme-primary);
 }
 
@@ -341,6 +357,7 @@ onUnmounted(() => {
   top: 1rem;
   padding: 0.9rem 2rem;
   border-radius: 60px;
+  will-change: auto;
   background: var(--theme-header-bg-scrolled);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);

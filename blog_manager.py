@@ -2960,17 +2960,6 @@ class BlogManagerGUI:
                 self.editor_port = None
                 self.editor_token = None
 
-                # 重置 editor_server 模块的 CORS 配置标志
-                try:
-                    if 'mainTools.editor_server' in sys.modules:
-                        editor_server_module = sys.modules['mainTools.editor_server']
-                        # 重置 CORS 配置标志，允许下次启动时重新配置
-                        editor_server_module.CORS_CONFIGURED = False
-                        print("[Editor] Reset CORS configuration flag")
-                except Exception as reset_err:
-                    print(
-                        f"[Editor] Warning: Error resetting CORS flag: {reset_err}")
-
                 # 刷新UI
                 self.build_ui()
 

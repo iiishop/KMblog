@@ -278,16 +278,20 @@ CORS_CONFIGURED = False  # 防止重复配置的标志
 
 
 def configure_cors():
-    """配置CORS中间件（只配置一次）"""
+    """配置CORS中间件（幂等，可多次调用）"""
     global CORS_CONFIGURED
 
-    # 如果已经配置过，跳过
     if CORS_CONFIGURED:
-        print(f"[CORS] Already configured (LAN mode: {ALLOW_LAN_MODE})")
+        return
+
+    # 若中间件已存在（模块被复用、app 已启动过），跳过
+    existing = [m for m in app.user_middleware if m.cls == CORSMiddleware]
+    if existing:
+        print("[CORS] Middleware already on app, skipping")
+        CORS_CONFIGURED = True
         return
 
     if ALLOW_LAN_MODE:
-        # LAN模式：允许所有来源
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -299,7 +303,6 @@ def configure_cors():
         )
         print("[CORS] LAN mode enabled - allowing all origins")
     else:
-        # 本地模式：只允许 localhost/127.0.0.1
         app.add_middleware(
             CORSMiddleware,
             allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):\d+",

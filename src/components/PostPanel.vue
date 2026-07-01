@@ -168,7 +168,7 @@ onUnmounted(() => {
 });
 
 const totalPages = computed(() => {
-    return Math.ceil(Object.keys(posts.value).length / dynamicPostsPerPage.value);
+    return Math.max(1, Math.ceil(Object.keys(posts.value).length / dynamicPostsPerPage.value));
 });
 
 const paginatedPosts = computed(() => {
@@ -199,13 +199,8 @@ const goToPage = (page) => {
     }
 };
 
-const goToFirstPage = () => {
-    currentPage.value = 1;
-};
-
-const goToLastPage = () => {
-    currentPage.value = totalPages.value;
-};
+const goToFirst = () => { currentPage.value = 1; };
+const goToLast = () => { currentPage.value = totalPages.value; };
 
 const goToNextPage = () => {
     if (currentPage.value < totalPages.value) {
@@ -217,6 +212,20 @@ const goToPreviousPage = () => {
     if (currentPage.value > 1) {
         currentPage.value -= 1;
     }
+};
+
+// 分页数字显示逻辑：当前页 ±2，首尾必显示，其余省略号
+const PAGE_WINDOW = 2;
+const isPageVisible = (page) => {
+    if (page === 1 || page === totalPages.value) return true;
+    if (Math.abs(page - currentPage.value) <= PAGE_WINDOW) return true;
+    return false;
+};
+const isPageEllipsisBefore = (page) => {
+    return page === 2 && currentPage.value > PAGE_WINDOW + 2;
+};
+const isPageEllipsisAfter = (page) => {
+    return page === totalPages.value - 1 && currentPage.value < totalPages.value - PAGE_WINDOW - 1;
 };
 
 // Vue TransitionGroup hooks for staggered animation
@@ -258,13 +267,24 @@ function onLeave(el, done) {
             <Post v-for="(post, index) in paginatedPosts" :key="post.key" :imageUrl="post.imageUrl"
                 :markdownUrl="post.key" :data-index="index" />
         </transition-group>
-        <div class="pagination">
-            <button @click="goToFirstPage" :disabled="currentPage === 1">最前页</button>
-            <button @click="goToPreviousPage" :disabled="currentPage === 1">前一页</button>
-            <button v-for="page in totalPages" :key="page" @click="goToPage(page)" :disabled="currentPage === page">{{
-                page }}</button>
-            <button @click="goToNextPage" :disabled="currentPage === totalPages">后一页</button>
-            <button @click="goToLastPage" :disabled="currentPage === totalPages">最后页</button>
+        <div class="pagination" v-show="totalPages > 1">
+            <button class="pg-nav pg-first" v-show="currentPage > 1" @click="goToFirst" aria-label="First page">«</button>
+            <button class="pg-nav pg-prev" v-show="currentPage > 1" @click="goToPreviousPage" aria-label="Newer posts">‹<span class="pg-nav-label">Newer</span></button>
+
+            <div class="pg-numbers">
+                <template v-for="page in totalPages" :key="page">
+                    <button
+                        v-if="isPageVisible(page)"
+                        class="pg-page"
+                        :class="{ active: currentPage === page, adjacent: Math.abs(currentPage - page) === 1 }"
+                        @click="goToPage(page)"
+                    >{{ page }}</button>
+                    <span v-else-if="isPageEllipsisBefore(page) || isPageEllipsisAfter(page)" class="pg-ellipsis">···</span>
+                </template>
+            </div>
+
+            <button class="pg-nav pg-next" v-show="currentPage < totalPages" @click="goToNextPage" aria-label="Older posts"><span class="pg-nav-label">Older</span>›</button>
+            <button class="pg-nav pg-last" v-show="currentPage < totalPages" @click="goToLast" aria-label="Last page">»</button>
         </div>
     </div>
 </template>
@@ -294,111 +314,138 @@ function onLeave(el, done) {
     width: 100%;
 }
 
+/* === Pagination: unified underline metaphor — nav buttons match page numbers === */
 .pagination {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
     justify-content: center;
-    margin-top: 1rem;
+    gap: 0;
+    margin-top: 2rem;
+    padding: 0.25rem 0;
 }
 
-.pagination button {
-    padding: 0.5rem 1rem;
-    border-radius: 1rem;
-    border: 2px solid var(--theme-primary);
-    background: var(--theme-panel-bg);
-    color: var(--theme-heading-text);
-    box-shadow: 0 2px 8px var(--theme-shadow-sm);
+/* Nav arrows + labels — same transparent base and ::after underline as .pg-page */
+.pg-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.5rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--theme-meta-text);
+    font-family: inherit;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    font-weight: 600;
+    transition: color 0.2s ease;
+    letter-spacing: 0.02em;
     position: relative;
-    overflow: hidden;
 }
 
-.pagination button::before {
+.pg-nav::after {
     content: '';
     position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: -1;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background: var(--theme-primary);
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.pagination button:hover:not(:disabled) {
-    box-shadow: 0 4px 16px var(--theme-shadow-md);
-    transform: translateY(-2px);
-    border-color: var(--theme-secondary);
+.pg-nav:hover {
+    color: var(--theme-heading-text);
 }
 
-.pagination button:hover:not(:disabled)::before {
-    opacity: 0.1;
+.pg-nav:hover::after {
+    width: 60%;
 }
 
-.pagination button:disabled {
-    cursor: not-allowed;
-    border-color: var(--theme-border-medium);
+.pg-nav-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.pg-numbers {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    margin: 0 0.75rem;
+}
+
+.pg-page {
+    min-width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 0;
+    background: transparent;
     color: var(--theme-meta-text);
-    opacity: 0.6;
-    background: var(--theme-surface-hover);
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    position: relative;
+    transition: color 0.2s ease;
+    letter-spacing: 0.02em;
 }
 
-/* 当前页特殊样式 */
-.pagination button:disabled:not(:first-child):not(:nth-child(2)):not(:last-child):not(:nth-last-child(2)) {
-    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
-    color: var(--theme-button-text);
-    border-color: var(--theme-primary);
-    opacity: 1;
-    box-shadow: 0 4px 20px var(--theme-primary);
+.pg-page::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background: var(--theme-primary);
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pg-page:hover { color: var(--theme-heading-text); }
+.pg-page:hover::after { width: 60%; }
+
+.pg-page.active {
+    color: var(--theme-heading-text);
     font-weight: 700;
 }
 
-/* 移动端优化 */
+.pg-page.active::after {
+    width: 80%;
+    background: var(--theme-heading-text);
+}
+
+.pg-page.adjacent {
+    color: var(--theme-body-text);
+    font-weight: 500;
+}
+
+.pg-ellipsis {
+    min-width: 1.5rem;
+    text-align: center;
+    color: var(--theme-meta-text);
+    opacity: 0.5;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    user-select: none;
+}
+
+/* Mobile */
 @media (max-width: 768px) {
-    .PostPanel {
-        gap: 1.5rem;
-    }
-
-    .posts {
-        gap: 1rem;
-    }
-
-    .pagination {
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-top: 0.75rem;
-    }
-
-    .pagination button {
-        padding: 0.4rem 0.75rem;
-        font-size: 0.85rem;
-        border-radius: 0.75rem;
-    }
+    .pagination { margin-top: 1.5rem; gap: 0; }
+    .pg-nav { padding: 0.35rem 0.5rem; }
+    .pg-nav-label { display: none; }
+    .pg-numbers { gap: 0; margin: 0 0.4rem; }
+    .pg-page { min-width: 1.6rem; height: 1.6rem; font-size: 0.8rem; }
+    .pg-first, .pg-last { display: none; }
 }
 
 @media (max-width: 480px) {
-    .PostPanel {
-        gap: 1rem;
-    }
-
-    .posts {
-        gap: 0.75rem;
-    }
-
-    .pagination {
-        gap: 0.3rem;
-    }
-
-    .pagination button {
-        padding: 0.35rem 0.6rem;
-        font-size: 0.8rem;
-        border-radius: 0.6rem;
-    }
-
-    /* 隐藏部分页码按钮，只显示关键按钮 */
-    .pagination button:not(:first-child):not(:nth-child(2)):not(:last-child):not(:nth-last-child(2)) {
-        display: none;
-    }
+    .pg-nav { font-size: 0.75rem; }
+    .pg-page { min-width: 1.4rem; height: 1.4rem; font-size: 0.75rem; }
+    .pg-ellipsis { min-width: 1rem; }
 }
 </style>

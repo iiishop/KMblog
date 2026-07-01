@@ -291,7 +291,35 @@ const checkMobile = () => {
     }
 };
 
-// 检测是否滚动过Hero区域（只在首页生效）
+// 监听 InfoList 宽度 vs MainList 宽度：展开时若 InfoList >= MainList 一半，折叠一次
+let layoutRatioObserver = null;
+
+const startLayoutRatioWatch = () => {
+    const info = infoListRef.value;
+    const main = document.querySelector('.MainList');
+    if (layoutRatioObserver) layoutRatioObserver.disconnect();
+    if (!info || !main) return;
+
+    layoutRatioObserver = new ResizeObserver(() => {
+        if (isInfoListHidden.value) return; // 已手动折叠，不管
+        const infoW = info.offsetWidth;
+        const mainW = main.offsetWidth;
+        if (!infoW || !mainW) return;
+        if (infoW >= mainW / 2) {
+            isInfoListHidden.value = true;
+        }
+    });
+    layoutRatioObserver.observe(info);
+    layoutRatioObserver.observe(main);
+};
+
+const toggleInfoList = () => {
+    isInfoListHidden.value = !isInfoListHidden.value;
+};
+const toggleTipList = () => {
+    isTipListHidden.value = !isTipListHidden.value;
+};
+
 const checkScrollPosition = () => {
     // 非首页不需要检测
     if (!isHomePage.value) {
@@ -333,14 +361,6 @@ const loadComponents = async (list, components) => {
             console.error(`Failed to load component: ${componentName}`, error);
         }
     }
-};
-
-const toggleTipList = () => {
-    isTipListHidden.value = !isTipListHidden.value;
-};
-
-const toggleInfoList = () => {
-    isInfoListHidden.value = !isInfoListHidden.value;
 };
 
 // FloatList 固定定位状态
@@ -484,7 +504,8 @@ onMounted(async () => {
     // 初始化
     checkMobile();
     updateHeaderHeight();
-    checkScrollPosition(); // 初始检测
+    checkScrollPosition();
+    startLayoutRatioWatch(); // 启动 InfoList vs MainList 宽度监听
     toggleInfoList();
     toggleInfoList();
     toggleTipList();
@@ -497,6 +518,7 @@ onMounted(async () => {
         checkMobile();
         updateHeaderHeight();
         handleFloatListScroll();
+        startLayoutRatioWatch();
     });
 
     // 监听 header 高度变化
@@ -511,6 +533,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    if (layoutRatioObserver) layoutRatioObserver.disconnect();
     window.removeEventListener('scroll', handleFloatListScroll);
     window.removeEventListener('scroll', checkScrollPosition);
     window.removeEventListener('resize', checkMobile);
