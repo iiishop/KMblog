@@ -89,6 +89,7 @@ import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
 import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import { parseMarkdownMetadata } from '@/utils';
+import { resolvePostImageUrl, prepareMarkdownImages } from '@/utils/markdownImages';
 import ImageViewer from '@/components/ImageViewer.vue';
 import UtterancesComments from '@/components/UtterancesComments.vue';
 
@@ -320,7 +321,7 @@ const parseMarkdown = async (url, decryptedText = null) => {
     if (!isCurrent()) return;
     metadata.value = meta;
     if (metadata.value.img) {
-      metadata.value.img = `/Posts/Images/${metadata.value.img}`;
+      metadata.value.img = resolvePostImageUrl(metadata.value.img);
     }
     const date = new Date(metadata.value.date);
     const hours = date.getHours();
@@ -340,10 +341,7 @@ const parseMarkdown = async (url, decryptedText = null) => {
     }
 
     // 预处理：修复带空格的图片路径（添加尖括号）
-    const processedBody = body.replace(
-      /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-      '![$1](<$2>)'
-    );
+    const processedBody = prepareMarkdownImages(body);
 
     // 解析 Markdown 内容
     const rendered = md.render(processedBody);

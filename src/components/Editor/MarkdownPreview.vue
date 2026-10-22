@@ -9,6 +9,7 @@
 <script setup>
 import { ref, watch, nextTick, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue';
 import fm from 'front-matter';
+import { prepareMarkdownImages } from '@/utils/markdownImages';
 
 // 复用MarkdownPanel.vue的渲染模块
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
@@ -64,10 +65,7 @@ const renderMarkdown = async (markdown) => {
         const { body } = fm(markdown);
 
         // 预处理：修复带空格的图片路径（添加尖括号）
-        const processedBody = body.replace(
-            /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-            '![$1](<$2>)'
-        );
+        const processedBody = prepareMarkdownImages(body);
 
         // 使用相同的markdown-it实例渲染
         const rendered = md.render(processedBody);

@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import { resolvePostImageUrl } from '@/utils/markdownImages';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css'; // Prism 的暗色主题
 
@@ -144,12 +145,7 @@ md.use((md) => {
         const srcIndex = token.attrIndex('src');
         if (srcIndex >= 0) {
             const src = token.attrs[srcIndex][1];
-            if (!src.startsWith('http')) {
-                // 先解码再编码，避免双重编码
-                const decodedSrc = decodeURIComponent(src);
-                const encodedSrc = encodeURI(decodedSrc);
-                token.attrs[srcIndex][1] = `/Posts/Images/${encodedSrc}`;
-            }
+            token.attrs[srcIndex][1] = resolvePostImageUrl(src);
         }
         return defaultRender(tokens, idx, options, env, self);
     };
