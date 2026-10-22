@@ -369,7 +369,7 @@
 
                 <!-- 右侧操作区域 - 固定不换行 -->
                 <div class="toolbar-actions">
-                    <div class="save-indicator" :class="saveStatusClass">
+                    <div class="save-indicator" :class="saveStatusClass" role="status" aria-live="polite">
                         <div class="status-dot"></div>
                         <span class="status-text">{{ saveStatusText }}</span>
                     </div>
@@ -395,8 +395,9 @@
                     </button>
 
                     <button @click="$emit('save')" class="tool-btn save-btn"
-                        :class="{ 'disabled': saveStatus === 'saved' }" :disabled="saveStatus === 'saved'"
-                        title="保存 (Ctrl+S)">
+                        :class="{ 'disabled': disabled || saveStatus === 'saved' || saveStatus === 'saving' }"
+                        :disabled="disabled || saveStatus === 'saved' || saveStatus === 'saving' || saveStatus === 'conflict'"
+                        title="保存 (Ctrl / ⌘ + S)">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                             <polyline points="17 21 17 13 7 13 7 21" />
@@ -415,10 +416,11 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps({
+    disabled: { type: Boolean, default: false },
     saveStatus: {
         type: String,
         default: 'saved',
-        validator: (value) => ['saved', 'saving', 'unsaved'].includes(value)
+        validator: (value) => ['saved', 'saving', 'unsaved', 'error', 'conflict'].includes(value)
     },
     fileName: {
         type: String,
@@ -601,6 +603,8 @@ const saveStatusText = computed(() => {
     }
 
     switch (props.saveStatus) {
+        case 'error': return '保存失败';
+        case 'conflict': return '版本冲突';
         case 'saved':
             return '已保存';
         case 'saving':

@@ -11,11 +11,42 @@
         <div class="main-editor">
             <!-- Toolbar -->
             <EditorToolbar :save-status="saveStatus" :file-name="currentFileName" :last-save-time="lastSaveTime"
+                :disabled="!currentFile || isOpening || !!draft"
                 @save="handleSave" @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
                 @toggle-file-tree="fileTreeVisible = !fileTreeVisible" />
 
+            <div v-if="fileTreeError" class="editor-notice error" role="alert">
+                <span>{{ fileTreeError }}</span>
+                <button @click="loadFileTree" :disabled="fileTreeLoading">重新连接</button>
+            </div>
+            <div v-if="draft" class="editor-notice" role="status">
+                <span>找到此文件的本地草稿（{{ new Date(draft.savedAt).toLocaleString() }}）。恢复前不会覆盖磁盘文件。</span>
+                <button @click="session.restoreDraft">恢复草稿</button>
+                <button @click="session.dismissDraft">使用磁盘版本</button>
+            </div>
+            <div v-if="issue" class="editor-notice" :class="{ error: issue.kind !== 'draft' }" role="alert">
+                <span>{{ issue.message }}</span>
+                <template v-if="issue.kind === 'conflict'">
+                    <button @click="handleReloadFile" :disabled="isOpening || isSaving">读取磁盘版本</button>
+                    <button @click="handleForceSave" :disabled="isSaving">覆盖保存</button>
+                </template>
+                <button v-else-if="issue.kind === 'save' || issue.kind === 'draft'" @click="handleSave" :disabled="isSaving">{{ issue.kind === 'save' ? '重试保存' : '保存到文件' }}</button>
+                <button v-if="currentFile" @click="downloadDraft">下载当前副本</button>
+                <button v-if="issue.kind === 'load'" @click="issue = null" aria-label="关闭提示">关闭</button>
+            </div>
+            <div v-if="draftWarning" class="editor-notice error" role="status">{{ draftWarning }}</div>
+            <div v-if="notification" class="editor-notice" role="status">{{ notification }}</div>
+
+            <div v-if="!currentFile" class="editor-empty">
+                <span class="empty-mark" aria-hidden="true">✎</span>
+                <h1>选择文章，开始写作</h1>
+                <p>从左侧打开 Markdown 文件。修改会自动保存，也会在当前浏览器保留未保存草稿。</p>
+                <button @click="fileTreeVisible = true">打开文件浏览器</button>
+                <span v-if="fileTreeLoading" role="status">正在加载文件列表…</span>
+            </div>
+
             <!-- Mobile View Toggle -->
-            <div class="mobile-view-toggle">
+            <div v-if="currentFile" class="mobile-view-toggle">
                 <button @click="mobileView = 'edit'" :class="{ active: mobileView === 'edit' }" class="view-toggle-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -34,10 +65,11 @@
             </div>
 
             <!-- Editor and Preview Panels -->
-            <div class="editor-panels">
+            <div v-if="currentFile" class="editor-panels" :aria-busy="isOpening">
                 <!-- Edit Panel -->
                 <div class="edit-panel" :class="{ 'mobile-hidden': mobileView === 'preview' }">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
+                        :document-key="currentFile.path" :options="{ readOnly: isOpening || !!draft }"
                         :current-file-name="currentFileName" :api-base="API_BASE" :scroll-sync="previewScrollTop"
                         @change="handleContentChange" @scroll="handleEditorScroll" @format-request="handleInsertFormat"
                         ref="monacoEditorRef" />
@@ -91,11 +123,15 @@
                 </div>
             </div>
         </div>
+        <EditorLeaveDialog v-if="leavePrompt" :file-name="currentFileName" @answer="session.answerLeave" />
     </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
+import { useEditorDocument } from '@/composables/useEditorDocument';
+import EditorLeaveDialog from '@/components/Editor/EditorLeaveDialog.vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
@@ -171,7 +207,6 @@ const urlParams = getHashParams();
 const authToken = urlParams.get('token');
 const apiPort = urlParams.get('api_port');
 
-console.log('URL Hash:', window.location.hash);
 console.log('Auth Token:', authToken ? 'Present' : 'Missing');
 console.log('API Port:', apiPort);
 
@@ -185,6 +220,7 @@ console.log('API Base URL:', API_BASE);
 // Create authenticated axios instance for backend API calls only
 const apiClient = axios.create({
     baseURL: API_BASE,
+    timeout: 15000,
     headers: authToken ? { 'X-Auth-Token': authToken } : {}
 });
 
@@ -207,16 +243,34 @@ const normalizePathForAPI = (path) => {
 const fileTree = ref([]);
 const fileTreeVisible = ref(true);
 const fileTreeWidth = ref(250);
-const currentFile = ref(null);
-const currentFileName = ref(null);
-const content = ref('');
-const saveStatus = ref('saved'); // 'saved', 'saving', 'unsaved'
-const lastSaveTime = ref(null); // 上次保存时间戳
+const session = useEditorDocument({
+    api: apiClient,
+    normalizePath: normalizePathForAPI,
+    storageKey: `kmblog-editor-draft:${API_BASE}`,
+    describeError: error => handleApiError(error, 'Document'),
+    onSaved: () => refreshPostPreview()
+});
+const { currentFile, content, saveStatus, lastSaveTime, isDirty, isSaving, isOpening,
+    issue, draft, draftWarning, leavePrompt } = session;
+const currentFileName = computed(() => currentFile.value?.name || '');
+const handleSave = () => session.save();
+const handleForceSave = () => {
+    if (confirm('覆盖磁盘上的最新版本？当前草稿将替换其他程序的更改。')) return session.save({ force: true });
+};
+const handleReloadFile = () => session.open(currentFile.value, { reload: true });
+const fileTreeLoading = ref(false);
+const fileTreeError = ref('');
+const notification = ref('');
+let notificationTimer;
+const notify = message => {
+    notification.value = message;
+    clearTimeout(notificationTimer);
+    notificationTimer = setTimeout(() => { notification.value = ''; }, 4000);
+};
 const editorScrollTop = ref(0);
 const previewScrollTop = ref(0);
 const isScrollingFromPreview = ref(false);
 const monacoEditorRef = ref(null);
-const currentFileVersion = ref(null); // Store file version for conflict detection
 const previewPanelRef = ref(null);
 const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
 const showPostPreview = ref(true); // 控制文章卡片预览的显示/隐藏
@@ -302,39 +356,6 @@ const graphData = computed(() => {
     return data;
 });
 
-// Request cancellation and queue management
-let currentLoadRequest = null; // Track current file load request
-const pendingRequests = new Set(); // Track all pending requests
-
-// Create axios instance with request tracking (uses apiClient for authenticated requests)
-const createTrackedRequest = (config) => {
-    const source = axios.CancelToken.source();
-    const request = apiClient({
-        ...config,
-        cancelToken: source.token
-    });
-
-    // Track this request
-    pendingRequests.add(source);
-
-    // Remove from tracking when done (suppress cancellation errors in console)
-    request
-        .catch(error => {
-            // Silently ignore cancellation errors
-            if (!axios.isCancel(error)) {
-                throw error; // Re-throw non-cancellation errors
-            }
-        })
-        .finally(() => {
-            pendingRequests.delete(source);
-        });
-
-    return { request, cancel: source.cancel };
-};
-
-// Auto-save timer
-let autoSaveTimer = null;
-
 // 切换文章卡片预览显示状态
 const togglePostPreview = () => {
     showPostPreview.value = !showPostPreview.value;
@@ -351,321 +372,41 @@ const refreshPostPreview = () => {
     console.log('[EditorPage] Post preview refreshed, key:', postPreviewKey.value);
 };
 
-// Handle content change
-const handleContentChange = () => {
-    saveStatus.value = 'unsaved';
-
-    // Clear previous timer
-    if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-    }
-
-    // Auto-save after 3 seconds
-    autoSaveTimer = setTimeout(() => {
-        handleSave();
-    }, 3000);
-};
-
-// Handle save
-const handleSave = async () => {
-    if (!currentFile.value) {
-        console.warn('[EditorPage] No file selected');
-        return;
-    }
-
-    saveStatus.value = 'saving';
-
-    try {
-        const normalizedPath = normalizePathForAPI(currentFile.value.path);
-        console.log('[EditorPage] Saving file:', currentFile.value.path, '-> API path:', normalizedPath);
-
-        const response = await apiClient.post('/files/save', {
-            path: normalizedPath,
-            content: content.value,
-            expectedVersion: currentFileVersion.value
-        });
-
-        saveStatus.value = 'saved';
-        currentFileVersion.value = response.data.version;
-        lastSaveTime.value = Date.now(); // 记录保存时间
-
-        // 保存成功后刷新 Post 预览组件
-        refreshPostPreview();
-
-        console.log('[EditorPage] File saved successfully');
-    } catch (error) {
-        const errorMessage = handleApiError(error, 'Save');
-
-        // If it's a version conflict (409), handle separately
-        if (error.response && error.response.status === 409) {
-            saveStatus.value = 'unsaved';
-            await handleVersionConflict(error.response.data);
-        } else if (errorMessage) {
-            // Show user-friendly error message
-            alert(`保存失败\n\n${errorMessage}`);
-            saveStatus.value = 'unsaved';
-        }
-    }
-};
-
-// Handle version conflict
-const handleVersionConflict = async (conflictData) => {
-    console.log('[EditorPage] Version conflict detected:', conflictData);
-
-    const message =
-        '⚠️ 文件版本冲突\n\n' +
-        '文件已被其他进程修改。这可能是因为:\n' +
-        '• 在另一个编辑器中修改了文件\n' +
-        '• 文件系统直接修改了文件\n' +
-        '• 另一个用户修改了文件\n\n' +
-        '请选择如何处理:\n\n' +
-        '【确定】强制保存当前内容(覆盖其他更改)\n' +
-        '【取消】重新加载文件(丢弃当前更改)';
-
-    const userChoice = confirm(message);
-
-    if (userChoice) {
-        // Force save without version check
-        await handleForceSave();
-    } else {
-        // Reload file from server
-        await handleReloadFile();
-    }
-};
-
-// Force save without version check
-const handleForceSave = async () => {
-    if (!currentFile.value) return;
-
-    console.log('[EditorPage] Force saving file...');
-    saveStatus.value = 'saving';
-
-    try {
-        const normalizedPath = normalizePathForAPI(currentFile.value.path);
-        const response = await apiClient.post('/files/save', {
-            path: normalizedPath,
-            content: content.value
-            // No expectedVersion - force save
-        });
-
-        saveStatus.value = 'saved';
-        currentFileVersion.value = response.data.version;
-
-        // 强制保存成功后也刷新 Post 预览组件
-        refreshPostPreview();
-
-        console.log('[EditorPage] Force save successful');
-
-        // Show success message
-        alert('✓ 强制保存成功\n\n文件已更新为当前内容');
-    } catch (error) {
-        const errorMessage = handleApiError(error, 'Force Save');
-        if (errorMessage) {
-            alert(`强制保存失败\n\n${errorMessage}\n\n请检查文件权限或稍后重试`);
-        }
-        saveStatus.value = 'unsaved';
-    }
-};
-
-// Reload file from server
-const handleReloadFile = async () => {
-    if (!currentFile.value) return;
-
-    console.log('[EditorPage] Reloading file from server...');
-
-    const shouldProceed = confirm(
-        '⚠️ 确认重新加载\n\n' +
-        '这将丢弃所有未保存的更改。\n\n' +
-        '是否继续?'
-    );
-
-    if (!shouldProceed) {
-        saveStatus.value = 'unsaved';
-        return;
-    }
-
-    try {
-        const normalizedPath = normalizePathForAPI(currentFile.value.path);
-        console.log('[EditorPage] Reloading file:', normalizedPath);
-
-        const response = await apiClient.get('/files/read', {
-            params: { path: normalizedPath }
-        });
-
-        content.value = response.data.content;
-        currentFileVersion.value = response.data.version;
-        saveStatus.value = 'saved';
-
-        console.log('[EditorPage] File reloaded successfully');
-        alert('✓ 文件已重新加载\n\n已从服务器获取最新版本');
-    } catch (error) {
-        const errorMessage = handleApiError(error, 'Reload File');
-        if (errorMessage) {
-            alert(`重新加载失败\n\n${errorMessage}\n\n请手动刷新页面`);
-        }
-    }
-};
+// Saving and local draft persistence are driven by the document session.
+const handleContentChange = () => {};
 
 // Load file tree
 const loadFileTree = async () => {
+    fileTreeLoading.value = true;
+    fileTreeError.value = '';
     try {
         const response = await apiClient.get('/files/tree');
         fileTree.value = response.data.tree || [];
-        console.log('[EditorPage] File tree loaded:', fileTree.value.length, 'items');
     } catch (error) {
-        const errorMessage = handleApiError(error, 'Load File Tree');
-        if (errorMessage) {
-            alert(`加载文件树失败\n\n${errorMessage}`);
-        }
+        fileTreeError.value = handleApiError(error, 'Load File Tree') || '无法加载文件列表';
+    } finally {
+        fileTreeLoading.value = false;
     }
 };
 
-// Handle file select
-const handleFileSelect = async (file) => {
+const handleFileSelect = async file => {
     if (file.type !== 'file') return;
-
-    // Cancel previous file load request if still pending
-    if (currentLoadRequest) {
-        console.log('[EditorPage] Cancelling previous file load request');
-        currentLoadRequest.cancel('New file selected');
-        currentLoadRequest = null;
-    }
-
-    // Check for unsaved changes
-    if (saveStatus.value === 'unsaved') {
-        const shouldSave = confirm('当前文件有未保存的更改,是否保存?');
-        if (shouldSave) {
-            await handleSave();
-        }
-    }
-
-    try {
-        const normalizedPath = normalizePathForAPI(file.path);
-        console.log('[EditorPage] Loading file:', file.path, '-> API path:', normalizedPath);
-
-        // Create tracked request
-        const { request, cancel } = createTrackedRequest({
-            method: 'get',
-            url: '/files/read',
-            params: { path: normalizedPath }
-        });
-
-        // Store cancel function
-        currentLoadRequest = { cancel };
-
-        const response = await request;
-
-        currentFile.value = file;
-        currentFileName.value = file.name;
-        content.value = response.data.content;
-        currentFileVersion.value = response.data.version;
-        saveStatus.value = 'saved';
-        currentLoadRequest = null;
-
-        console.log('[EditorPage] File loaded successfully');
-    } catch (error) {
-        currentLoadRequest = null;
-
-        const errorMessage = handleApiError(error, 'Load File');
-        if (errorMessage) {
-            alert(`加载文件失败\n\n${errorMessage}\n\n文件: ${file.name}`);
-        }
+    if (await session.open(file)) {
+        editorScrollTop.value = previewScrollTop.value = 0;
+        mobileView.value = 'edit';
+        if (window.innerWidth <= 768) fileTreeVisible.value = false;
+        await nextTick();
+        monacoEditorRef.value?.focus();
     }
 };
 
-// Handle image file select (Task 35)
-const handleImageFileSelect = async ({ imagePath, mdPath, exists, imageNode }) => {
-    console.log('[EditorPage] Image file selected:', imagePath);
-    console.log('[EditorPage] Associated .md path:', mdPath);
-
-    // Cancel previous file load request if still pending
-    if (currentLoadRequest) {
-        console.log('[EditorPage] Cancelling previous file load request');
-        currentLoadRequest.cancel('New image file selected');
-        currentLoadRequest = null;
+const handleImageFileSelect = async ({ imagePath, mdPath, imageNode }) => {
+    const file = { path: mdPath, name: mdPath.split('/').pop(), type: 'file' };
+    if (await session.open(file, { createContent: () => generateImageDescriptionTemplate(imagePath, imageNode) })) {
+        editorScrollTop.value = previewScrollTop.value = 0;
+        mobileView.value = 'edit';
+        if (window.innerWidth <= 768) fileTreeVisible.value = false;
     }
-
-    // Check for unsaved changes
-    if (saveStatus.value === 'unsaved') {
-        const shouldSave = confirm('当前文件有未保存的更改,是否保存?');
-        if (shouldSave) {
-            await handleSave();
-        }
-    }
-
-    // Task 35.2: 通过后端 API 检查 .md 文件是否存在
-    const normalizedPath = normalizePathForAPI(mdPath);
-    console.log('[EditorPage] Checking if .md file exists:', mdPath, '-> API path:', normalizedPath);
-
-    try {
-        // 尝试读取 .md 文件
-        const { request, cancel } = createTrackedRequest({
-            method: 'get',
-            url: '/files/read',
-            params: { path: normalizedPath }
-        });
-
-        currentLoadRequest = { cancel };
-        const response = await request;
-
-        // Task 35.3: 如果存在则加载 .md 文件
-        console.log('[EditorPage] .md file exists, loading...');
-
-        // Create a virtual file node for the .md file
-        const mdFile = {
-            path: mdPath,
-            name: mdPath.split('/').pop(),
-            type: 'file'
-        };
-
-        currentFile.value = mdFile;
-        currentFileName.value = mdFile.name;
-        content.value = response.data.content;
-        currentFileVersion.value = response.data.version;
-        saveStatus.value = 'saved';
-        currentLoadRequest = null;
-
-        console.log('[EditorPage] .md file loaded successfully');
-    } catch (error) {
-        currentLoadRequest = null;
-
-        // 如果是 404 错误，说明文件不存在，创建模板
-        if (error.response && error.response.status === 404) {
-            // Task 35.4: 如果不存在则创建模板
-            console.log('[EditorPage] .md file does not exist (404), creating template');
-
-            // Generate template
-            const template = generateImageDescriptionTemplate(imagePath, imageNode);
-
-            // Create a virtual file node for the new .md file
-            const mdFile = {
-                path: mdPath,
-                name: mdPath.split('/').pop(),
-                type: 'file'
-            };
-
-            currentFile.value = mdFile;
-            currentFileName.value = mdFile.name;
-            content.value = template;
-            currentFileVersion.value = null; // New file, no version yet
-            saveStatus.value = 'unsaved'; // Mark as unsaved since it's a new file
-
-            console.log('[EditorPage] Template created for image description');
-
-            // Show notification
-            alert(`✨ 已为图片创建描述模板\n\n图片: ${imageNode.name}\n描述文件: ${mdFile.name}\n\n请编辑并保存以创建描述文件。`);
-        } else {
-            // 其他错误
-            const errorMessage = handleApiError(error, 'Load Image Description');
-            if (errorMessage) {
-                alert(`加载图片描述文件失败\n\n${errorMessage}\n\n文件: ${mdPath}`);
-            }
-        }
-    }
-
-    // Task 35.5: 在预览区显示图片
-    // Note: This would require adding image preview functionality to the preview panel
-    // For now, the markdown preview will show the image when the template is rendered
 };
 
 // Generate image description template (Task 36)
@@ -752,6 +493,7 @@ const handleFileCreate = async ({ folder, fileName }) => {
 
 // Handle file delete
 const handleFileDelete = async (file) => {
+    if (currentFile.value?.path === file.path && !await session.canLeave()) return;
     try {
         const normalizedPath = normalizePathForAPI(file.path);
         console.log('[EditorPage] Deleting file:', file.path, '-> API path:', normalizedPath);
@@ -764,11 +506,7 @@ const handleFileDelete = async (file) => {
 
         // If deleted file was current file, clear editor
         if (currentFile.value && currentFile.value.path === file.path) {
-            currentFile.value = null;
-            currentFileName.value = null;
-            content.value = '';
-            currentFileVersion.value = null;
-            saveStatus.value = 'saved';
+            session.reset();
         }
 
         // Reload file tree
@@ -783,6 +521,7 @@ const handleFileDelete = async (file) => {
 
 // Handle file move
 const handleFileMove = async ({ file, targetFolder }) => {
+    if (currentFile.value?.path === file.path && !await session.canLeave()) return;
     console.log('[EditorPage] handleFileMove called');
     console.log('[EditorPage] File:', file);
     console.log('[EditorPage] Target folder:', targetFolder);
@@ -813,7 +552,7 @@ const handleFileMove = async ({ file, targetFolder }) => {
 
         // Update current file path if it was moved
         if (currentFile.value && currentFile.value.path === file.path) {
-            currentFile.value.path = targetFolder.path + '/' + fileName;
+            session.relocate(targetFolder.path + '/' + fileName);
             console.log('[EditorPage] Updated current file path');
         }
 
@@ -831,6 +570,7 @@ const handleFileMove = async ({ file, targetFolder }) => {
 
 // Handle file rename
 const handleFileRename = async ({ node, newName }) => {
+    if (currentFile.value && (currentFile.value.path === node.path || currentFile.value.path.startsWith(node.path + '/')) && !await session.canLeave()) return;
     console.log('[EditorPage] handleFileRename called');
     console.log('[EditorPage] Node:', node);
     console.log('[EditorPage] New name:', newName);
@@ -848,11 +588,11 @@ const handleFileRename = async ({ node, newName }) => {
         console.log('[EditorPage] File/folder renamed successfully');
 
         // Update current file path if it was renamed
-        if (currentFile.value && currentFile.value.path === node.path) {
+        if (currentFile.value && (currentFile.value.path === node.path || currentFile.value.path.startsWith(node.path + '/'))) {
             const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
-            const newFileName = newName.endsWith('.md') ? newName : `${newName}.md`;
-            currentFile.value.path = `${parentPath}/${newFileName}`;
-            currentFileName.value = newFileName;
+            const newFileName = node.type === 'folder' || newName.endsWith('.md') ? newName : `${newName}.md`;
+            const suffix = currentFile.value.path.slice(node.path.length);
+            session.relocate(`${parentPath}/${newFileName}${suffix}`, suffix ? currentFileName.value : newFileName);
             console.log('[EditorPage] Updated current file path');
         }
 
@@ -896,6 +636,7 @@ const handleFolderCreate = async ({ parentFolder, folderName }) => {
 
 // Handle folder delete
 const handleFolderDelete = async (folder) => {
+    if (currentFile.value?.path.startsWith(folder.path + '/') && !await session.canLeave()) return;
     console.log('[EditorPage] handleFolderDelete called');
     console.log('[EditorPage] Folder:', folder);
 
@@ -910,12 +651,8 @@ const handleFolderDelete = async (folder) => {
         console.log('[EditorPage] Folder deleted successfully');
 
         // If current file was in deleted folder, clear editor
-        if (currentFile.value && currentFile.value.path.startsWith(folder.path)) {
-            currentFile.value = null;
-            currentFileName.value = null;
-            content.value = '';
-            currentFileVersion.value = null;
-            saveStatus.value = 'saved';
+        if (currentFile.value && currentFile.value.path.startsWith(folder.path + '/')) {
+            session.reset();
         }
 
         // Reload file tree
@@ -1018,6 +755,7 @@ const handlePreviewScroll = (scrollPercentage) => {
 
 // Handle format insertion
 const handleInsertFormat = (format) => {
+    if (isOpening.value || draft.value) return;
     if (!monacoEditorRef.value) return;
 
     const editor = monacoEditorRef.value.getEditor();
@@ -1172,6 +910,7 @@ const handleInsertFormat = (format) => {
 
 // Handle block insertion
 const handleInsertBlock = (blockType) => {
+    if (isOpening.value || draft.value) return;
     if (!monacoEditorRef.value) return;
 
     const editor = monacoEditorRef.value.getEditor();
@@ -1208,9 +947,27 @@ const handleInsertBlock = (blockType) => {
     editor.focus();
 };
 
+const downloadDraft = () => {
+    const blob = new Blob([content.value], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = currentFileName.value || 'draft.md';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+const handleEditorShortcut = event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (!isOpening.value) void handleSave();
+    }
+};
+onBeforeRouteLeave(() => session.canLeave());
+
 // Before unload handler - warn about unsaved changes
 const handleBeforeUnload = (e) => {
-    if (saveStatus.value === 'unsaved') {
+    session.persistDraft();
+    if (isDirty.value || isSaving.value) {
         e.preventDefault();
         e.returnValue = '您有未保存的更改,确定要离开吗?';
         return e.returnValue;
@@ -1230,18 +987,7 @@ watch(() => currentMetadata.value, (newMetadata, oldMetadata) => {
 onMounted(async () => {
     // Add beforeunload listener
     window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // Suppress axios cancellation errors in console
-    window.addEventListener('unhandledrejection', (event) => {
-        if (event.reason && event.reason.name === 'CanceledError') {
-            event.preventDefault(); // Prevent console error
-        }
-    });
-
-    // Log configuration
-    console.log('Editor initialized');
-    console.log('API Base:', API_BASE);
-    console.log('Auth Token:', authToken ? 'Present' : 'Missing');
+    window.addEventListener('keydown', handleEditorShortcut);
 
     // Load file tree
     await loadFileTree();
@@ -1250,24 +996,23 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     // Clean up
     window.removeEventListener('beforeunload', handleBeforeUnload);
-    if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-    }
+    clearTimeout(notificationTimer);
+    window.removeEventListener('keydown', handleEditorShortcut);
 
-    // Cancel all pending requests
-    console.log('[EditorPage] Cancelling all pending requests');
-    pendingRequests.forEach(source => {
-        try {
-            source.cancel('Component unmounting');
-        } catch (e) {
-            // Ignore errors
-        }
-    });
-    pendingRequests.clear();
 });
 </script>
 
 <style scoped>
+.editor-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 18px; background: var(--theme-surface-default); border-bottom: 1px solid var(--theme-panel-border); font-size: 13px; line-height: 1.6; flex-shrink: 0; }
+.editor-notice > span:first-child { flex: 1; min-width: 180px; }
+.editor-notice.error { border-left: 3px solid #c24b36; }
+.editor-notice button, .editor-empty button { border: 1px solid var(--theme-panel-border); background: var(--theme-panel-bg); color: var(--theme-body-text); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.editor-notice button:focus-visible, .editor-empty button:focus-visible { outline: 2px solid var(--theme-primary); outline-offset: 2px; }
+.editor-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 28px; text-align: center; }
+.editor-empty h1 { font-size: 24px; margin: 0; }
+.editor-empty p { max-width: 420px; line-height: 1.8; color: var(--theme-meta-text); margin: 0 0 10px; }
+.empty-mark { font-size: 52px; color: var(--theme-primary); }
+
 .editor-container {
     display: flex;
     height: 100vh;
@@ -1390,7 +1135,7 @@ onBeforeUnmount(() => {
     background: linear-gradient(90deg,
             transparent 0%,
             var(--theme-primary) 20%,
-            var(--theme-secondary, #667eea) 80%,
+            var(--theme-secondary, #475569) 80%,
             transparent 100%);
     opacity: 0.6;
 }
@@ -1405,7 +1150,7 @@ onBeforeUnmount(() => {
     border: 2px solid var(--theme-primary);
     background: linear-gradient(135deg,
             var(--theme-primary) 0%,
-            var(--theme-secondary, #667eea) 100%);
+            var(--theme-secondary, #475569) 100%);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1424,7 +1169,7 @@ onBeforeUnmount(() => {
     inset: -2px;
     background: linear-gradient(135deg,
             var(--theme-primary),
-            var(--theme-secondary, #667eea));
+            var(--theme-secondary, #475569));
     border-radius: 14px;
     opacity: 0;
     filter: blur(8px);
@@ -1471,7 +1216,7 @@ onBeforeUnmount(() => {
 .collapse-btn.collapsed:hover {
     background: linear-gradient(135deg,
             var(--theme-primary) 0%,
-            var(--theme-secondary, #667eea) 100%);
+            var(--theme-secondary, #475569) 100%);
     color: white;
     border-color: var(--theme-primary);
 }

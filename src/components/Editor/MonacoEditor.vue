@@ -15,6 +15,7 @@ self.MonacoEnvironment = {
 };
 
 const props = defineProps({
+    documentKey: { type: String, default: '' },
     modelValue: {
         type: String,
         default: ''
@@ -686,6 +687,9 @@ watch(() => props.modelValue, (newValue) => {
         isUpdatingFromProp = false;
     }
 });
+
+// Watch for theme changes
+watch(() => props.options, options => editor?.updateOptions(options), { deep: true });
 
 // Watch for theme changes
 watch(() => props.theme, (newTheme) => {
