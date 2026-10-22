@@ -7,7 +7,9 @@ vi.mock('vue-router', () => ({ onBeforeRouteLeave: vi.fn() }));
 vi.mock('@/composables/useTheme', () => ({ useTheme: () => ({ isDarkMode: ref(false), currentMode: ref('light'), toggleTheme: vi.fn() }) }));
 vi.mock('@/components/Editor/MonacoEditor.vue', () => ({ default: { name: 'MonacoEditor', props: ['modelValue', 'options'], emits: ['update:modelValue','save'], template: '<textarea aria-label="正文" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea>', methods: { focus() {} } } }));
 vi.mock('@/components/Editor/MarkdownPreview.vue', () => ({ default: { props: ['content','active'], template: '<div class="preview-mock">{{ content }}</div>' } }));
-vi.mock('@/components/WaterfallPanelComps/Graph.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('@/components/WaterfallPanelComps/Graph.vue', () => ({ default: { name: 'Graph', props: ['image'], emits: ['click'], methods: { resetCardState() {} }, template: '<div />' } }));
+vi.mock('@/components/WaterfallPanelComps/ImageModal.vue', () => ({ default: { name: 'ImageModal', props: ['image','content'], emits: ['close'], template: '<div />' } }));
+vi.mock('@/utils/galleryImage', () => ({ loadGalleryImage: vi.fn(async file => ({ src: file.path, title: 'Image', aspectRatio: 2 })), applyGalleryMetadata: (image) => image }));
 vi.mock('@/components/PostPanelComps/Post.vue', () => ({ default: { name: 'Post', props: ['previewMetadata', 'imageUrl', 'markdownUrl'], template: '<div class="post-card-mock">{{ previewMetadata.title }} {{ previewMetadata.pre }}</div>' } }));
 import EditorPage from './EditorPage.vue';
 let wrapper;
@@ -75,7 +77,7 @@ describe('editor workspace', () => {
         const instance = card.vm;
         expect(wrapper.get('.post-preview-section').attributes('open')).toBeDefined();
         expect(card.props('markdownUrl')).toBe(file.path);
-        expect(card.props('previewMetadata').title).toBe('a');
+        expect(card.props('previewMetadata').title).toBeUndefined();
         await wrapper.get('textarea').setValue('---\ntitle: 草稿标题\npre: 首页卡片摘要\nimg: cover.png\ntags: [Vue]\ncategories: [技术]\n---\n正文');
         await vi.advanceTimersByTimeAsync(180);
         expect(card.vm).toBe(instance);
@@ -84,4 +86,20 @@ describe('editor workspace', () => {
         expect(api.post).not.toHaveBeenCalled();
         expect(wrapper.find('.preview-mock').exists()).toBe(true);
     });
+    it('opens the real gallery modal with unsaved source and supports closing it', async () => {
+        await openArticle();
+        api.get.mockResolvedValueOnce({ data: { content: '---\nimg: WaterfallGraph/example.jpg\n---\nGallery draft', version: {} } });
+        wrapper.findComponent({ name: 'FileTreeSidebar' }).vm.$emit('file-select', { name: 'example.md', path: '/Posts/WaterfallGraph/example.md', type: 'file' });
+        await flushPromises();
+        const graph = wrapper.findComponent({ name: 'Graph' });
+        expect(graph.exists()).toBe(true);
+        graph.vm.$emit('click', graph.props('image'), {});
+        await flushPromises();
+        await wrapper.get('textarea').setValue('Unsaved description');
+        expect(wrapper.findComponent({ name: 'ImageModal' }).props('content')).toBe('Unsaved description');
+        wrapper.findComponent({ name: 'ImageModal' }).vm.$emit('close');
+        await flushPromises();
+        expect(wrapper.findComponent({ name: 'ImageModal' }).exists()).toBe(false);
+    });
+
 });

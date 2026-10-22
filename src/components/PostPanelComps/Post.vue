@@ -152,7 +152,7 @@ import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } fr
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
-import { parseMarkdownMetadata } from "@/utils";
+import { parseMarkdownMetadata, resolvePostImage } from "@/utils";
 const loadingGif = '/assets/loading.gif';
 
 // 使用动态导入进行代码分割
@@ -169,7 +169,7 @@ const props = defineProps({
 });
 
 // 定义 ref 来存储图片链接和 meta 数据
-const imageSrc = ref(props.imageUrl || loadingGif);
+const imageSrc = ref(resolvePostImage(props.imageUrl) || loadingGif);
 const loadedMetadata = ref({});
 const metadata = computed(() => {
     const source = props.previewMetadata ?? loadedMetadata.value;
@@ -273,21 +273,24 @@ function formatDateString(dateString) {
 }
 
 // 初始化图片链接的函数
+let imageRevision = 0;
 function initializeImage(url) {
+    const current = ++imageRevision;
     console.log('Initializing image with URL:', url);
     if (url) {
         if (url.startsWith('http') || url.startsWith('/')) {
             // 处理网络图片链接 或 本地绝对路径
             imageSrc.value = loadingGif;
             const img = new Image();
-            img.src = url;
             img.onload = () => {
-                imageSrc.value = url;
+                if (current === imageRevision) imageSrc.value = url;
             };
             img.onerror = () => {
+                if (current !== imageRevision) return;
                 console.error('Failed to load image:', url);
                 imageSrc.value = '';
             };
+            img.src = url;
         } else {
             // 处理本地相对路径图片文件
             imageSrc.value = new URL(url, import.meta.url).href;
@@ -303,11 +306,8 @@ function handleImageError() {
     imageSrc.value = loadingGif;
 }
 
-// Draft cover changes should not remount the card or refetch its Markdown.
-watch(() => props.imageUrl, url => {
-    if (props.previewMetadata !== null) imageSrc.value = url || '';
-    else initializeImage(url);
-});
+// Both saved cards and draft cards use the same cover loading path.
+watch(() => props.imageUrl, url => initializeImage(resolvePostImage(url)), { immediate: true });
 
 // 计算最后一个目录和链接
 const lastCategory = computed(() => {
@@ -342,9 +342,6 @@ const backgroundStyle = computed(() => {
 // 在组件挂载时初始化链接
 onMounted(() => {
     console.log('Component mounted');
-    if (props.imageUrl && props.previewMetadata === null) {
-        initializeImage(props.imageUrl);
-    }
     if (props.markdownUrl) {
         if (props.previewMetadata === null) initializeMarkdown(props.markdownUrl);
 
@@ -453,6 +450,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+
 .post-wrapper {
     width: 100%;
     display: block;
@@ -2014,5 +2013,14 @@ onUnmounted(() => {
     .loading-bar {
         width: 150px;
     }
+}
+/* Card responsiveness belongs to the card, so every host gets the same layout. */
+.post-wrapper { container-type: inline-size; }
+@container (max-width: 700px) {
+    .post-panel { flex-direction: column; height: auto; }
+    .image-panel { width: 100% !important; height: 180px; }
+    .content-panel { min-width: 0; padding: 20px; }
+    .content-wrapper { flex-direction: column; gap: 16px; }
+    .meta-sidebar { width: auto; min-width: 0; padding-left: 0; border-left: 0; gap: 12px; }
 }
 </style>

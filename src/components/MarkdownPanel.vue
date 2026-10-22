@@ -55,9 +55,8 @@
     </div>
 
     <!-- 文章内容 -->
-    <article class="post-content markdown" ref="contentRef">
-      <div v-html="htmlContent"></div>
-    </article>
+    <p v-if="loadError" class="render-error" role="status">{{ loadError }}</p>
+    <MarkdownContent v-if="markdownContent !== null" class="post-content" :content="markdownContent" @rendered="calculateStats" />
 
     <!-- 评论区域 -->
     <UtterancesComments v-if="metadata.title" :issueTitle="metadata.title" />
@@ -70,43 +69,27 @@
         </svg>
       </button>
     </transition>
-
-    <!-- 图片查看器 -->
-    <ImageViewer v-model:visible="viewerVisible" :imageSrc="viewerImageSrc" :imageAlt="viewerImageAlt"
-      :imageType="viewerImageType" :svgContent="viewerSvgContent" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import axios from 'axios';
-import fm from 'front-matter';
-import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
-import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import mermaid from 'mermaid';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
-import config from '@/config';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import { parseMarkdownMetadata } from '@/utils';
-import ImageViewer from '@/components/ImageViewer.vue';
+import { parseMarkdownMetadataSync, resolvePostImage } from '@/utils';
+import MarkdownContent from '@/components/MarkdownPanelComps/MarkdownContent.vue';
 import UtterancesComments from '@/components/UtterancesComments.vue';
 import Tag from '@/components/PostPanelComps/Tag.vue';
-
-// 使用 Vite 的代码分割功能进行动态导入
-const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
-const BangumiBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BangumiBlock.vue'));
-const BilibiliVideoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BilibiliVideoBlock.vue'));
-const GithubRepoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/GithubRepoBlock.vue'));
-const XiaohongshuNoteBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/XiaohongshuNoteBlock.vue'));
-const CarouselBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/CarouselBlock.vue'));
 
 // 定义 props
 const props = defineProps({
   markdownUrl: {
     type: String,
-    required: true
+    default: ''
   },
+  content: { type: String, default: null },
+  scrollContainer: { type: Object, default: null },
   decryptedContent: {
     type: String,
     default: null
@@ -114,22 +97,17 @@ const props = defineProps({
 });
 
 const metadata = ref({});
-const htmlContent = ref('');
+const markdownContent = ref(null);
+const loadError = ref('');
+let loadRevision = 0;
+let loadController;
 const panelRef = ref(null);
-const contentRef = ref(null);
 const headerRef = ref(null);
 const colorCanvas = ref(null);
 
 // 阅读进度
 const readingProgress = ref(0);
 const showBackToTop = ref(false);
-
-// 图片查看器状态
-const viewerVisible = ref(false);
-const viewerImageSrc = ref('');
-const viewerImageAlt = ref('');
-const viewerImageType = ref('img'); // 'img' 或 'svg'
-const viewerSvgContent = ref('');
 
 // 动态颜色
 const dominantColor = ref(null);
@@ -269,17 +247,18 @@ const rgbToHsl = (r, g, b) => {
 
 // 滚动处理
 const handleScroll = () => {
-  if (!contentRef.value || !panelRef.value) return;
+  if (!panelRef.value) return;
 
-  const panelTop = panelRef.value.offsetTop;
+  const root = props.scrollContainer;
+  const panelTop = root ? panelRef.value.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop : panelRef.value.offsetTop;
   const panelHeight = panelRef.value.scrollHeight;
-  const windowHeight = window.innerHeight;
-  const scrollY = window.scrollY;
+  const windowHeight = root ? root.clientHeight : window.innerHeight;
+  const scrollY = root ? root.scrollTop : window.scrollY;
 
   // 计算阅读进度
   const scrolled = scrollY - panelTop;
   const totalScroll = panelHeight - windowHeight;
-  const progress = Math.min(Math.max((scrolled / totalScroll) * 100, 0), 100);
+  const progress = totalScroll > 0 ? Math.min(Math.max((scrolled / totalScroll) * 100, 0), 100) : 0;
   readingProgress.value = progress;
 
   // 显示回到顶部按钮
@@ -288,206 +267,53 @@ const handleScroll = () => {
 
 // 回到顶部
 const scrollToTop = () => {
-  window.scrollTo({
+  (props.scrollContainer || window).scrollTo({
     top: 0,
     behavior: 'smooth'
   });
 };
 
-// 解析 Markdown 文件并提取 metadata 和内容
-const parseMarkdown = async (url, decryptedText = null) => {
-  try {
-    let markdown;
-
-    // 如果有解密后的内容，直接使用
-    if (decryptedText) {
-      markdown = decryptedText;
-      console.log('使用解密后的内容');
-    } else {
-      // 否则从 URL 加载
-      const response = await axios.get(url);
-      markdown = response.data;
-    }
-
-    // 使用 front-matter 解析 metadata
-    const { body } = fm(markdown);
-    const { meta } = await parseMarkdownMetadata(markdown);
-    metadata.value = meta;
-    if (metadata.value.img) {
-      metadata.value.img = `/Posts/Images/${metadata.value.img}`;
-    }
-    const date = new Date(metadata.value.date);
-    const hours = date.getHours();
-
-    // 格式化日期为 '年-月-日'
-    metadata.value.date = date.toLocaleDateString().replace(/\//g, '月').replace('月', '年') + '日';
-
-    // 添加时间段
-    if (hours < 6) {
-      metadata.value.date += ' 凌晨';
-    } else if (hours < 12) {
-      metadata.value.date += ' 上午';
-    } else if (hours < 18) {
-      metadata.value.date += ' 下午';
-    } else {
-      metadata.value.date += ' 晚上';
-    }
-
-    // 预处理：修复带空格的图片路径（添加尖括号）
-    const processedBody = body.replace(
-      /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-      '![$1](<$2>)'
-    );
-
-    // 解析 Markdown 内容
-    htmlContent.value = md.render(processedBody);
-
-    // 计算文章统计信息
-    calculateStats(htmlContent.value);
-
-    // 在 nextTick 中手动编译和挂载组件
-    await nextTick();
-    const container = contentRef.value;
-    if (container) {
-      renderDynamicComponents(container, {
-        'steamgameblock': SteamGameBlock,
-        'bangumiblock': BangumiBlock,
-        'bilibilivideoblock': BilibiliVideoBlock,
-        'githubrepoblock': GithubRepoBlock,
-        'xiaohongshunoteblock': XiaohongshuNoteBlock,
-        'carouselblock': CarouselBlock
-      });
-    }
-
-    // 渲染 Mermaid 图表
-    await nextTick();
-    if (typeof mermaid !== 'undefined') {
-      try {
-        // 重置状态
-        mermaid.mermaidAPI.reset();
-
-        // 重新初始化并渲染
-        await mermaid.run({
-          nodes: document.querySelectorAll('.mermaid'),
-        });
-
-        // 修复渲染后的 SVG 尺寸，确保不超出容器
-        await nextTick();
-        const mermaidSvgs = document.querySelectorAll('.mermaid svg');
-        mermaidSvgs.forEach(svg => {
-          // 删除所有内联宽高属性，让 CSS 完全控制
-          svg.removeAttribute('width');
-          svg.removeAttribute('height');
-
-          // 强制应用样式
-          svg.style.width = '100%';
-          svg.style.height = '400px';
-          svg.style.maxWidth = '100%';
-          svg.style.maxHeight = '400px';
-          svg.style.display = 'block';
-          svg.style.margin = '0 auto';
-
-          // 移除可能导致超出的内联样式
-          if (svg.getAttribute('style')) {
-            const styleStr = svg.getAttribute('style');
-            // 移除固定的 max-width 限制（如 max-width: 300px）
-            svg.setAttribute('style', styleStr.replace(/max-width:\s*\d+px;?/gi, ''));
-          }
-        });
-      } catch (error) {
-        console.warn('Mermaid rendering failed:', error);
-      }
-    }
-
-    // 添加图片和 Mermaid 的点击放大功能
-    await nextTick();
-    setupImageClickHandlers();
-  } catch (error) {
-    console.error('Error fetching or parsing markdown file:', error);
-  }
-};
-
-// 设置图片和 Mermaid 图表的点击事件
-const setupImageClickHandlers = () => {
-  // 处理普通图片点击
-  const images = contentRef.value?.querySelectorAll('.markdown img');
-  images?.forEach(img => {
-    // 添加可点击样式类
-    img.classList.add('clickable-image');
-
-    // 移除旧的点击事件监听器（如果存在）
-    img.replaceWith(img.cloneNode(true));
-  });
-
-  // 重新获取克隆后的图片并添加事件监听器
-  const newImages = contentRef.value?.querySelectorAll('.markdown img');
-  newImages?.forEach(img => {
-    img.classList.add('clickable-image');
-    img.addEventListener('click', () => {
-      viewerImageType.value = 'img';
-      viewerImageSrc.value = img.src;
-      viewerImageAlt.value = img.alt || '';
-      viewerVisible.value = true;
-    });
-  });
-
-  // 处理 Mermaid 图表点击
-  const mermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
-  mermaidContainers?.forEach(container => {
-    // 添加可点击样式类
-    container.classList.add('clickable-mermaid');
-
-    // 直接添加点击事件，不使用克隆
-    // 先移除可能存在的旧事件
-    const oldHandler = container._clickHandler;
-    if (oldHandler) {
-      container.removeEventListener('click', oldHandler);
-    }
-
-    // 创建新的处理函数
-    const clickHandler = () => {
-      const mermaidDiv = container.querySelector('.mermaid');
-      if (mermaidDiv) {
-        // 获取完整的 SVG 内容
-        const svgElement = mermaidDiv.querySelector('svg');
-        if (svgElement) {
-          // 克隆 SVG 以保留所有属性和样式
-          const clonedSvg = svgElement.cloneNode(true);
-          console.log('[Mermaid Click] SVG found, outer HTML length:', clonedSvg.outerHTML.length);
-          viewerImageType.value = 'svg';
-          viewerSvgContent.value = clonedSvg.outerHTML;
-          viewerImageAlt.value = 'Mermaid 图表';
-          viewerVisible.value = true;
-        } else {
-          console.warn('[Mermaid Click] SVG element not found in mermaid div');
-        }
-      } else {
-        console.warn('[Mermaid Click] Mermaid div not found');
-      }
-    };
-
-    // 保存处理函数引用
-    container._clickHandler = clickHandler;
-    container.addEventListener('click', clickHandler);
-  });
-};
-
-// 监控 markdownUrl 和 decryptedContent 的变化
-watch(() => [props.markdownUrl, props.decryptedContent], ([newUrl, newContent]) => {
-  parseMarkdown(newUrl, newContent);
-  // 重置滚动位置和颜色
+// A draft and a fetched article differ only in where their source comes from.
+watch(() => [props.markdownUrl, props.content, props.decryptedContent], async ([url, draft, decrypted]) => {
+  const current = ++loadRevision;
+  loadController?.abort();
+  loadController = new AbortController();
   readingProgress.value = 0;
-  dominantColor.value = null;
-  accentColor.value = null;
+  try {
+    const markdown = draft ?? decrypted ?? (await axios.get(url, { signal: loadController.signal })).data;
+    const { meta } = parseMarkdownMetadataSync(markdown);
+    if (current !== loadRevision) return;
+    const nextMetadata = { ...meta };
+    nextMetadata.img = resolvePostImage(nextMetadata.img);
+    if (nextMetadata.date) {
+      const date = new Date(nextMetadata.date);
+      if (!Number.isNaN(date.getTime())) {
+        const hours = date.getHours();
+        nextMetadata.date = date.toLocaleDateString().replace(/\//g, '月').replace('月', '年') + '日'
+          + (hours < 6 ? ' 凌晨' : hours < 12 ? ' 上午' : hours < 18 ? ' 下午' : ' 晚上');
+      }
+    }
+    if (metadata.value.img !== nextMetadata.img) {
+      dominantColor.value = null;
+      accentColor.value = null;
+    }
+    metadata.value = nextMetadata;
+    markdownContent.value = markdown;
+    loadError.value = '';
+  } catch (error) {
+    if (current === loadRevision && !loadController.signal.aborted) loadError.value = `预览暂未更新，请检查文章头部格式或文件连接：${error.message}`;
+  }
 }, { immediate: true });
 
-onMounted(() => {
-  parseMarkdown(props.markdownUrl, props.decryptedContent);
-  window.addEventListener('scroll', handleScroll);
+watch(() => props.scrollContainer, (root, previous) => {
+  (previous || window).removeEventListener('scroll', handleScroll);
+  (root || window).addEventListener('scroll', handleScroll, { passive: true });
 });
-
+onMounted(() => (props.scrollContainer || window).addEventListener('scroll', handleScroll, { passive: true }));
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
+  loadRevision++;
+  loadController?.abort();
+  (props.scrollContainer || window).removeEventListener('scroll', handleScroll);
 });
 
 const lastCategory = computed(() => {

@@ -87,7 +87,7 @@
                         </div>
                         <div v-show="showGraphPreview" class="graph-preview-content">
                             <div class="graph-preview-wrapper">
-                                <Graph :image="graphData" :index="0" :column="0" />
+                                <Graph :key="graphData.src" ref="graphRef" :image="graphData" :index="0" :column="0" @click="openGraphPreview" />
                             </div>
                         </div>
                     </div>
@@ -103,7 +103,7 @@
                     <!-- Markdown内容预览 -->
                     <div class="markdown-preview-section">
                         <div v-if="currentMetadata || isWaterfallGraphFile" class="preview-label">Markdown渲染预览</div>
-                        <MarkdownPreview :content="content" :active="effectiveLayout !== 'edit'" :scroll-sync="editorScrollTop"
+                        <MarkdownPreview :key="currentFile.path" :markdown-url="currentFile.path" :image="isWaterfallGraphFile ? (graphData || { src: graphImagePath }) : null" :content="content" :active="effectiveLayout !== 'edit'" :scroll-sync="editorScrollTop"
                             @scroll="handlePreviewScroll" />
                     </div>
                 </div>
@@ -114,6 +114,7 @@
                 <span>{{ isOpening ? '正在打开…' : isSaving ? '正在保存…' : isDirty ? '有未保存修改' : '已与磁盘同步' }}</span>
             </footer>
         </div>
+        <ImageModal v-if="graphModalOpen && graphData" :image="graphData" :content="content" :trigger-card-rect="graphCardRect" @close="closeGraphPreview" />
         <EditorLeaveDialog v-if="leavePrompt" :file-name="currentFileName" @answer="session.answerLeave" />
     </div>
 </template>
@@ -124,13 +125,15 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { useEditorDocument } from '@/composables/useEditorDocument';
 import EditorLeaveDialog from '@/components/Editor/EditorLeaveDialog.vue';
 import axios from 'axios';
-import fm from 'front-matter';
+import { parseMarkdownMetadataSync, resolvePostImage } from '@/utils';
+import { loadGalleryImage, applyGalleryMetadata } from '@/utils/galleryImage';
 import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
 import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
 import Post from '@/components/PostPanelComps/Post.vue';
 import Graph from '@/components/WaterfallPanelComps/Graph.vue';
+import ImageModal from '@/components/WaterfallPanelComps/ImageModal.vue';
 import { useTheme } from '@/composables/useTheme';
 
 // Error handling utility
@@ -303,11 +306,7 @@ const documentStats = computed(() => {
     const words = (previewContent.value.match(/[\u3400-\u9fff]|[a-zA-Z0-9]+/g) || []).length;
     return { words, minutes: Math.max(1, Math.ceil(words / 350)) };
 });
-const coverUrl = computed(() => {
-    const image = currentMetadata.value?.img || '';
-    if (!image) return '';
-    return /^(https?:\/\/|\/)/i.test(image) ? image : `/Posts/Images/${image}`;
-});
+const coverUrl = computed(() => resolvePostImage(currentMetadata.value?.img));
 const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
 
 // Theme management
@@ -323,18 +322,14 @@ const currentMetadata = computed(() => {
     if (!previewContent.value) return null;
 
     try {
-        const parsed = fm(previewContent.value);
-        return parsed.attributes || null;
+        return parseMarkdownMetadataSync(previewContent.value).meta;
     } catch (error) {
         console.error('[EditorPage] Failed to parse front-matter:', error);
         return null;
     }
 });
 
-const cardMetadata = computed(() => ({
-    ...(currentMetadata.value || {}),
-    title: currentMetadata.value?.title || currentFileName.value.replace(/\.md$/i, '')
-}));
+const cardMetadata = computed(() => currentMetadata.value || {});
 
 // 检查当前文件是否在 WaterfallGraph 文件夹内
 const isWaterfallGraphFile = computed(() => {
@@ -342,42 +337,61 @@ const isWaterfallGraphFile = computed(() => {
     return currentFile.value.path.includes('WaterfallGraph');
 });
 
-// 为 Graph 组件准备数据
-const graphData = computed(() => {
-
-    if (!isWaterfallGraphFile.value || !currentMetadata.value) {
-        return null;
-    }
-
-    // 从 metadata 中提取图片路径
-    const imgPath = currentMetadata.value.img;
-
-    if (!imgPath) {
-        return null;
-    }
-
-    // 构建完整的图片 URL
-    // imgPath 可能是: "WaterfallGraph/image.jpg" 或 "/Posts/WaterfallGraph/image.jpg"
-    let imageUrl;
-    if (imgPath.startsWith('/')) {
-        imageUrl = imgPath; // 已经是完整路径
-    } else if (imgPath.startsWith('Posts/')) {
-        imageUrl = '/' + imgPath; // 添加前导斜杠
-    } else {
-        imageUrl = '/Posts/' + imgPath; // 添加 /Posts/ 前缀
-    }
-
-    // 构建 Graph 组件需要的 image 对象
-    const data = {
-        src: imageUrl,
-        alt: currentMetadata.value.title || currentFileName.value,
-        title: currentMetadata.value.title || (currentFileName.value ? currentFileName.value.replace('.md', '') : ''),
-        date: currentMetadata.value.date || new Date().toLocaleDateString(),
-        aspectRatio: currentMetadata.value.aspectRatio || 1,
-        dominantColor: currentMetadata.value.dominantColor || 'var(--theme-index)'
+const graphRef = ref(null);
+const graphModalOpen = ref(false);
+const graphCardRect = ref(null);
+const baseGraphImage = ref(null);
+const siblingImagePath = computed(() => {
+    if (!isWaterfallGraphFile.value) return '';
+    const descriptionPath = currentFile.value.path;
+    const findImage = nodes => {
+        for (const node of nodes) {
+            if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(node.path || '') && node.path.replace(/\.[^.]+$/, '.md') === descriptionPath) return node.path;
+            const nested = node.children && findImage(node.children);
+            if (nested) return nested;
+        }
+        return '';
     };
-
-    return data;
+    return findImage(fileTree.value);
+});
+const graphImagePath = computed(() => {
+    if (!isWaterfallGraphFile.value) return '';
+    // Gallery cards use the image beside the description, regardless of its img field.
+    if (siblingImagePath.value) return siblingImagePath.value;
+    const path = currentMetadata.value?.img;
+    if (!path) return '';
+    return /^(https?:\/\/|\/)/i.test(path) ? path : path.startsWith('Posts/') ? '/' + path : '/Posts/' + path;
+});
+let graphRevision = 0;
+watch(graphImagePath, async path => {
+    const current = ++graphRevision;
+    baseGraphImage.value = null;
+    closeGraphPreview();
+    if (!path) return;
+    try {
+        const image = await loadGalleryImage({ path, name: path.split('/').pop(), directory: path.slice(0, path.lastIndexOf('/')) });
+        if (current === graphRevision) baseGraphImage.value = image;
+    } catch (error) {
+        if (current === graphRevision) notify(`图片预览加载失败：${error.message}`);
+    }
+});
+const graphData = computed(() => {
+    if (!baseGraphImage.value) return null;
+    try { return applyGalleryMetadata(baseGraphImage.value, previewContent.value); }
+    catch { return baseGraphImage.value; }
+});
+function openGraphPreview(image, rect) {
+    graphCardRect.value = rect;
+    graphModalOpen.value = true;
+}
+function closeGraphPreview() {
+    graphModalOpen.value = false;
+    graphRef.value?.resetCardState();
+}
+watch(() => currentFile.value?.path, () => {
+    clearTimeout(metadataTimer);
+    previewContent.value = content.value;
+    closeGraphPreview();
 });
 
 // 切换图片卡片预览显示状态
@@ -962,6 +976,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    graphRevision++;
     clearTimeout(metadataTimer);
     clearTimeout(previewScrollTimer);
     window.removeEventListener('resize', updateViewport);
@@ -1004,14 +1019,7 @@ onBeforeUnmount(() => {
 .post-preview-section, .graph-preview-section { margin: 16px 20px 0; border: 1px solid var(--theme-panel-border); border-radius: 8px; }
 .post-preview-section summary { cursor: pointer; padding: 12px; font-size: 12px; }
 .post-preview-section summary span { float: right; color: var(--theme-meta-text); }
-.post-preview-card { padding: 16px; container-type: inline-size; }
-@container (max-width: 700px) {
-    .post-preview-card :deep(.post-panel) { flex-direction: column; height: auto; }
-    .post-preview-card :deep(.image-panel) { width: 100% !important; height: 180px; }
-    .post-preview-card :deep(.content-panel) { min-width: 0; padding: 20px; }
-    .post-preview-card :deep(.content-wrapper) { flex-direction: column; gap: 16px; }
-    .post-preview-card :deep(.meta-sidebar) { width: auto; min-width: 0; padding-left: 0; border-left: 0; gap: 12px; }
-}
+.post-preview-card { padding: 16px; }
 .preview-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; }
 .preview-label { color: var(--theme-meta-text); font-size: 12px; padding: 12px 20px 0; }
 .collapse-btn { width: 28px; height: 28px; border: 0; border-radius: 5px; color: inherit; background: var(--theme-surface-hover); cursor: pointer; }
@@ -1030,5 +1038,5 @@ onBeforeUnmount(() => {
     .editor-statusbar { padding: 7px 8px; font-size: 10px; }
     .cursor-position { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .editor-container :deep(*) { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .workspace-bar *, .editor-statusbar * { animation: none !important; transition: none !important; } }
 </style>

@@ -1,12 +1,13 @@
 import { mount, flushPromises } from '@vue/test-utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
 vi.mock('axios', () => ({ default: { get: vi.fn() } }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import Post from './Post.vue';
 
 let wrapper;
-afterEach(() => wrapper?.unmount());
+beforeEach(() => vi.stubGlobal('Image', class { set src(value) { queueMicrotask(() => this.onload?.()); } }));
+afterEach(() => { wrapper?.unmount(); vi.unstubAllGlobals(); });
 const render = props => wrapper = mount(Post, { props, global: { stubs: {
     RouterLink: { template: '<a><slot /></a>' }, Tag: { props: ['tagname'], template: '<span>{{ tagname }}</span>' }, IconDate: true, IconCategory: true
 } } });
@@ -25,8 +26,10 @@ describe('article card draft preview', () => {
     });
     it('updates and removes a draft cover without remounting', async () => {
         render({ previewMetadata: { title: 'Draft' }, imageUrl: '/Posts/Images/one.png' });
+        await flushPromises();
         expect(wrapper.get('.image-panel img').attributes('src')).toBe('/Posts/Images/one.png');
         await wrapper.setProps({ imageUrl: '/Posts/Images/two.png' });
+        await flushPromises();
         expect(wrapper.get('.image-panel img').attributes('src')).toBe('/Posts/Images/two.png');
         await wrapper.setProps({ imageUrl: '' });
         expect(wrapper.find('.image-panel').exists()).toBe(false);

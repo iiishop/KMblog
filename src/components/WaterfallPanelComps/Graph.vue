@@ -113,6 +113,11 @@ const cardStyle = computed(() => {
         style.top = `${props.position.y}px`;
         style.width = `${props.position.width}px`;
         style.height = `${props.position.height}px`;
+    } else {
+        // The same card can also be shown outside the positioned gallery grid.
+        style.position = 'relative';
+        style.width = '100%';
+        style.aspectRatio = props.image.aspectRatio || 1;
     }
 
     return style;

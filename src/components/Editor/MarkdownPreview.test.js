@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ render: vi.fn(text => `<p>${text}</p>`), mount: vi.fn(), unmount: vi.fn(), charts: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/components/MarkdownPanelComps/MarkdownRenender.js', () => ({ default: { render: mocks.render } }));
 vi.mock('@/components/MarkdownPanelComps/DynamicComponentRenderer.js', () => ({ renderDynamicComponents: mocks.mount, unmountDynamicComponents: mocks.unmount }));
+vi.mock('@/components/UtterancesComments.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('mermaid', () => ({ default: { run: mocks.charts } }));
 import MarkdownPreview from './MarkdownPreview.vue';
 let wrapper;
@@ -15,7 +16,8 @@ describe('live preview scheduling', () => {
         await wrapper.setProps({ content: '---\ntitle: Draft\n---\nlatest' });
         await vi.advanceTimersByTimeAsync(180);
         expect(mocks.render).toHaveBeenCalledTimes(1);
-        expect(wrapper.text()).toBe('latest');
+        expect(wrapper.get('article').text()).toBe('latest');
+        expect(wrapper.get('.post-title').text()).toBe('Draft');
         expect(mocks.charts).not.toHaveBeenCalled();
     });
     it('suspends hidden previews and resumes with the latest content', async () => {
@@ -25,7 +27,7 @@ describe('live preview scheduling', () => {
         expect(mocks.render).not.toHaveBeenCalled();
         await wrapper.setProps({ active: true });
         await vi.advanceTimersByTimeAsync(180);
-        expect(wrapper.text()).toBe('new');
+        expect(wrapper.get('article').text()).toBe('new');
     });
     it('retains the last valid preview while YAML is incomplete', async () => {
         wrapper = mount(MarkdownPreview, { props: { content: 'valid' } });
@@ -37,6 +39,9 @@ describe('live preview scheduling', () => {
     });
     it('unmounts embedded apps and cancels pending work on disposal', async () => {
         wrapper = mount(MarkdownPreview, { props: { content: 'draft' } });
+        await vi.advanceTimersByTimeAsync(180);
+        await wrapper.setProps({ content: 'pending' });
+        mocks.render.mockClear();
         wrapper.unmount();
         await vi.advanceTimersByTimeAsync(500);
         await flushPromises();

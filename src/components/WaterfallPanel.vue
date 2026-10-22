@@ -62,7 +62,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import Graph from './WaterfallPanelComps/Graph.vue';
-import fm from 'front-matter';
+import { applyGalleryMetadata } from '@/utils/galleryImage';
 
 const props = defineProps({
     images: {
@@ -124,22 +124,7 @@ async function loadImageMetadata(image) {
             return image;
         }
 
-        // 解析 front-matter
-        const parsed = fm(text);
-        const metadata = parsed.attributes;
-
-        // 使用 .md 中的信息覆盖原始数据
-        return {
-            ...image,
-            title: metadata.title || image.title,
-            date: metadata.date || image.date,
-            aspectRatio: metadata.aspectRatio || image.aspectRatio,
-            dominantColor: metadata.dominantColor || image.dominantColor,
-            // 保留原始数据作为备份
-            _originalTitle: image.title,
-            _originalDate: image.date,
-            _hasMetadata: true
-        };
+        return applyGalleryMetadata(image, text);
 
     } catch (error) {
         console.log(`[WaterfallPanel] Failed to load .md for ${image.id}:`, error);
