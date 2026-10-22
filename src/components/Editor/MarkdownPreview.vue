@@ -14,7 +14,7 @@ import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
 import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import mermaid from 'mermaid';
+import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 
 // 复用MarkdownPanel.vue的Block组件
 const SteamGameBlock = defineAsyncComponent(() =>
@@ -51,6 +51,7 @@ const emit = defineEmits(['scroll']);
 
 const htmlContent = ref('');
 const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 let isScrollingFromEditor = false; // 标记是否来自编辑器的滚动
 let renderVersion = 0;
 let scrollResetTimer = null;
@@ -88,34 +89,7 @@ const renderMarkdown = async (markdown) => {
                 'carouselblock': CarouselBlock
             });
 
-            // 渲染Mermaid图表
-            await nextTick();
-            if (version !== renderVersion) return;
-            if (typeof mermaid !== 'undefined') {
-                try {
-                    mermaid.mermaidAPI.reset();
-                    await mermaid.run({
-                        nodes: container.querySelectorAll('.mermaid'),
-                    });
-
-                    // 修复SVG尺寸
-                    await nextTick();
-                    if (version !== renderVersion) return;
-                    const mermaidSvgs = container.querySelectorAll('.mermaid svg');
-                    mermaidSvgs.forEach(svg => {
-                        svg.removeAttribute('width');
-                        svg.removeAttribute('height');
-                        svg.style.width = '100%';
-                        svg.style.height = '400px';
-                        svg.style.maxWidth = '100%';
-                        svg.style.maxHeight = '400px';
-                        svg.style.display = 'block';
-                        svg.style.margin = '0 auto';
-                    });
-                } catch (error) {
-                    console.warn('Mermaid rendering failed:', error);
-                }
-            }
+            await mermaidRenderer.render();
         }
     } catch (error) {
         console.error('Markdown rendering failed:', error);
@@ -171,6 +145,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     renderVersion++;
+    mermaidRenderer.dispose();
     clearTimeout(scrollResetTimer);
     unmountDynamicComponents(contentRef.value);
     if (previewContainer) {

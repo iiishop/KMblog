@@ -28,10 +28,8 @@ export default defineConfig({
         entryFileNames: `assets/entry-[name]-[hash:8].js`,
         chunkFileNames: `assets/chunk-[name]-[hash:8].js`,
         assetFileNames: `assets/asset-[name]-[hash:8].[ext]`,
-        // 手动分块配置，将 mermaid 单独打包成一个 chunk
-        manualChunks: {
-          'mermaid-lib': ['mermaid']
-        }
+        // Let dynamic imports split Mermaid. A forced vendor chunk also absorbs
+        // shared helpers and makes the entry point eagerly import the diagram library.
       }
     }
   }
