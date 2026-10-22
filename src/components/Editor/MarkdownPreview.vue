@@ -13,7 +13,7 @@ import fm from 'front-matter';
 // 复用MarkdownPanel.vue的渲染模块
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import mermaid from 'mermaid';
 
 // 复用MarkdownPanel.vue的Block组件
@@ -52,9 +52,12 @@ const emit = defineEmits(['scroll']);
 const htmlContent = ref('');
 const contentRef = ref(null);
 let isScrollingFromEditor = false; // 标记是否来自编辑器的滚动
+let renderVersion = 0;
+let scrollResetTimer = null;
 
 // 渲染Markdown - 完全复用MarkdownPanel.vue的逻辑
 const renderMarkdown = async (markdown) => {
+    const version = ++renderVersion;
     try {
         // 解析front-matter
         const { body } = fm(markdown);
@@ -66,10 +69,13 @@ const renderMarkdown = async (markdown) => {
         );
 
         // 使用相同的markdown-it实例渲染
-        htmlContent.value = md.render(processedBody);
+        const rendered = md.render(processedBody);
+        unmountDynamicComponents(contentRef.value);
+        htmlContent.value = rendered;
 
         // 在nextTick中渲染动态组件
         await nextTick();
+        if (version !== renderVersion) return;
         const container = contentRef.value;
         if (container) {
             // 使用相同的动态组件渲染器
@@ -84,6 +90,7 @@ const renderMarkdown = async (markdown) => {
 
             // 渲染Mermaid图表
             await nextTick();
+            if (version !== renderVersion) return;
             if (typeof mermaid !== 'undefined') {
                 try {
                     mermaid.mermaidAPI.reset();
@@ -93,6 +100,7 @@ const renderMarkdown = async (markdown) => {
 
                     // 修复SVG尺寸
                     await nextTick();
+                    if (version !== renderVersion) return;
                     const mermaidSvgs = container.querySelectorAll('.mermaid svg');
                     mermaidSvgs.forEach(svg => {
                         svg.removeAttribute('width');
@@ -128,7 +136,8 @@ watch(() => props.scrollSync, (scrollPercentage) => {
         container.scrollTop = maxScroll * scrollPercentage;
 
         // 重置标记
-        setTimeout(() => {
+        clearTimeout(scrollResetTimer);
+        scrollResetTimer = setTimeout(() => {
             isScrollingFromEditor = false;
         }, 100);
     }
@@ -161,6 +170,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    renderVersion++;
+    clearTimeout(scrollResetTimer);
+    unmountDynamicComponents(contentRef.value);
     if (previewContainer) {
         previewContainer.removeEventListener('scroll', handlePreviewScroll);
     }
