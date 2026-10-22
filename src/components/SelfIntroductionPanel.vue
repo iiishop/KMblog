@@ -1,247 +1,257 @@
-<script setup>
-import config from '@/config';
-import { ref, onMounted } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 import { Icon } from '@iconify/vue';
-import { openLink } from '@/utils';
+import config from '@/config';
 import globalVar from '@/globalVar';
-import { useRouter } from 'vue-router';
-import { gsap } from 'gsap';
 
-const avatarUrl = ref(config.HeadImg);
-const name = ref(config.Name);
-const description = ref(config.Description);
-const links = ref(config.Links.map(link => ({
-  name: link.name.toLowerCase(),
-  url: link.url,
-})).slice(0, 10));
-
-const articleCount = ref(Object.keys(globalVar.markdowns).length);
-const tagCount = ref(Object.keys(globalVar.tags).length);
-const categoryCount = ref(Object.keys(globalVar.categories).length);
-
-onMounted(() => {
-  gsap.from('.user-info', { opacity: 0, duration: 1 });
-});
+const coverUrl = config.HeroBackgroundImg || config.BackgroundImg;
+const links = config.Links.slice(0, 10).map(link => ({
+  ...link,
+  icon: `mdi:${link.name.toLowerCase()}`,
+}));
+const stats = computed(() => [
+  { label: '文章', count: Object.keys(globalVar.markdowns).length, to: '/archive' },
+  { label: '标签', count: Object.keys(globalVar.tags).length, to: '/tags' },
+  { label: '分类', count: Object.keys(globalVar.categories).length, to: '/category' },
+]);
 </script>
+
 <template>
-  <div class="user-info">
-    <img :src="avatarUrl" />
-    <h2>{{ name }}</h2>
-    <p>{{ description }}</p>
-    <div class="stats">
-      <router-link to="/archive" class="stat-link">
-        <div>
-          <span>文章数量</span>
-          <span>{{ articleCount }}</span>
-        </div>
-      </router-link>
-      <router-link to="/tags" class="stat-link">
-        <div class="clickable">
-          <span>标签数量</span>
-          <span>{{ tagCount }}</span>
-        </div>
-      </router-link>
-      <router-link to="/category" class="stat-link">
-        <div>
-          <span>目录数量</span>
-          <span>{{ categoryCount }}</span>
-        </div>
-      </router-link>
+  <section class="user-info profile-card" :aria-label="`${config.Name} 的个人资料`">
+    <!-- 沿用博客图片建立个人识别，界面文字与交互色仍由当前主题控制。 -->
+    <div class="profile-cover" aria-hidden="true">
+      <img v-if="coverUrl" :src="coverUrl" alt="" loading="lazy" />
     </div>
-    <div class="icons">
-      <div v-for="(link, index) in links" :key="index" class="link">
-        <Icon :icon="`mdi:${link.name}`" @click="openLink(link.url)" style="cursor: pointer;" />
+
+    <div class="profile-body">
+      <div class="profile-identity">
+        <router-link to="/about" class="profile-avatar-link" :aria-label="`了解 ${config.Name}`">
+          <img class="profile-avatar" :src="config.HeadImg" :alt="`${config.Name} 的头像`"
+            width="88" height="88" loading="lazy" />
+        </router-link>
+        <router-link to="/about" class="profile-about">
+          关于我
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </router-link>
       </div>
+
+      <h2 class="profile-name">{{ config.Name }}</h2>
+      <p v-if="config.Description" class="profile-description">{{ config.Description }}</p>
+
+      <nav class="profile-stats" aria-label="博客内容统计">
+        <router-link v-for="stat in stats" :key="stat.to" :to="stat.to" class="profile-stat"
+          :aria-label="`${stat.label}：${stat.count}，查看全部`">
+          <span class="profile-stat-count">{{ stat.count.toLocaleString() }}</span>
+          <span class="profile-stat-label">{{ stat.label }}</span>
+        </router-link>
+      </nav>
+
+      <nav v-if="links.length" class="profile-socials" aria-label="社交链接">
+        <a v-for="link in links" :key="link.name" :href="link.url" class="profile-social"
+          target="_blank" rel="noopener noreferrer" :aria-label="`${link.name}（在新标签页打开）`"
+          :title="link.name">
+          <Icon :icon="link.icon" width="20" height="20" aria-hidden="true" />
+          <span class="profile-tooltip" aria-hidden="true">{{ link.name }}</span>
+        </a>
+      </nav>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.user-info {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border-radius: 24px;
-  padding: 2.5rem 2rem;
+.profile-card {
+  /* 局部角色复用主题，避免四套主题各维护一份组件样式。 */
+  --profile-bg: var(--theme-panel-bg);
+  --profile-ink: var(--theme-heading-text);
+  --profile-muted: color-mix(in srgb, var(--theme-panel-text) 72%, var(--profile-bg));
+  position: relative;
+  isolation: isolate;
   width: 100%;
-  /* 极致质感背景：保持原变量为基底，叠加细腻光泽 */
-  background: var(--user-info-background-color);
-  background-image: linear-gradient(135deg, var(--theme-surface-hover) 0%, transparent 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  /* 现代多层阴影 & 内发光边框 */
-  box-shadow:
-    0 15px 35px -5px var(--theme-shadow-md),
-    0 0 0 1px var(--theme-border-light) inset;
-  color: var(--user-info-text-color);
-  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  min-width: 0;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 22px;
+  background: var(--profile-bg);
+  color: var(--profile-ink);
+  box-shadow: 0 8px 28px -12px var(--theme-shadow-md);
+  text-align: left;
   box-sizing: border-box;
-  position: relative;
+}
+
+.profile-cover {
+  height: 112px;
   overflow: hidden;
-}
-
-/* 悬停时的上浮与光影增强 */
-.user-info:hover {
-  transform: translateY(-8px);
-  box-shadow:
-    0 25px 50px -12px var(--theme-shadow-lg),
-    0 0 0 1px var(--theme-border-medium) inset;
-}
-
-.user-info img {
-  width: 120px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 50%;
-  /* 双层立体边框 */
-  border: 4px solid var(--theme-panel-bg);
-  box-shadow: 0 8px 25px var(--theme-shadow-md);
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), var(--theme-transition-colors);
-  background-color: var(--theme-panel-bg);
-}
-
-.user-info img:hover {
-  transform: rotate(360deg) scale(1.15);
-  box-shadow: 0 15px 35px var(--theme-shadow-lg);
-  border-color: var(--theme-panel-bg);
-}
-
-.user-info h2 {
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1.8rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  /* 文字渐变增强层次（需背景色配合，若背景深色则回退到inherit） */
-  background: var(--theme-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: var(--user-info-text-color);
-  /* 回退颜色 */
-  transition: var(--theme-transition-colors);
-}
-
-.user-info p {
-  margin: 0 0 1.5rem;
-  font-size: 0.95rem;
-  opacity: 0.8;
-  line-height: 1.6;
-  max-width: 90%;
-  font-weight: 500;
-}
-
-.stats {
-  display: flex;
-  justify-content: space-around;
-  width: 100%;
-  padding: 1.25rem 0;
-  margin-bottom: 1.5rem;
-  /* 精致的分隔线 */
-  border-top: 1px solid var(--theme-border-light);
-  border-bottom: 1px solid var(--theme-border-light);
-}
-
-.stats div {
-  margin: 0 !important;
-  /* 覆盖原有 inline-block 的 margin */
-}
-
-.stat-link {
-  text-decoration: none;
-  color: inherit;
-  flex: 1;
-  transition: all 0.3s ease;
-  position: relative;
-  cursor: pointer;
-}
-
-.stat-link:hover {
-  transform: translateY(-3px);
-}
-
-/* 统计项内部布局 */
-.stat-link div.clickable,
-.stat-link div {
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.stat-link span:first-child {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  opacity: 0.6;
-  font-weight: 700;
-}
-
-.stat-link span:last-child {
-  font-size: 1.5rem;
-  font-weight: 800;
-  transition: color 0.3s ease;
-}
-
-.stat-link:hover span:last-child {
-  color: var(--link-hover-color);
-}
-
-.icons {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  width: 100%;
-}
-
-.link {
-  font-size: 1.3rem;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  border-radius: 21px 21px 0 0;
   background: var(--theme-surface-active);
-  color: var(--theme-content-text);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  cursor: pointer;
-}
-
-.link:hover {
-  color: var(--theme-button-text);
-  background: var(--link-hover-color, var(--theme-primary));
-  transform: translateY(-4px) scale(1.1);
-  box-shadow: 0 8px 20px var(--theme-shadow-md);
-}
-
-
-
-/* 3. 标题底部动态装饰线 */
-.user-info h2 {
   position: relative;
-  display: inline-block;
-  /* 收缩宽度以适应文字 */
 }
 
-.user-info h2::after {
+.profile-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+}
+
+.profile-cover::after {
   content: '';
   position: absolute;
-  bottom: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 4px;
-  background: var(--user-info-text-color);
-  opacity: 0.15;
-  border-radius: 10px;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  inset: 0;
+  /* 随主题调节图片亮度，暗色侧栏中不出现刺眼的白色横幅。 */
+  background: color-mix(in srgb, var(--profile-bg) 24%, transparent);
+  pointer-events: none;
 }
 
-.user-info:hover h2::after {
-  width: 50px;
-  opacity: 0.4;
-  background: var(--link-hover-color, var(--user-info-text-color));
+.profile-body { padding: 0 24px 22px; }
+
+.profile-identity {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  margin-top: -40px;
+  margin-bottom: 15px;
+}
+
+.profile-avatar-link {
+  display: block;
+  flex-shrink: 0;
+  padding: 5px;
+  border-radius: 50%;
+  background: var(--profile-bg);
+  line-height: 0;
+}
+
+.profile-avatar {
+  display: block;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--theme-surface-active);
+}
+
+.profile-about {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  padding: 0 10px;
+  margin-bottom: 7px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 18px;
+  color: var(--theme-link-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.profile-about svg { width: 16px; height: 16px; }
+.profile-about:hover { background: var(--theme-surface-active); border-color: var(--theme-link-color); }
+
+.profile-name {
+  margin: 0;
+  color: var(--profile-ink);
+  font-size: 1.65rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.profile-description {
+  margin: 10px 0 0;
+  color: var(--profile-muted);
+  font-size: 0.875rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px 0;
+  margin-top: 22px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 14px;
+  background: var(--theme-surface-hover);
+}
+
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 48px;
+  color: var(--profile-ink);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.profile-stat + .profile-stat { border-left: 1px solid var(--theme-border-light); }
+.profile-stat-count { font-size: 1.35rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.profile-stat-label { font-size: 0.75rem; color: var(--profile-muted); }
+.profile-stat:hover .profile-stat-count { color: var(--theme-link-color); }
+
+.profile-socials {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 20px;
+}
+
+.profile-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 11px;
+  color: var(--profile-muted);
+  text-decoration: none;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.profile-social:hover,
+.profile-social:focus-visible {
+  color: var(--theme-link-color);
+  border-color: color-mix(in srgb, var(--theme-link-color) 45%, var(--profile-bg));
+  background: var(--theme-nav-active-bg);
+}
+
+.profile-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 5px 9px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: 6px;
+  background: var(--profile-bg);
+  color: var(--profile-ink);
+  box-shadow: 0 3px 10px var(--theme-shadow-sm);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.profile-social:hover .profile-tooltip,
+.profile-social:focus-visible .profile-tooltip { visibility: visible; }
+.profile-card a:focus-visible { outline: 2px solid var(--theme-link-color); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-card a { transition: none; }
 }
 </style>
