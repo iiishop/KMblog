@@ -8,6 +8,7 @@ vi.mock('@/composables/useTheme', () => ({ useTheme: () => ({ isDarkMode: ref(fa
 vi.mock('@/components/Editor/MonacoEditor.vue', () => ({ default: { name: 'MonacoEditor', props: ['modelValue', 'options'], emits: ['update:modelValue','save'], template: '<textarea aria-label="正文" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea>', methods: { focus() {} } } }));
 vi.mock('@/components/Editor/MarkdownPreview.vue', () => ({ default: { props: ['content','active'], template: '<div class="preview-mock">{{ content }}</div>' } }));
 vi.mock('@/components/WaterfallPanelComps/Graph.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('@/components/PostPanelComps/Post.vue', () => ({ default: { name: 'Post', props: ['previewMetadata', 'imageUrl', 'markdownUrl'], template: '<div class="post-card-mock">{{ previewMetadata.title }} {{ previewMetadata.pre }}</div>' } }));
 import EditorPage from './EditorPage.vue';
 let wrapper;
 const file = { name: 'a.md', path: '/Posts/Markdowns/a.md', type: 'file' };
@@ -67,5 +68,20 @@ describe('editor workspace', () => {
         expect(separator.attributes('aria-valuenow')).toBe('55');
         await separator.trigger('keydown', { key: 'Home' });
         expect(separator.attributes('aria-valuenow')).toBe('50');
+    });
+    it('shows the actual card component above the body and updates it from unsaved edits', async () => {
+        await openArticle();
+        const card = wrapper.findComponent({ name: 'Post' });
+        const instance = card.vm;
+        expect(wrapper.get('.post-preview-section').attributes('open')).toBeDefined();
+        expect(card.props('markdownUrl')).toBe(file.path);
+        expect(card.props('previewMetadata').title).toBe('a');
+        await wrapper.get('textarea').setValue('---\ntitle: 草稿标题\npre: 首页卡片摘要\nimg: cover.png\ntags: [Vue]\ncategories: [技术]\n---\n正文');
+        await vi.advanceTimersByTimeAsync(180);
+        expect(card.vm).toBe(instance);
+        expect(card.props('previewMetadata')).toMatchObject({ title: '草稿标题', pre: '首页卡片摘要', tags: ['Vue'], categories: ['技术'] });
+        expect(card.props('imageUrl')).toBe('/Posts/Images/cover.png');
+        expect(api.post).not.toHaveBeenCalled();
+        expect(wrapper.find('.preview-mock').exists()).toBe(true);
     });
 });

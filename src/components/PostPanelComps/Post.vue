@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
@@ -163,12 +163,18 @@ const IconDate = defineAsyncComponent(() => import('@/components/icons/IconDate.
 // 定义 props
 const props = defineProps({
     imageUrl: String,
-    markdownUrl: String
+    markdownUrl: String,
+    // Editor previews supply the current draft instead of fetching the saved file.
+    previewMetadata: { type: Object, default: null }
 });
 
 // 定义 ref 来存储图片链接和 meta 数据
 const imageSrc = ref(props.imageUrl || loadingGif);
-const metadata = ref({});
+const loadedMetadata = ref({});
+const metadata = computed(() => {
+    const source = props.previewMetadata ?? loadedMetadata.value;
+    return { ...source, date: source.date ? formatDateString(source.date) : '' };
+});
 const collectionThemeImage = ref('');
 
 // 定义 imagePanelWidth
@@ -243,12 +249,7 @@ async function initializeMarkdown(url) {
 
         // 解析 Markdown 内容，仅解析 meta 数据
         const { meta } = await parseMarkdownMetadata(content);
-        metadata.value = meta;
-
-        // 格式化日期
-        if (metadata.value.date) {
-            metadata.value.date = formatDateString(metadata.value.date);
-        }
+        loadedMetadata.value = meta || {};
 
         console.log('Metadata:', metadata.value);
     } catch (error) {
@@ -258,6 +259,7 @@ async function initializeMarkdown(url) {
 
 // 去掉日期中的时间部分
 function formatDateString(dateString) {
+    if (dateString instanceof Date) return dateString.toISOString().slice(0, 10);
     // 使用正则表达式匹配 YYYY-MM-DD hh-mm-ss 格式
     const dateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
@@ -301,6 +303,12 @@ function handleImageError() {
     imageSrc.value = loadingGif;
 }
 
+// Draft cover changes should not remount the card or refetch its Markdown.
+watch(() => props.imageUrl, url => {
+    if (props.previewMetadata !== null) imageSrc.value = url || '';
+    else initializeImage(url);
+});
+
 // 计算最后一个目录和链接
 const lastCategory = computed(() => {
     if (metadata.value.categories && metadata.value.categories.length > 0) {
@@ -334,11 +342,11 @@ const backgroundStyle = computed(() => {
 // 在组件挂载时初始化链接
 onMounted(() => {
     console.log('Component mounted');
-    if (props.imageUrl) {
+    if (props.imageUrl && props.previewMetadata === null) {
         initializeImage(props.imageUrl);
     }
     if (props.markdownUrl) {
-        initializeMarkdown(props.markdownUrl);
+        if (props.previewMetadata === null) initializeMarkdown(props.markdownUrl);
 
         // 提取并加载 collection 主题
         const collection = extractCollection(props.markdownUrl);

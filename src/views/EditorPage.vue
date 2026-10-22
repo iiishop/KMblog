@@ -92,14 +92,11 @@
                         </div>
                     </div>
 
-                    <details v-else-if="currentMetadata && Object.keys(currentMetadata).length" class="metadata-preview">
-                        <summary>文章信息预览 <span>来自当前草稿</span></summary>
-                        <div class="metadata-card">
-                            <img v-if="currentMetadata.img" :src="coverUrl" alt="文章封面" loading="lazy" />
-                            <h2>{{ currentMetadata.title || currentFileName.replace(/\.md$/i, '') }}</h2>
-                            <p v-if="currentMetadata.description || currentMetadata.summary">{{ currentMetadata.description || currentMetadata.summary }}</p>
-                            <small v-if="currentMetadata.date">{{ currentMetadata.date }}</small>
-                            <p v-if="currentMetadata.tags" class="metadata-tags">{{ Array.isArray(currentMetadata.tags) ? currentMetadata.tags.join(' · ') : currentMetadata.tags }}</p>
+                    <details v-else-if="!isWaterfallGraphFile" class="post-preview-section" open>
+                        <summary>文章卡片预览 <span>首页样式 · 当前草稿</span></summary>
+                        <div class="post-preview-card">
+                            <Post :key="currentFile.path" :markdown-url="currentFile.path"
+                                :image-url="coverUrl" :preview-metadata="cardMetadata" />
                         </div>
                     </details>
 
@@ -132,6 +129,7 @@ import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
 import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
+import Post from '@/components/PostPanelComps/Post.vue';
 import Graph from '@/components/WaterfallPanelComps/Graph.vue';
 import { useTheme } from '@/composables/useTheme';
 
@@ -307,6 +305,7 @@ const documentStats = computed(() => {
 });
 const coverUrl = computed(() => {
     const image = currentMetadata.value?.img || '';
+    if (!image) return '';
     return /^(https?:\/\/|\/)/i.test(image) ? image : `/Posts/Images/${image}`;
 });
 const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
@@ -331,6 +330,11 @@ const currentMetadata = computed(() => {
         return null;
     }
 });
+
+const cardMetadata = computed(() => ({
+    ...(currentMetadata.value || {}),
+    title: currentMetadata.value?.title || currentFileName.value.replace(/\.md$/i, '')
+}));
 
 // 检查当前文件是否在 WaterfallGraph 文件夹内
 const isWaterfallGraphFile = computed(() => {
@@ -997,14 +1001,17 @@ onBeforeUnmount(() => {
 .preview-panel { overflow-y: auto; background: var(--theme-panel-bg); }
 .panel-splitter { flex: 0 0 6px; cursor: col-resize; touch-action: none; background: var(--theme-panel-border); }
 .panel-splitter:hover, .panel-splitter:focus-visible { background: var(--theme-primary); }
-.metadata-preview, .graph-preview-section { margin: 16px 20px 0; border: 1px solid var(--theme-panel-border); border-radius: 8px; }
-.metadata-preview summary { cursor: pointer; padding: 12px; font-size: 12px; }
-.metadata-preview summary span { float: right; color: var(--theme-meta-text); }
-.metadata-card { padding: 12px 20px; }
-.metadata-card img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; }
-.metadata-card h2 { margin: 12px 0; font-size: 23px; }
-.metadata-card p { font-size: 14px; line-height: 1.7; }
-.metadata-card small, .metadata-tags { color: var(--theme-meta-text); }
+.post-preview-section, .graph-preview-section { margin: 16px 20px 0; border: 1px solid var(--theme-panel-border); border-radius: 8px; }
+.post-preview-section summary { cursor: pointer; padding: 12px; font-size: 12px; }
+.post-preview-section summary span { float: right; color: var(--theme-meta-text); }
+.post-preview-card { padding: 16px; container-type: inline-size; }
+@container (max-width: 700px) {
+    .post-preview-card :deep(.post-panel) { flex-direction: column; height: auto; }
+    .post-preview-card :deep(.image-panel) { width: 100% !important; height: 180px; }
+    .post-preview-card :deep(.content-panel) { min-width: 0; padding: 20px; }
+    .post-preview-card :deep(.content-wrapper) { flex-direction: column; gap: 16px; }
+    .post-preview-card :deep(.meta-sidebar) { width: auto; min-width: 0; padding-left: 0; border-left: 0; gap: 12px; }
+}
 .preview-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; }
 .preview-label { color: var(--theme-meta-text); font-size: 12px; padding: 12px 20px 0; }
 .collapse-btn { width: 28px; height: 28px; border: 0; border-radius: 5px; color: inherit; background: var(--theme-surface-hover); cursor: pointer; }
