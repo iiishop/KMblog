@@ -1,9 +1,20 @@
 import { createApp, h } from 'vue';
 
-const mountedApps = new Map();
+// Each Markdown surface owns its apps; detached articles must not stay in a global Map.
+const mountedApps = new WeakMap();
+
+export function unmountDynamicComponents(container) {
+    const apps = container && mountedApps.get(container);
+    if (!apps) return;
+    apps.forEach(app => app.unmount());
+    mountedApps.delete(container);
+}
 
 export function renderDynamicComponents(container, componentsMap) {
     if (container) {
+        unmountDynamicComponents(container);
+        const apps = new Map();
+        mountedApps.set(container, apps);
         Object.keys(componentsMap).forEach((selector) => {
             const Component = componentsMap[selector];
             const elements = container.querySelectorAll(selector);
@@ -46,11 +57,6 @@ export function renderDynamicComponents(container, componentsMap) {
                     }
                 }
 
-                // 如果已经有实例挂载在这个元素上，先卸载它
-                if (mountedApps.has(el)) {
-                    mountedApps.get(el).unmount();
-                }
-
                 const app = createApp({
                     render() {
                         return h(Component, props);
@@ -59,7 +65,7 @@ export function renderDynamicComponents(container, componentsMap) {
                 app.mount(el);
 
                 // 记录这个实例
-                mountedApps.set(el, app);
+                apps.set(el, app);
             });
         });
     }

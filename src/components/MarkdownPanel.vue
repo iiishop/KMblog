@@ -78,17 +78,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick, defineAsyncComponent } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import mermaid from 'mermaid';
+import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
 import config from '@/config';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import { parseMarkdownMetadata } from '@/utils';
+import { resolvePostImageUrl, prepareMarkdownImages } from '@/utils/markdownImages';
 import ImageViewer from '@/components/ImageViewer.vue';
 import UtterancesComments from '@/components/UtterancesComments.vue';
 
@@ -116,6 +117,7 @@ const metadata = ref({});
 const htmlContent = ref('');
 const panelRef = ref(null);
 const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 const headerRef = ref(null);
 const colorCanvas = ref(null);
 
@@ -292,26 +294,34 @@ const scrollToTop = () => {
 };
 
 // 解析 Markdown 文件并提取 metadata 和内容
+let renderVersion = 0;
+let requestController = null;
 const parseMarkdown = async (url, decryptedText = null) => {
+  const version = ++renderVersion;
+  requestController?.abort();
+  requestController = new AbortController();
+  const isCurrent = () => version === renderVersion;
   try {
     let markdown;
 
     // 如果有解密后的内容，直接使用
-    if (decryptedText) {
+    if (decryptedText !== null) {
       markdown = decryptedText;
       console.log('使用解密后的内容');
     } else {
       // 否则从 URL 加载
-      const response = await axios.get(url);
+      const response = await axios.get(url, { signal: requestController.signal });
       markdown = response.data;
     }
+    if (!isCurrent()) return;
 
     // 使用 front-matter 解析 metadata
     const { body } = fm(markdown);
     const { meta } = await parseMarkdownMetadata(markdown);
+    if (!isCurrent()) return;
     metadata.value = meta;
     if (metadata.value.img) {
-      metadata.value.img = `/Posts/Images/${metadata.value.img}`;
+      metadata.value.img = resolvePostImageUrl(metadata.value.img);
     }
     const date = new Date(metadata.value.date);
     const hours = date.getHours();
@@ -331,19 +341,19 @@ const parseMarkdown = async (url, decryptedText = null) => {
     }
 
     // 预处理：修复带空格的图片路径（添加尖括号）
-    const processedBody = body.replace(
-      /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-      '![$1](<$2>)'
-    );
+    const processedBody = prepareMarkdownImages(body);
 
     // 解析 Markdown 内容
-    htmlContent.value = md.render(processedBody);
+    const rendered = md.render(processedBody);
+    unmountDynamicComponents(contentRef.value);
+    htmlContent.value = rendered;
 
     // 计算文章统计信息
     calculateStats(htmlContent.value);
 
     // 在 nextTick 中手动编译和挂载组件
     await nextTick();
+    if (!isCurrent()) return;
     const container = contentRef.value;
     if (container) {
       renderDynamicComponents(container, {
@@ -356,50 +366,18 @@ const parseMarkdown = async (url, decryptedText = null) => {
       });
     }
 
-    // 渲染 Mermaid 图表
-    await nextTick();
-    if (typeof mermaid !== 'undefined') {
-      try {
-        // 重置状态
-        mermaid.mermaidAPI.reset();
-
-        // 重新初始化并渲染
-        await mermaid.run({
-          nodes: document.querySelectorAll('.mermaid'),
-        });
-
-        // 修复渲染后的 SVG 尺寸，确保不超出容器
-        await nextTick();
-        const mermaidSvgs = document.querySelectorAll('.mermaid svg');
-        mermaidSvgs.forEach(svg => {
-          // 删除所有内联宽高属性，让 CSS 完全控制
-          svg.removeAttribute('width');
-          svg.removeAttribute('height');
-
-          // 强制应用样式
-          svg.style.width = '100%';
-          svg.style.height = '400px';
-          svg.style.maxWidth = '100%';
-          svg.style.maxHeight = '400px';
-          svg.style.display = 'block';
-          svg.style.margin = '0 auto';
-
-          // 移除可能导致超出的内联样式
-          if (svg.getAttribute('style')) {
-            const styleStr = svg.getAttribute('style');
-            // 移除固定的 max-width 限制（如 max-width: 300px）
-            svg.setAttribute('style', styleStr.replace(/max-width:\s*\d+px;?/gi, ''));
-          }
-        });
-      } catch (error) {
-        console.warn('Mermaid rendering failed:', error);
-      }
+    try {
+      await mermaidRenderer.render();
+    } catch (error) {
+      console.warn('Mermaid rendering failed:', error);
     }
 
     // 添加图片和 Mermaid 的点击放大功能
     await nextTick();
+    if (!isCurrent()) return;
     setupImageClickHandlers();
   } catch (error) {
+    if (!isCurrent() || axios.isCancel(error)) return;
     console.error('Error fetching or parsing markdown file:', error);
   }
 };
@@ -479,11 +457,14 @@ watch(() => [props.markdownUrl, props.decryptedContent], ([newUrl, newContent]) 
 }, { immediate: true });
 
 onMounted(() => {
-  parseMarkdown(props.markdownUrl, props.decryptedContent);
-  window.addEventListener('scroll', handleScroll);
+  window.addEventListener('scroll', handleScroll, { passive: true });
 });
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
+  renderVersion++;
+  mermaidRenderer.dispose();
+  requestController?.abort();
+  unmountDynamicComponents(contentRef.value);
   window.removeEventListener('scroll', handleScroll);
 });
 
