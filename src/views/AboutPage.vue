@@ -70,7 +70,7 @@
                                 <span class="label-text">Biography</span>
                             </div>
                             <div class="section-content">
-                                <div v-if="aboutData.content" class="prose-content" v-html="aboutData.content">
+                                <div v-if="aboutData.content" class="prose-content" ref="contentRef" v-html="aboutData.content">
                                 </div>
                                 <div v-else class="prose-content">
                                     <p>欢迎来到我的数字空间。这里是我记录思考、分享创作、探索技术的地方。</p>
@@ -165,13 +165,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
 import axios from 'axios';
 import fm from 'front-matter';
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import BaseLayout from './BaseLayout.vue';
 import globalVar from '@/globalVar';
 import { parseMarkdownMetadata } from '@/utils';
+import { resolvePostImageUrl } from '@/utils/markdownImages';
+import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 
 const aboutData = ref({
     name: '',
@@ -184,6 +186,12 @@ const aboutData = ref({
     skills: [],
     timeline: []
 });
+
+const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
+const requestController = new AbortController();
+let disposed = false;
+let resizeHandler = null;
 
 // Canvas particles
 const particleCanvas = ref(null);
@@ -249,6 +257,7 @@ const initParticles = () => {
 
     const canvas = particleCanvas.value;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     // Set canvas size
     const resizeCanvas = () => {
@@ -256,10 +265,11 @@ const initParticles = () => {
         canvas.height = canvas.offsetHeight;
     };
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    resizeHandler = resizeCanvas;
+    window.addEventListener('resize', resizeHandler);
 
     // Create particles
-    const particleCount = Math.floor((canvas.width * canvas.height) / 15000);
+    const particleCount = Math.min(80, Math.floor((canvas.width * canvas.height) / 15000));
     particles = Array.from({ length: particleCount }, () => new Particle(canvas));
 
     // Animation loop
@@ -306,36 +316,24 @@ const findAboutArticle = async () => {
             return;
         }
 
-        let aboutArticleUrl = null;
-
-        // 遍历所有文章URL，加载并检查 title
-        for (const url in markdowns) {
-            try {
-                const response = await axios.get(url);
-                const markdown = response.data;
-                const { meta } = await parseMarkdownMetadata(markdown);
-
-                if (meta.title && meta.title.toLowerCase() === 'about') {
-                    aboutArticleUrl = url;
-                    break;
-                }
-            } catch (err) {
-                console.error(`Failed to check article ${url}:`, err);
-                continue;
-            }
-        }
+        // Metadata.json already contains every article title; avoid downloading all posts.
+        const aboutArticleUrl = Object.keys(markdowns).find(url =>
+            typeof markdowns[url]?.title === 'string' && markdowns[url].title.trim().toLowerCase() === 'about'
+        );
 
         if (aboutArticleUrl) {
             // 加载文章内容
-            const response = await axios.get(aboutArticleUrl);
+            const response = await axios.get(aboutArticleUrl, { signal: requestController.signal });
+            if (disposed) return;
             const markdown = response.data;
             const { body } = fm(markdown);
             const { meta } = await parseMarkdownMetadata(markdown);
+            if (disposed) return;
 
             // 解析内容
             aboutData.value.name = meta.name || meta.title || 'About Me';
             aboutData.value.subtitle = meta.subtitle || meta.description || '';
-            aboutData.value.avatar = meta.avatar ? `/Posts/Images/${meta.avatar}` : '';
+            aboutData.value.avatar = resolvePostImageUrl(meta.avatar);
             aboutData.value.content = md.render(body);
             aboutData.value.email = meta.email || '';
             aboutData.value.contactText = meta.contactText || '';
@@ -350,6 +348,7 @@ const findAboutArticle = async () => {
             loadDefaultContent();
         }
     } catch (error) {
+        if (disposed) return;
         console.error('Error loading about article:', error);
         loadDefaultContent();
     }
@@ -384,10 +383,20 @@ const loadDefaultContent = () => {
 onMounted(async () => {
     await findAboutArticle();
     await nextTick();
+    if (disposed) return;
     initParticles();
+    try {
+        await mermaidRenderer.render();
+    } catch (error) {
+        console.warn('About diagram rendering failed:', error);
+    }
 });
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
+    disposed = true;
+    requestController.abort();
+    mermaidRenderer.dispose();
+    if (resizeHandler) window.removeEventListener('resize', resizeHandler);
     if (animationFrame) {
         cancelAnimationFrame(animationFrame);
     }
@@ -402,8 +411,7 @@ onUnmounted(() => {
     --max-width: 1400px;
 }
 
-/* === Typography Imports === */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
+/* Typography is loaded once by the global theme stylesheet. */
 
 /* === Global Reset === */
 * {
