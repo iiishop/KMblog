@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
-import axios from 'axios';
+import { ref, computed, onUnmounted, watch } from 'vue';
+import { fetchBlockData, parseBilibili } from '../../utils/blockProxy';
 
 const props = defineProps({
     videourl: String,
@@ -10,6 +10,8 @@ const videoData = ref(null);
 const creatorStats = ref(null);
 const loading = ref(true);
 const error = ref(false);
+const errorMessage = ref('');
+let controller;
 const proxiedCover = ref('');
 const proxiedAvatar = ref('');
 const themeColor = ref('#FB7299');
@@ -73,7 +75,7 @@ const cardStyle = computed(() => {
 
 // Extract BV号
 const extractBvid = (url) => {
-    const match = url.match(/BV[a-zA-Z0-9]+/);
+    const match = (url || '').match(/BV[a-zA-Z0-9]{10}(?![a-zA-Z0-9])/);
     return match ? match[0] : null;
 };
 
@@ -118,71 +120,53 @@ const visualStats = computed(() => {
     ];
 });
 
-const fetchProxy = async (targetUrl) => {
-    const proxyGenerators = [
-        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-    ];
-    for (const getProxyUrl of proxyGenerators) {
-        try {
-            const proxyUrl = getProxyUrl(targetUrl);
-            // Create a clean axios instance without any default headers
-            const response = await axios.get(proxyUrl, {
-                headers: {
-                    'X-Auth-Token': undefined  // Explicitly remove the auth token header
-                }
-            });
-            if (response.data) return response.data;
-        } catch (e) {
-            console.warn(`Proxy request failed for ${targetUrl}: ${e.message}`);
-        }
-    }
-    return null;
-};
-
 const fetchVideoDetails = async () => {
-    const bvid = extractBvid(props.videourl);
-    if (!bvid) {
-        error.value = true;
-        loading.value = false;
-        return;
-    }
-
+    controller?.abort();
+    const request = controller = new AbortController();
+    loading.value = true;
+    error.value = false;
+    errorMessage.value = '';
+    videoData.value = null;
+    creatorStats.value = null;
+    proxiedCover.value = '';
+    proxiedAvatar.value = '';
     try {
-        const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`;
-        const data = await fetchProxy(apiUrl);
+        const bvid = extractBvid(props.videourl);
+        if (!bvid) throw new Error('请输入包含完整 BV 号的 Bilibili 视频链接');
+        const data = await fetchBlockData(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`, {
+            signal: request.signal,
+            parse: payload => {
+                const video = parseBilibili(payload);
+                if (!video.title || !video.owner || !video.stat) throw new Error('视频数据不完整');
+                return video;
+            },
+        });
+        if (request.signal.aborted) return;
+        videoData.value = data;
+        if (data.pic) proxiedCover.value = `https://images.weserv.nl/?url=${encodeURIComponent(data.pic.replace(/^https?:\/\//, ''))}`;
+        if (data.owner.face) proxiedAvatar.value = `https://images.weserv.nl/?url=${encodeURIComponent(data.owner.face.replace(/^https?:\/\//, ''))}`;
+        extractThemeColor();
+        loading.value = false;
 
-        if (data && data.code === 0 && data.data) {
-            videoData.value = data.data;
-
-            // Fetch Creator Stats (Fans, Level, Sign)
-            const mid = data.data.owner.mid;
-            const cardApi = `https://api.bilibili.com/x/web-interface/card?mid=${mid}`;
-            const cardData = await fetchProxy(cardApi);
-            if (cardData && cardData.code === 0) {
-                creatorStats.value = {
-                    follower: cardData.data.follower,
-                    level: cardData.data.card.level_info.current_level,
-                    sign: cardData.data.card.sign
+        // Optional profile data must never block or invalidate the video card.
+        if (data.owner.mid) {
+            try {
+                const card = await fetchBlockData(`https://api.bilibili.com/x/web-interface/card?mid=${data.owner.mid}`, {
+                    signal: request.signal, parse: parseBilibili,
+                });
+                if (!request.signal.aborted) creatorStats.value = {
+                    follower: card.follower || 0,
+                    level: card.card?.level_info?.current_level || 0,
+                    sign: card.card?.sign || '',
                 };
-            }
-
-            if (data.data.pic) {
-                proxiedCover.value = `https://images.weserv.nl/?url=${encodeURIComponent(data.data.pic.replace(/^https?:\/\//, ''))}`;
-            }
-            if (data.data.owner?.face) {
-                proxiedAvatar.value = `https://images.weserv.nl/?url=${encodeURIComponent(data.data.owner.face.replace(/^https?:\/\//, ''))}`;
-            }
-            extractThemeColor();
-        } else {
-            error.value = true;
+            } catch { /* Keep the successfully loaded video. */ }
         }
     } catch (err) {
-        console.error('Bilibili API Error:', err);
+        if (request.signal.aborted) return;
         error.value = true;
+        errorMessage.value = err.message;
     } finally {
-        loading.value = false;
+        if (!request.signal.aborted) loading.value = false;
     }
 };
 
@@ -190,8 +174,9 @@ const extractThemeColor = () => {
     if (!proxiedCover.value) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = proxiedCover.value;
+    const request = controller;
     img.onload = () => {
+        if (request?.signal.aborted) return;
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -215,9 +200,11 @@ const extractThemeColor = () => {
             secondaryColor.value = `rgb(${Math.max(r - 40, 0)}, ${Math.min(g + 80, 255)}, ${Math.max(b - 20, 0)})`;
         } catch (e) { console.warn(e); }
     };
+    img.src = proxiedCover.value;
 };
 
-onMounted(() => fetchVideoDetails());
+watch(() => props.videourl, fetchVideoDetails, { immediate: true });
+onUnmounted(() => controller?.abort());
 </script>
 
 <template>
@@ -245,8 +232,9 @@ onMounted(() => fetchVideoDetails());
 
         <div v-else-if="error" class="state-container error-state">
             <div class="error-content">
-                <span class="error-code">404::SIGNAL_LOST</span>
-                <a :href="props.videourl" target="_blank" class="error-link">MANUAL_OVERRIDE</a>
+                <span class="error-code">{{ errorMessage }}</span>
+                <a :href="props.videourl" target="_blank" class="error-link" rel="noopener noreferrer">打开视频</a>
+                <button type="button" class="error-link" @click="fetchVideoDetails">重试</button>
             </div>
         </div>
 
@@ -346,6 +334,10 @@ onMounted(() => fetchVideoDetails());
 </template>
 
 <style scoped>
+.error-content, .error-msg { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.error-content { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+button.error-link, button.manual-link { cursor: pointer; font: inherit; }
+
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
 .bili-embed-neo {
