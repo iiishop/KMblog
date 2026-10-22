@@ -783,8 +783,8 @@ onUnmounted(() => {
 }
 
 .toolbar-btn.active {
-    background: rgba(99, 102, 241, 0.3);
-    color: #818cf8;
+    background: color-mix(in srgb, var(--theme-on-image-action) 20%, transparent);
+    color: var(--theme-on-image-action);
 }
 
 .toolbar-btn svg {

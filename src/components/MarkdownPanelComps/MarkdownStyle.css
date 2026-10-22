@@ -57,7 +57,7 @@
   color: var(--theme-heading-text);
   font-weight: 700;
   border-bottom: 3px solid transparent;
-  border-image: var(--theme-gradient) 1;
+  border-bottom-color: var(--theme-index);
   padding-bottom: 0.75rem;
   margin: 2rem 0 1.5rem 0;
   letter-spacing: -0.5px;
@@ -70,7 +70,7 @@
   margin: 1.75rem 0 1rem 0;
   font-weight: 600;
   padding-left: 1rem;
-  border-left: 4px solid var(--theme-primary);
+  border-left: 4px solid var(--theme-reading);
   letter-spacing: -0.3px;
 }
 
@@ -159,7 +159,7 @@
 
 /* 引用样式 */
 .markdown blockquote {
-  border-left: 5px solid var(--theme-primary);
+  border-left: 5px solid var(--theme-index);
   padding: 1.25rem 1.5rem;
   color: var(--theme-meta-text);
   margin: 2rem 0;
@@ -173,7 +173,7 @@
 .markdown blockquote::before {
   content: '"';
   font-size: 4rem;
-  color: var(--theme-primary);
+  color: var(--theme-index);
   opacity: 0.2;
   position: absolute;
   top: -10px;
@@ -429,7 +429,7 @@
 .markdown .contains-task-list {
   padding-left: 1.5rem;
   margin: 1.5rem 0;
-  border-left: 4px solid var(--theme-primary);
+  border-left: 4px solid var(--theme-reading);
   background-color: var(--theme-surface-hover);
   border-radius: 8px;
   padding: 1rem;
@@ -715,7 +715,7 @@
 }
 
 .markdown .mermaid .section0 {
-  fill: #818cf8 !important;
+  fill: var(--theme-info) !important;
 }
 
 .markdown .mermaid .section1 {

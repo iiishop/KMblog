@@ -282,11 +282,11 @@ const extractContrastColor = async (imageUrl) => {
                 resolve(`rgb(${r}, ${g}, ${b})`);
             } catch (error) {
                 console.warn('Cannot extract color (CORS):', error);
-                resolve('rgb(102, 126, 234)');
+                resolve('var(--theme-index)');
             }
         };
 
-        img.onerror = () => resolve('rgb(102, 126, 234)');
+        img.onerror = () => resolve('var(--theme-index)');
         img.src = imageUrl;
     });
 };
@@ -391,7 +391,7 @@ const handleCollectionClick = async (name, collection, index, forceExpand = fals
     clickedElement.style.opacity = '0';
 
     // 提取对比色（反色）
-    let contrastColor = 'var(--theme-primary)';
+    let contrastColor = 'var(--theme-index)';
     if (collection.image) {
         const avgColor = await extractContrastColor(collection.image);
         const match = avgColor.match(/rgb\((\d+), (\d+), (\d+)\)/);

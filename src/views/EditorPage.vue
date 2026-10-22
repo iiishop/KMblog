@@ -349,7 +349,7 @@ const graphData = computed(() => {
         title: currentMetadata.value.title || (currentFileName.value ? currentFileName.value.replace('.md', '') : ''),
         date: currentMetadata.value.date || new Date().toLocaleDateString(),
         aspectRatio: currentMetadata.value.aspectRatio || 1,
-        dominantColor: currentMetadata.value.dominantColor || 'hsl(250, 60%, 65%)'
+        dominantColor: currentMetadata.value.dominantColor || 'var(--theme-index)'
     };
 
     console.log('[EditorPage] graphData computed:', data);
@@ -430,7 +430,7 @@ title: ${filenameWithoutExt}
 date: ${new Date().toISOString().split('T')[0]}
 img: ${relativeImgPath}
 aspectRatio: 1
-dominantColor: hsl(250, 60%, 65%)
+dominantColor: var(--theme-index)
 ---
 
 # ${filenameWithoutExt}

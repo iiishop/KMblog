@@ -53,6 +53,11 @@ function getCurrentTheme() {
 // 根据主题返回 Mermaid 配置
 function getMermaidThemeConfig(theme) {
     const isDark = theme === 'dark' || theme === 'night';
+    // Diagram structure follows the active palette; task status colors retain their meaning.
+    const palette = getComputedStyle(document.documentElement);
+    const ink = palette.getPropertyValue('--theme-index').trim() || (isDark ? '#b2becb' : '#475569');
+    const reading = palette.getPropertyValue('--theme-reading').trim() || (isDark ? '#8ad3b9' : '#246b58');
+    const surface = palette.getPropertyValue('--theme-surface-active').trim() || (isDark ? '#333333' : '#f3f4f6');
 
     if (isDark) {
         // 深色主题配置 - 极致优雅
@@ -62,20 +67,20 @@ function getMermaidThemeConfig(theme) {
                 // 基础颜色 - 深色模式
                 primaryColor: '#1e293b',
                 primaryTextColor: '#f1f5f9',
-                primaryBorderColor: '#818cf8',
+                primaryBorderColor: ink,
                 lineColor: '#94a3b8',
-                secondaryColor: '#312e81',
+                secondaryColor: surface,
                 tertiaryColor: '#1e1e1e',
 
                 // 流程图
                 mainBkg: '#1e293b',
-                nodeBorder: '#818cf8',
+                nodeBorder: ink,
                 clusterBkg: '#0f172a',
                 clusterBorder: '#475569',
 
                 // 序列图
-                actorBkg: '#312e81',
-                actorBorder: '#818cf8',
+                actorBkg: surface,
+                actorBorder: ink,
                 actorTextColor: '#f1f5f9',
                 signalColor: '#cbd5e1',
                 signalTextColor: '#f1f5f9',
@@ -85,7 +90,7 @@ function getMermaidThemeConfig(theme) {
 
                 // Gantt 图专属配置
                 gridColor: '#334155',
-                todayLineColor: '#818cf8',
+                todayLineColor: reading,
 
                 // 任务条颜色
                 taskBkgColor: '#3b82f6',
@@ -97,7 +102,7 @@ function getMermaidThemeConfig(theme) {
 
                 // Section 颜色
                 sectionBkgColor: '#1e293b',
-                sectionBkgColor2: '#312e81',
+                sectionBkgColor2: surface,
                 altSectionBkgColor: '#0f172a',
 
                 // 已完成任务
@@ -124,22 +129,22 @@ function getMermaidThemeConfig(theme) {
             theme: 'base',
             themeVariables: {
                 // 基础颜色 - 浅色模式
-                primaryColor: '#eef2ff',
+                primaryColor: surface,
                 primaryTextColor: '#1e293b',
-                primaryBorderColor: '#6366f1',
+                primaryBorderColor: ink,
                 lineColor: '#64748b',
-                secondaryColor: '#fdf2f8',
+                secondaryColor: surface,
                 tertiaryColor: '#ffffff',
 
                 // 流程图
-                mainBkg: '#eef2ff',
-                nodeBorder: '#6366f1',
+                mainBkg: surface,
+                nodeBorder: ink,
                 clusterBkg: '#f9fafb',
                 clusterBorder: '#d1d5db',
 
                 // 序列图
-                actorBkg: '#e0e7ff',
-                actorBorder: '#6366f1',
+                actorBkg: surface,
+                actorBorder: ink,
                 actorTextColor: '#1e293b',
                 signalColor: '#475569',
                 signalTextColor: '#0f172a',
@@ -149,7 +154,7 @@ function getMermaidThemeConfig(theme) {
 
                 // Gantt 图专属配置
                 gridColor: '#e2e8f0',
-                todayLineColor: '#6366f1',
+                todayLineColor: reading,
 
                 // 任务条颜色
                 taskBkgColor: '#3b82f6',

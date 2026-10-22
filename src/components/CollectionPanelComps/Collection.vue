@@ -34,7 +34,7 @@ const navigateToCollection = (event) => {
         left: `${rect.left}px`,
         width: `${rect.width}px`,
         height: `${rect.height}px`,
-        background: collectionStyle.value.backgroundColor || 'rgba(102, 126, 234, 0.4)',
+        background: collectionStyle.value.backgroundColor || 'var(--theme-index)',
         borderRadius: '1rem',
         zIndex: '9999',
         pointerEvents: 'none',
@@ -154,13 +154,13 @@ const getImageAverageColor = (image) => {
             } catch (error) {
                 // 如果 canvas 操作失败（CORS 问题），使用默认颜色
                 console.warn('Cannot extract color from image (CORS):', error);
-                resolve('rgba(102, 126, 234, 0.4)');
+                resolve('var(--theme-index)');
             }
         };
 
         image.onerror = () => {
             console.warn('Error loading image for color extraction');
-            resolve('rgba(102, 126, 234, 0.4)');
+            resolve('var(--theme-index)');
         };
 
         // 不设置 crossOrigin，避免 CORS 问题

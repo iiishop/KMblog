@@ -154,13 +154,13 @@ export function sanitizeThemePalette(palette, defaults = {}) {
         headerBackground: 'rgba(255, 255, 255, 0.9)',
         headerBackgroundScrolled: 'rgba(255, 255, 255, 0.95)',
         headerShadow: 'rgba(0, 0, 0, 0.1)',
-        linkColor: '#667eea',
-        linkHover: '#764ba2',
-        buttonBackground: '#667eea',
+        linkColor: '#24618f',
+        linkHover: '#19486c',
+        buttonBackground: '#24618f',
         buttonText: '#ffffff',
-        primary: '#667eea',
-        secondary: '#764ba2',
-        accent: '#f093fb',
+        primary: '#24618f',
+        secondary: '#19486c',
+        accent: '#246b58',
         success: '#10b981',
         warning: '#f59e0b',
         error: '#ef4444',
@@ -490,15 +490,15 @@ export function generateThemePalette(name, displayName, baseColors) {
             headerShadow: baseColors.headerShadow || baseColors.panelShadow || 'rgba(0, 0, 0, 0.1)',
 
             // Interactive colors
-            linkColor: baseColors.linkColor || '#667eea',
-            linkHover: baseColors.linkHover || '#764ba2',
-            buttonBackground: baseColors.buttonBackground || baseColors.linkColor || '#667eea',
+            linkColor: baseColors.linkColor || '#24618f',
+            linkHover: baseColors.linkHover || '#19486c',
+            buttonBackground: baseColors.buttonBackground || baseColors.linkColor || '#24618f',
             buttonText: baseColors.buttonText || '#ffffff',
 
             // Accent colors
-            primary: baseColors.primary || baseColors.linkColor || '#667eea',
-            secondary: baseColors.secondary || baseColors.linkHover || '#764ba2',
-            accent: baseColors.accent || '#f093fb',
+            primary: baseColors.primary || baseColors.linkColor || '#24618f',
+            secondary: baseColors.secondary || baseColors.linkHover || '#19486c',
+            accent: baseColors.accent || '#246b58',
 
             // State colors
             success: baseColors.success || '#10b981',

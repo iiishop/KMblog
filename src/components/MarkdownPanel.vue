@@ -48,7 +48,7 @@
         <div class="stat-content">
           <span class="stat-label">标签</span>
           <div class="tags-container">
-            <span v-for="tag in metadata.tags" :key="tag" class="tag">{{ tag }}</span>
+            <Tag v-for="tag in metadata.tags" :key="tag" :tagname="tag" />
           </div>
         </div>
       </div>
@@ -91,6 +91,7 @@ import { renderDynamicComponents } from '@/components/MarkdownPanelComps/Dynamic
 import { parseMarkdownMetadata } from '@/utils';
 import ImageViewer from '@/components/ImageViewer.vue';
 import UtterancesComments from '@/components/UtterancesComments.vue';
+import Tag from '@/components/PostPanelComps/Tag.vue';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
@@ -131,8 +132,8 @@ const viewerImageType = ref('img'); // 'img' 或 'svg'
 const viewerSvgContent = ref('');
 
 // 动态颜色
-const dominantColor = ref({ h: 210, s: 70, l: 55 });
-const accentColor = ref({ h: 220, s: 65, l: 50 });
+const dominantColor = ref(null);
+const accentColor = ref(null);
 
 // 文章统计
 const articleStats = ref({
@@ -142,6 +143,8 @@ const articleStats = ref({
 
 // CSS变量
 const cssVars = computed(() => {
+  // 图片头图延续图片取色；没有图片或取色失败时采用主题中性色。
+  if (!metadata.value.img || !dominantColor.value || !accentColor.value) return {};
   const { h, s, l } = dominantColor.value;
   const { h: h2, s: s2, l: l2 } = accentColor.value;
 
@@ -229,8 +232,8 @@ const extractColorsFromImage = () => {
   } catch (error) {
     console.warn('无法提取图片颜色，使用默认配色:', error);
     // 使用默认配色
-    dominantColor.value = { h: 210, s: 70, l: 55 };
-    accentColor.value = { h: 220, s: 65, l: 50 };
+    dominantColor.value = null;
+    accentColor.value = null;
   }
 };
 
@@ -474,8 +477,8 @@ watch(() => [props.markdownUrl, props.decryptedContent], ([newUrl, newContent]) 
   parseMarkdown(newUrl, newContent);
   // 重置滚动位置和颜色
   readingProgress.value = 0;
-  dominantColor.value = { h: 210, s: 70, l: 55 };
-  accentColor.value = { h: 220, s: 65, l: 50 };
+  dominantColor.value = null;
+  accentColor.value = null;
 }, { immediate: true });
 
 onMounted(() => {
@@ -539,10 +542,10 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   top: 0;
   left: 0;
   height: 3px;
-  background: var(--gradient);
+  background: var(--theme-reading);
   z-index: 10000;
   transition: width 0.15s ease-out;
-  box-shadow: 0 2px 8px var(--primary-color);
+  box-shadow: 0 2px 8px var(--theme-shadow-sm);
 }
 
 /* === 文章头部 === */
@@ -553,7 +556,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   /* 保持头部的 overflow hidden */
   min-height: 300px;
   max-height: 500px;
-  background: var(--theme-gradient);
+  background: var(--gradient, var(--theme-index));
   transition: var(--theme-transition-colors);
   border-radius: 1rem 1rem 0 0;
   /* 添加顶部圆角 */
@@ -733,7 +736,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--theme-content-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -769,22 +772,6 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   justify-content: center;
 }
 
-.tag {
-  padding: 0.4rem 1rem;
-  background: var(--theme-gradient);
-  color: var(--theme-button-text);
-  border-radius: 1.5rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: default;
-}
-
-.tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--primary-color);
-  opacity: 0.9;
-}
 
 /* === 文章内容 === */
 .post-content {
@@ -807,20 +794,20 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   height: 52px;
   border-radius: 50%;
   border: none;
-  background: var(--theme-gradient);
+  background: var(--theme-button-bg);
   color: var(--theme-button-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px var(--theme-primary);
+  box-shadow: 0 4px 16px var(--theme-shadow-md);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
 }
 
 .back-to-top:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 8px 24px var(--theme-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow-lg);
 }
 
 .back-to-top:active {

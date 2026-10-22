@@ -255,8 +255,8 @@ async function extractDominantColor(img) {
         return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
     } catch (error) {
         console.error('[WaterfallPage] Failed to extract dominant color:', error);
-        // 返回默认颜色（紫色系）
-        return 'hsl(250, 60%, 65%)';
+        // 无图片取色时回退到主题中性色
+        return 'var(--theme-index)';
     }
 }
 

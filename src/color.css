@@ -12,6 +12,8 @@
 
 /* === Theme Transition Configuration === */
 :root {
+  /* 图片查看器始终使用暗色画布，控件采用固定的浅蓝，独立于页面明暗主题。 */
+  --theme-on-image-action: #9cc9e8;
   --theme-transition-duration: 300ms;
   --theme-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -128,18 +130,18 @@
   /* === Navigation Variables === */
   --theme-nav-text: #333333;
   --theme-nav-hover-bg: rgba(0, 0, 0, 0.1);
-  --theme-nav-active-bg: rgba(102, 126, 234, 0.08);
+  --theme-nav-active-bg: color-mix(in srgb, var(--theme-link-color) 12%, transparent);
   --theme-nav-mobile-bg: rgba(255, 255, 255, 0.9);
   --theme-nav-mobile-shadow: rgba(0, 0, 0, 0.1);
   
   /* === Interactive Variables === */
-  --theme-link-color: #667eea;
-  --theme-link-hover: #764ba2;
-  --theme-button-bg: #667eea;
+  --theme-link-color: #24618f;
+  --theme-link-hover: #19486c;
+  --theme-button-bg: #24618f;
   --theme-button-text: #ffffff;
-  --theme-button-hover: #5568d3;
-  --theme-button-active: #4a5bc4;
-  --theme-button-hover-bg: #764ba2;
+  --theme-button-hover: #19486c;
+  --theme-button-active: #19486c;
+  --theme-button-hover-bg: #19486c;
   
   /* === Content Variables === */
   --theme-content-bg: aliceblue;
@@ -149,13 +151,13 @@
   
   /* === Title and Heading Variables === */
   --theme-title-text: rgba(0, 0, 0, 0.575);
-  --theme-title-hover: rgb(199, 141, 191);
+  --theme-title-hover: var(--theme-heading-text);
   --theme-heading-text: #2c3e50;
   
   /* === Meta Information Variables === */
   --theme-meta-text: rgba(0, 0, 0, 0.5);
-  --theme-category-hover: rgb(100, 141, 191);
-  --theme-date-hover: rgba(100, 141, 191);
+  --theme-category-hover: var(--theme-link-color);
+  --theme-date-hover: var(--theme-link-color);
   
   /* === Code and Pre Variables === */
   --theme-code-bg: #f8f9fa;
@@ -168,22 +170,22 @@
   --theme-code-line-number-border: #d1d5db; /* 行号边框 */
   
   /* === Accent Variables === */
-  --theme-primary: #667eea;
-  --theme-primary-hover: #5568d3;
-  --theme-primary-active: #4a5bc4;
-  --theme-primary-disabled: #b8c5f2;
+  --theme-primary: #24618f;
+  --theme-primary-hover: #19486c;
+  --theme-primary-active: #19486c;
+  --theme-primary-disabled: color-mix(in srgb, var(--theme-primary) 25%, var(--theme-panel-bg));
   
-  --theme-secondary: #764ba2;
-  --theme-secondary-hover: #654091;
-  --theme-secondary-active: #543580;
-  --theme-secondary-disabled: #c5b3d9;
+  --theme-secondary: #475569;
+  --theme-secondary-hover: #475569;
+  --theme-secondary-active: #475569;
+  --theme-secondary-disabled: var(--theme-surface-disabled);
   
-  --theme-accent: #f093fb;
-  --theme-accent-hover: #e87bf7;
-  --theme-accent-active: #e063f3;
-  --theme-accent-disabled: #f8c9fc;
+  --theme-accent: #246b58;
+  --theme-accent-hover: #246b58;
+  --theme-accent-active: #246b58;
+  --theme-accent-disabled: var(--theme-surface-disabled);
   
-  --theme-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --theme-gradient: linear-gradient(135deg, var(--theme-button-bg), var(--theme-button-hover-bg));
   
   /* === State Variables === */
   --theme-success: #10b981;
@@ -210,7 +212,7 @@
   --theme-input-bg: #ffffff;
   --theme-input-border: #d1d5db;
   --theme-input-border-hover: #9ca3af;
-  --theme-input-border-focus: #667eea;
+  --theme-input-border-focus: #24618f;
   --theme-input-text: #000000;
   --theme-input-placeholder: #9ca3af;
   --theme-input-disabled: #f3f4f6;
@@ -247,7 +249,7 @@
   --theme-tag-bg: #f9f9f9;
   --theme-tag-shadow: rgba(0, 0, 0, 0.1);
   --theme-tag-text: #000000;
-  --theme-tag-hover-bg: rgba(102, 126, 234, 0.1);
+  --theme-tag-hover-bg: var(--theme-surface-hover);
   
   /* === Collection Variables === */
   --theme-collection-shadow: #cccccc;
@@ -260,25 +262,35 @@
                             box-shadow var(--theme-transition-duration) var(--theme-transition-easing);
   
   /* === Gallery-Specific Variables === */
-  /* Primary Colors (Purple Palette) */
-  --gallery-primary: hsl(250, 60%, 65%);
-  --gallery-primary-light: hsl(250, 70%, 75%);
-  --gallery-primary-dark: hsl(250, 50%, 45%);
+  /* Neutral gallery chrome: leave color to the photographs. */
+  --gallery-primary: var(--theme-index);
+  --gallery-primary-light: var(--theme-heading-text);
+  --gallery-primary-dark: var(--theme-index);
   
-  /* Accent Colors (Pink Palette) */
-  --gallery-accent: hsl(340, 85%, 65%);
-  --gallery-accent-glow: hsl(340, 100%, 75%);
+  /* Reading / navigation accent */
+  --gallery-accent: var(--theme-reading);
+  --gallery-accent-glow: var(--theme-reading);
   
   /* Neutral Colors (Deep Gray Palette) */
-  --gallery-surface: hsl(250, 20%, 12%);
-  --gallery-surface-elevated: hsl(250, 18%, 18%);
-  --gallery-text: hsl(250, 10%, 95%);
-  --gallery-text-muted: hsl(250, 8%, 65%);
+  --gallery-surface: var(--theme-panel-bg);
+  --gallery-surface-elevated: var(--theme-surface-active);
+  --gallery-text: var(--theme-panel-text);
+  --gallery-text-muted: var(--theme-meta-text);
   
   /* Dynamic Colors (Image-based) */
   --image-dominant-hue: 0;
   --card-glow: hsl(var(--image-dominant-hue), 70%, 60%);
   --card-border: hsl(var(--image-dominant-hue), 50%, 50%);
+  /* 语义色：索引用中性墨色；阅读位置用青绿；公告用琥珀。 */
+  --theme-index: #475569;
+  --theme-reading: #246b58;
+  --theme-notice: #875b12;
+  --theme-notice-text: #ffffff;
+  --theme-notice-soft: #fff3d6;
+  /* 标签色相由名称计算；深色模式降低底色明度、提高文字明度。 */
+  --theme-tag-saturation: 48%;
+  --theme-tag-ink-lightness: 28%;
+  --theme-tag-fill-lightness: 94%;
 }
 
 /* === Dark Theme Palette === */
@@ -302,16 +314,16 @@
   /* === Navigation Variables === */
   --theme-nav-text: #e0e0e0;
   --theme-nav-hover-bg: rgba(255, 255, 255, 0.1);
-  --theme-nav-active-bg: rgba(167, 139, 250, 0.12);
+  --theme-nav-active-bg: color-mix(in srgb, var(--theme-link-color) 12%, transparent);
   --theme-nav-mobile-bg: rgba(20, 20, 30, 0.98);
   --theme-nav-mobile-shadow: rgba(0, 0, 0, 0.5);
   
   /* === Interactive Variables === */
-  --theme-link-color: #a78bfa;
-  --theme-link-hover: #c084fc;
-  --theme-button-bg: #a78bfa;
-  --theme-button-text: #ffffff;
-  --theme-button-hover-bg: #c084fc;
+  --theme-link-color: #8ec5eb;
+  --theme-link-hover: #b8ddf5;
+  --theme-button-bg: #8ec5eb;
+  --theme-button-text: #14232e;
+  --theme-button-hover-bg: #b8ddf5;
   
   /* === Content Variables === */
   --theme-content-bg: #2a2a2a;
@@ -321,13 +333,13 @@
   
   /* === Title and Heading Variables === */
   --theme-title-text: rgba(224, 224, 224, 0.8);
-  --theme-title-hover: #c084fc;
+  --theme-title-hover: var(--theme-heading-text);
   --theme-heading-text: #f0f0f0;
   
   /* === Meta Information Variables === */
   --theme-meta-text: rgba(224, 224, 224, 0.6);
-  --theme-category-hover: #a78bfa;
-  --theme-date-hover: #a78bfa;
+  --theme-category-hover: var(--theme-link-color);
+  --theme-date-hover: var(--theme-link-color);
   
   /* === Code and Pre Variables === */
   --theme-code-bg: #2d2d2d;
@@ -340,10 +352,10 @@
   --theme-code-line-number-border: #404040; /* 行号边框 */
   
   /* === Accent Variables === */
-  --theme-primary: #a78bfa;
-  --theme-secondary: #c084fc;
-  --theme-accent: #f093fb;
-  --theme-gradient: linear-gradient(135deg, #a78bfa 0%, #c084fc 100%);
+  --theme-primary: #8ec5eb;
+  --theme-secondary: #b2becb;
+  --theme-accent: #8ad3b9;
+  --theme-gradient: linear-gradient(135deg, var(--theme-button-bg), var(--theme-button-hover-bg));
   
   /* === State Variables === */
   --theme-success: #34d399;
@@ -355,7 +367,7 @@
   --theme-input-bg: #2a2a2a;
   --theme-input-border: #404040;
   --theme-input-border-hover: #525252;
-  --theme-input-border-focus: #a78bfa;
+  --theme-input-border-focus: #8ec5eb;
   --theme-input-text: #e0e0e0;
   --theme-input-placeholder: #6b7280;
   --theme-input-disabled: #1a1a1a;
@@ -392,32 +404,46 @@
   --theme-tag-bg: #1e1e1e;
   --theme-tag-shadow: rgba(0, 0, 0, 0.3);
   --theme-tag-text: #e0e0e0;
-  --theme-tag-hover-bg: rgba(167, 139, 250, 0.15);
+  --theme-tag-hover-bg: var(--theme-surface-hover);
   
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.3);
   --theme-collection-text: #b0b0b0;
   
   /* === Gallery-Specific Variables === */
-  /* Primary Colors (Purple Palette - adjusted for dark theme) */
-  --gallery-primary: hsl(250, 55%, 70%);
-  --gallery-primary-light: hsl(250, 65%, 80%);
-  --gallery-primary-dark: hsl(250, 45%, 50%);
+  /* Neutral gallery chrome: leave color to the photographs. */
+  --gallery-primary: var(--theme-index);
+  --gallery-primary-light: var(--theme-heading-text);
+  --gallery-primary-dark: var(--theme-index);
   
-  /* Accent Colors (Pink Palette) */
-  --gallery-accent: hsl(340, 80%, 70%);
-  --gallery-accent-glow: hsl(340, 95%, 80%);
+  /* Reading / navigation accent */
+  --gallery-accent: var(--theme-reading);
+  --gallery-accent-glow: var(--theme-reading);
   
   /* Neutral Colors (Deep Gray Palette) */
-  --gallery-surface: hsl(250, 15%, 15%);
-  --gallery-surface-elevated: hsl(250, 13%, 22%);
-  --gallery-text: hsl(250, 10%, 92%);
-  --gallery-text-muted: hsl(250, 8%, 60%);
+  --gallery-surface: var(--theme-panel-bg);
+  --gallery-surface-elevated: var(--theme-surface-active);
+  --gallery-text: var(--theme-panel-text);
+  --gallery-text-muted: var(--theme-meta-text);
   
   /* Dynamic Colors (Image-based) */
   --image-dominant-hue: 0;
   --card-glow: hsl(var(--image-dominant-hue), 65%, 65%);
   --card-border: hsl(var(--image-dominant-hue), 45%, 55%);
+  /* 语义色：索引用中性墨色；阅读位置用青绿；公告用琥珀。 */
+  --theme-index: #b2becb;
+  --theme-reading: #8ad3b9;
+  --theme-notice: #e7bb70;
+  --theme-notice-text: #30220c;
+  --theme-notice-soft: #372d1e;
+  /* 标签色相由名称计算；深色模式降低底色明度、提高文字明度。 */
+  --theme-tag-saturation: 42%;
+  --theme-tag-ink-lightness: 80%;
+  --theme-tag-fill-lightness: 19%;
+  --theme-primary-hover: var(--theme-link-hover);
+  --theme-primary-active: var(--theme-link-hover);
+  --theme-button-hover: var(--theme-link-hover);
+  --theme-button-active: var(--theme-link-hover);
 }
 
 /* === Night Theme Palette === */
@@ -441,16 +467,16 @@
   /* === Navigation Variables === */
   --theme-nav-text: #d4d9e8;
   --theme-nav-hover-bg: rgba(124, 159, 255, 0.15);
-  --theme-nav-active-bg: rgba(124, 159, 255, 0.2);
+  --theme-nav-active-bg: color-mix(in srgb, var(--theme-link-color) 12%, transparent);
   --theme-nav-mobile-bg: rgba(10, 14, 26, 0.98);
   --theme-nav-mobile-shadow: rgba(0, 0, 0, 0.7);
   
   /* === Interactive Variables === */
-  --theme-link-color: #7c9fff;
-  --theme-link-hover: #a5b8ff;
-  --theme-button-bg: #7c9fff;
-  --theme-button-text: #ffffff;
-  --theme-button-hover-bg: #a5b8ff;
+  --theme-link-color: #9cc9e8;
+  --theme-link-hover: #c1e0f4;
+  --theme-button-bg: #9cc9e8;
+  --theme-button-text: #14232e;
+  --theme-button-hover-bg: #c1e0f4;
   
   /* === Content Variables === */
   --theme-content-bg: #1a2035;
@@ -460,13 +486,13 @@
   
   /* === Title and Heading Variables === */
   --theme-title-text: rgba(212, 217, 232, 0.85);
-  --theme-title-hover: #a5b8ff;
+  --theme-title-hover: var(--theme-heading-text);
   --theme-heading-text: #e8ecf5;
   
   /* === Meta Information Variables === */
   --theme-meta-text: rgba(212, 217, 232, 0.65);
-  --theme-category-hover: #7c9fff;
-  --theme-date-hover: #7c9fff;
+  --theme-category-hover: var(--theme-link-color);
+  --theme-date-hover: var(--theme-link-color);
   
   /* === Code and Pre Variables === */
   --theme-code-bg: #1a2035;
@@ -479,10 +505,10 @@
   --theme-code-line-number-border: #2a3550; /* 行号边框 */
   
   /* === Accent Variables === */
-  --theme-primary: #7c9fff;
-  --theme-secondary: #a5b8ff;
-  --theme-accent: #6eb5ff;
-  --theme-gradient: linear-gradient(135deg, #7c9fff 0%, #a5b8ff 100%);
+  --theme-primary: #9cc9e8;
+  --theme-secondary: #b7c4d5;
+  --theme-accent: #96cfbe;
+  --theme-gradient: linear-gradient(135deg, var(--theme-button-bg), var(--theme-button-hover-bg));
   
   /* === State Variables === */
   --theme-success: #4ade80;
@@ -494,7 +520,7 @@
   --theme-input-bg: #1a2035;
   --theme-input-border: #2a3550;
   --theme-input-border-hover: #3a4560;
-  --theme-input-border-focus: #7c9fff;
+  --theme-input-border-focus: #9cc9e8;
   --theme-input-text: #d4d9e8;
   --theme-input-placeholder: #6b7894;
   --theme-input-disabled: #0f1729;
@@ -531,32 +557,46 @@
   --theme-tag-bg: #151b2e;
   --theme-tag-shadow: rgba(0, 0, 0, 0.5);
   --theme-tag-text: #d4d9e8;
-  --theme-tag-hover-bg: rgba(124, 159, 255, 0.2);
+  --theme-tag-hover-bg: var(--theme-surface-hover);
   
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.5);
   --theme-collection-text: #9ca8c0;
   
   /* === Gallery-Specific Variables === */
-  /* Primary Colors (Purple Palette - adjusted for night theme) */
-  --gallery-primary: hsl(250, 50%, 75%);
-  --gallery-primary-light: hsl(250, 60%, 85%);
-  --gallery-primary-dark: hsl(250, 40%, 55%);
+  /* Neutral gallery chrome: leave color to the photographs. */
+  --gallery-primary: var(--theme-index);
+  --gallery-primary-light: var(--theme-heading-text);
+  --gallery-primary-dark: var(--theme-index);
   
-  /* Accent Colors (Pink Palette) */
-  --gallery-accent: hsl(340, 75%, 75%);
-  --gallery-accent-glow: hsl(340, 90%, 85%);
+  /* Reading / navigation accent */
+  --gallery-accent: var(--theme-reading);
+  --gallery-accent-glow: var(--theme-reading);
   
   /* Neutral Colors (Deep Gray Palette) */
-  --gallery-surface: hsl(220, 30%, 10%);
-  --gallery-surface-elevated: hsl(220, 25%, 16%);
-  --gallery-text: hsl(220, 15%, 90%);
-  --gallery-text-muted: hsl(220, 12%, 58%);
+  --gallery-surface: var(--theme-panel-bg);
+  --gallery-surface-elevated: var(--theme-surface-active);
+  --gallery-text: var(--theme-panel-text);
+  --gallery-text-muted: var(--theme-meta-text);
   
   /* Dynamic Colors (Image-based) */
   --image-dominant-hue: 0;
   --card-glow: hsl(var(--image-dominant-hue), 60%, 70%);
   --card-border: hsl(var(--image-dominant-hue), 40%, 60%);
+  /* 语义色：索引用中性墨色；阅读位置用青绿；公告用琥珀。 */
+  --theme-index: #b7c4d5;
+  --theme-reading: #96cfbe;
+  --theme-notice: #dfbf85;
+  --theme-notice-text: #30220c;
+  --theme-notice-soft: #302b24;
+  /* 标签色相由名称计算；深色模式降低底色明度、提高文字明度。 */
+  --theme-tag-saturation: 38%;
+  --theme-tag-ink-lightness: 80%;
+  --theme-tag-fill-lightness: 18%;
+  --theme-primary-hover: var(--theme-link-hover);
+  --theme-primary-active: var(--theme-link-hover);
+  --theme-button-hover: var(--theme-link-hover);
+  --theme-button-active: var(--theme-link-hover);
 }
 
 /* === Bright Theme Palette === */
@@ -579,17 +619,17 @@
   
   /* === Navigation Variables === */
   --theme-nav-text: #1a1a1a;
-  --theme-nav-hover-bg: rgba(139, 92, 246, 0.1);
-  --theme-nav-active-bg: rgba(139, 92, 246, 0.15);
+  --theme-nav-hover-bg: var(--theme-surface-active);
+  --theme-nav-active-bg: color-mix(in srgb, var(--theme-link-color) 12%, transparent);
   --theme-nav-mobile-bg: rgba(255, 255, 255, 0.98);
   --theme-nav-mobile-shadow: rgba(0, 0, 0, 0.08);
   
   /* === Interactive Variables === */
-  --theme-link-color: #8b5cf6;
-  --theme-link-hover: #a855f7;
-  --theme-button-bg: #8b5cf6;
+  --theme-link-color: #175b89;
+  --theme-link-hover: #10436a;
+  --theme-button-bg: #175b89;
   --theme-button-text: #ffffff;
-  --theme-button-hover-bg: #a855f7;
+  --theme-button-hover-bg: #10436a;
   
   /* === Content Variables === */
   --theme-content-bg: #ffffff;
@@ -599,13 +639,13 @@
   
   /* === Title and Heading Variables === */
   --theme-title-text: rgba(26, 26, 26, 0.85);
-  --theme-title-hover: #a855f7;
+  --theme-title-hover: var(--theme-heading-text);
   --theme-heading-text: #1a1a1a;
   
   /* === Meta Information Variables === */
   --theme-meta-text: rgba(26, 26, 26, 0.6);
-  --theme-category-hover: #8b5cf6;
-  --theme-date-hover: #8b5cf6;
+  --theme-category-hover: var(--theme-link-color);
+  --theme-date-hover: var(--theme-link-color);
   
   /* === Code and Pre Variables === */
   --theme-code-bg: #f8f9fa;
@@ -618,10 +658,10 @@
   --theme-code-line-number-border: #d1d5db; /* 行号边框 */
   
   /* === Accent Variables === */
-  --theme-primary: #8b5cf6;
-  --theme-secondary: #a855f7;
-  --theme-accent: #ec4899;
-  --theme-gradient: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+  --theme-primary: #175b89;
+  --theme-secondary: #3d4b5d;
+  --theme-accent: #17674f;
+  --theme-gradient: linear-gradient(135deg, var(--theme-button-bg), var(--theme-button-hover-bg));
   
   /* === State Variables === */
   --theme-success: #22c55e;
@@ -633,7 +673,7 @@
   --theme-input-bg: #ffffff;
   --theme-input-border: #e5e7eb;
   --theme-input-border-hover: #d1d5db;
-  --theme-input-border-focus: #8b5cf6;
+  --theme-input-border-focus: #175b89;
   --theme-input-text: #1a1a1a;
   --theme-input-placeholder: #9ca3af;
   --theme-input-disabled: #f9fafb;
@@ -670,32 +710,46 @@
   --theme-tag-bg: #fafafa;
   --theme-tag-shadow: rgba(0, 0, 0, 0.08);
   --theme-tag-text: #1a1a1a;
-  --theme-tag-hover-bg: rgba(139, 92, 246, 0.12);
+  --theme-tag-hover-bg: var(--theme-surface-hover);
   
   /* === Collection Variables === */
   --theme-collection-shadow: rgba(0, 0, 0, 0.08);
   --theme-collection-text: #6b7280;
   
   /* === Gallery-Specific Variables === */
-  /* Primary Colors (Purple Palette - adjusted for bright theme) */
-  --gallery-primary: hsl(250, 65%, 60%);
-  --gallery-primary-light: hsl(250, 75%, 70%);
-  --gallery-primary-dark: hsl(250, 55%, 40%);
+  /* Neutral gallery chrome: leave color to the photographs. */
+  --gallery-primary: var(--theme-index);
+  --gallery-primary-light: var(--theme-heading-text);
+  --gallery-primary-dark: var(--theme-index);
   
-  /* Accent Colors (Pink Palette) */
-  --gallery-accent: hsl(340, 90%, 60%);
-  --gallery-accent-glow: hsl(340, 100%, 70%);
+  /* Reading / navigation accent */
+  --gallery-accent: var(--theme-reading);
+  --gallery-accent-glow: var(--theme-reading);
   
   /* Neutral Colors (Light Gray Palette for bright theme) */
-  --gallery-surface: hsl(0, 0%, 98%);
-  --gallery-surface-elevated: hsl(0, 0%, 100%);
-  --gallery-text: hsl(0, 0%, 10%);
-  --gallery-text-muted: hsl(0, 0%, 45%);
+  --gallery-surface: var(--theme-panel-bg);
+  --gallery-surface-elevated: var(--theme-surface-active);
+  --gallery-text: var(--theme-panel-text);
+  --gallery-text-muted: var(--theme-meta-text);
   
   /* Dynamic Colors (Image-based) */
   --image-dominant-hue: 0;
   --card-glow: hsl(var(--image-dominant-hue), 75%, 55%);
   --card-border: hsl(var(--image-dominant-hue), 55%, 45%);
+  /* 语义色：索引用中性墨色；阅读位置用青绿；公告用琥珀。 */
+  --theme-index: #3d4b5d;
+  --theme-reading: #17674f;
+  --theme-notice: #805308;
+  --theme-notice-text: #ffffff;
+  --theme-notice-soft: #fff2d2;
+  /* 标签色相由名称计算；深色模式降低底色明度、提高文字明度。 */
+  --theme-tag-saturation: 50%;
+  --theme-tag-ink-lightness: 26%;
+  --theme-tag-fill-lightness: 95%;
+  --theme-primary-hover: var(--theme-link-hover);
+  --theme-primary-active: var(--theme-link-hover);
+  --theme-button-hover: var(--theme-link-hover);
+  --theme-button-active: var(--theme-link-hover);
 }
 
 /* === Apply Transitions to All Themed Elements === */
