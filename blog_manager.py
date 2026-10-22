@@ -4,11 +4,13 @@ KMBlog 管理工具 - 现代化 Flet GUI
 """
 
 import builtins
+import asyncio
 import flet as ft
 import importlib
 import inspect
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -51,23 +53,23 @@ def mock_input(*responses):
 
 
 class BlogManagerGUI:
-    # Refined editorial color system — warm paper + deep ink
-    CLR_BG = "#f5f3ef"
-    CLR_SIDEBAR = "#161921"
-    CLR_SIDEBAR_HOVER = "#212633"
-    CLR_SIDEBAR_ACTIVE = "#2a3040"
+    # Quiet blue workspace with a consistent, accessible light surface.
+    CLR_BG = "#f2f5fa"
+    CLR_SIDEBAR = "#18283f"
+    CLR_SIDEBAR_HOVER = "#223752"
+    CLR_SIDEBAR_ACTIVE = "#304b6d"
     CLR_SURFACE = "#ffffff"
-    CLR_BORDER = "#e4e0d9"
-    CLR_BORDER_LIGHT = "#eeebe5"
-    CLR_TEXT = "#1a1d28"
-    CLR_TEXT_SECONDARY = "#6b6776"
-    CLR_TEXT_MUTED = "#96929e"
-    CLR_ACCENT = "#4b5e7f"
-    CLR_ACCENT_HOVER = "#3d4f6b"
-    CLR_ACCENT_SOFT = "#eef1f5"
-    CLR_GOOD = "#5c8a6f"
-    CLR_BAD = "#b85c5c"
-    CLR_WARN = "#c0864a"
+    CLR_BORDER = "#dbe3ee"
+    CLR_BORDER_LIGHT = "#edf1f6"
+    CLR_TEXT = "#203149"
+    CLR_TEXT_SECONDARY = "#596b82"
+    CLR_TEXT_MUTED = "#6c7b8e"
+    CLR_ACCENT = "#315fbc"
+    CLR_ACCENT_HOVER = "#244b98"
+    CLR_ACCENT_SOFT = "#eaf0fc"
+    CLR_GOOD = "#247557"
+    CLR_BAD = "#b43c48"
+    CLR_WARN = "#956216"
 
     def __init__(self, page: ft.Page):
         self.page = page
@@ -79,6 +81,14 @@ class BlogManagerGUI:
         self.commands = self.get_commands()
         self.current_lang = 'zh'
         self.current_view = 'dashboard'
+        self.search_query = ''
+        self.search_auto_expand = True
+        self.post_sort = 'recent'
+        self.settings_view = None
+        self.settings_dirty = False
+        self.operation_lock = threading.Lock()
+        self.busy = False
+        self._active_snack = None
         self.expanded_collections = set()  # 记录展开的合集
         self.draggable_data_map = {}  # 映射 Draggable ID 到文章数据
         self.needs_generate = False  # 标记是否需要重新生成配置
@@ -114,61 +124,101 @@ class BlogManagerGUI:
         self.check_updates_on_startup()
 
     def setup_page(self):
-        """设置页面属性"""
+        """Use logical pixels; window size is not the monitor resolution."""
         self.page.title = "KMBlog Manager"
-
-        # 获取屏幕分辨率并自适应窗口大小
-        try:
-            # 尝试获取屏幕尺寸
-            screen_width = self.page.window.width if hasattr(
-                self.page.window, 'width') else 1920
-            screen_height = self.page.window.height if hasattr(
-                self.page.window, 'height') else 1080
-
-            # 如果无法获取，使用默认值
-            if not screen_width or screen_width == 0:
-                screen_width = 1920
-            if not screen_height or screen_height == 0:
-                screen_height = 1080
-
-            print(f"[窗口] 检测到屏幕尺寸: {screen_width}x{screen_height}")
-
-            # 根据屏幕分辨率计算合适的窗口大小
-            # 目标：窗口占屏幕的 80-85%
-            if screen_height <= 1080:
-                # 1080p 或更小：使用较小的窗口
-                window_width = min(1100, int(screen_width * 0.85))
-                window_height = min(750, int(screen_height * 0.85))
-                self.scale_factor = 0.85  # 缩放因子
-                print(f"[窗口] 使用 1080p 优化尺寸")
-            elif screen_height <= 1440:
-                # 2K (1440p)：使用中等窗口
-                window_width = min(1280, int(screen_width * 0.80))
-                window_height = min(900, int(screen_height * 0.80))
-                self.scale_factor = 1.0  # 标准尺寸
-                print(f"[窗口] 使用 2K 标准尺寸")
-            else:
-                # 4K 或更大：使用较大窗口
-                window_width = min(1600, int(screen_width * 0.75))
-                window_height = min(1100, int(screen_height * 0.75))
-                self.scale_factor = 1.15  # 放大因子
-                print(f"[窗口] 使用 4K 优化尺寸")
-
-            self.page.window.width = window_width
-            self.page.window.height = window_height
-
-            print(
-                f"[窗口] 设置窗口尺寸: {window_width}x{window_height} (缩放: {self.scale_factor})")
-
-        except Exception as e:
-            # 如果出错，使用默认值
-            print(f"[窗口] 无法检测屏幕尺寸，使用默认值: {e}")
-            self.page.window.width = 1280
-            self.page.window.height = 900
-            self.scale_factor = 1.0
-
+        self.page.window.width = 1180
+        self.page.window.height = 820
+        self.page.window.min_width = 800
+        self.page.window.min_height = 600
+        self.page.window.prevent_close = True
+        self.page.window.on_event = self.on_window_event
         self.page.padding = 0
         self.page.bgcolor = self.CLR_BG
+        self.page.theme_mode = ft.ThemeMode.LIGHT
+        self.page.theme = ft.Theme(
+            color_scheme_seed=self.CLR_ACCENT,
+            font_family="Microsoft YaHei",
+            color_scheme=ft.ColorScheme(
+                primary=self.CLR_ACCENT, on_primary="#ffffff",
+                surface=self.CLR_SURFACE, on_surface=self.CLR_TEXT,
+                outline=self.CLR_BORDER, error=self.CLR_BAD,
+            ),
+        )
+        self.page.on_keyboard_event = self.on_keyboard
+        self.page.on_resize = self.on_resize
+
+    def copy(self, zh, en):
+        return zh if self.current_lang == 'zh' else en
+
+    async def on_window_event(self, e):
+        if e.type != ft.WindowEventType.CLOSE:
+            return
+        if self.busy:
+            self.snack(self.copy('操作进行中，请完成后再关闭窗口。',
+                                 'A task is running. Close the window after it finishes.'), True)
+            return
+        if not self.settings_dirty:
+            await self.page.window.destroy()
+            return
+
+        async def discard(e):
+            self.close_dlg(dialog)
+            await self.page.window.destroy()
+
+        async def save_and_close(e):
+            self.save_settings(None)
+            if not self.settings_dirty:
+                self.close_dlg(dialog)
+                await self.page.window.destroy()
+
+        dialog = ft.AlertDialog(
+            modal=True, title=ft.Text(self.copy('保存修改后再离开？', 'Save changes before leaving?')),
+            content=ft.Text(self.copy('配置中还有未保存的修改。', 'Your settings have unsaved changes.')),
+            actions=[ft.TextButton(self.t('cancel'), on_click=lambda e: self.close_dlg(dialog)),
+                     ft.TextButton(self.copy('不保存并关闭', 'Discard and close'), on_click=discard),
+                     self.primary_button(self.copy('保存并关闭', 'Save and close'), ft.Icons.SAVE, save_and_close)],
+        )
+        self.open_dialog(dialog)
+
+    async def on_keyboard(self, e):
+        if any(getattr(control, 'open', False) for control in self.page.overlay):
+            return
+        if any(getattr(control, 'open', False) for control in getattr(self, '_dialogs', [])):
+            return
+        if e.ctrl or e.meta:
+            if e.key.lower() == 'n':
+                self.show_add_dialog(None)
+            elif e.key.lower() == 'f':
+                self.switch_view('posts')
+                await self.search_field.focus()
+            elif e.key.lower() == 's' and self.current_view == 'settings':
+                self.save_settings(None)
+
+    def on_resize(self, e):
+        if not hasattr(self, 'sidebar_host'):
+            return
+        compact = (self.page.width or 1180) < 1000
+        if compact != self.compact:
+            self.compact = compact
+            self.sidebar_host.content = self.build_sidebar()
+            self.content_host.padding = 20 if compact else 32
+            self.page.update()
+
+    def primary_button(self, text, icon, handler):
+        return ft.Button(text, icon=icon, on_click=handler, height=44,
+                         bgcolor=self.CLR_ACCENT, color="#ffffff", elevation=0,
+                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+
+    def open_dialog(self, dialog):
+        self._dialogs = [item for item in getattr(self, '_dialogs', []) if item.open]
+        self._dialogs.append(dialog)
+        previous = dialog.on_dismiss
+        def dismissed(e):
+            self._modal_open = False
+            if previous:
+                previous(e)
+        dialog.on_dismiss = dismissed
+        self.page.show_dialog(dialog)
 
     def scale(self, value):
         """根据缩放因子调整数值
@@ -267,8 +317,8 @@ class BlogManagerGUI:
                 f"[UI刷新] 更新信息: has_updates={self.update_info['has_updates']}, manager_has_update={self.update_info['manager_has_update']}")
 
             # 重新构建 UI（无论当前在哪个视图，都更新侧边栏以显示徽章）
-            self.build_ui()
-            print(f"[UI刷新] UI已重新构建")
+            if self.current_view == 'dashboard':
+                self.build_ui()
         except Exception as e:
             print(f"[UI刷新] 刷新失败: {e}")
             import traceback
@@ -310,7 +360,7 @@ class BlogManagerGUI:
                 'collection_list': '合集列表', 'no_posts': '暂无文章', 'no_collections': '暂无合集',
                 'success': '成功', 'error': '错误', 'confirm_delete': '确认删除',
                 'confirm_delete_post': '确定要删除文章 "{}" 吗？',
-                'confirm_delete_collection': '确定要删除合集 "{}" 及其所有文章吗？',
+                'confirm_delete_collection': '删除合集「{}」？文章会移入「无合集」，合集封面及其他文件将被删除。',
                 'cancel': '取消', 'confirm': '确认', 'input_error': '输入错误',
                 'please_input_post': '请输入文章名称！', 'please_input_collection': '请输入合集名称！',
                 'operation_success': '操作成功！', 'articles': '篇文章',
@@ -452,7 +502,7 @@ class BlogManagerGUI:
                 'recent_posts': 'Recent Posts', 'quick_actions': 'Quick Actions', 'post_list': 'Posts',
                 'collection_list': 'Collections', 'no_posts': 'No posts', 'no_collections': 'No collections',
                 'success': 'Success', 'error': 'Error', 'confirm_delete': 'Confirm',
-                'confirm_delete_post': 'Delete "{}"?', 'confirm_delete_collection': 'Delete "{}" and all posts?',
+                'confirm_delete_post': 'Delete "{}"?', 'confirm_delete_collection': 'Delete collection "{}"? Posts move to Uncollected. Its cover and other files are deleted.',
                 'cancel': 'Cancel', 'confirm': 'OK', 'input_error': 'Error',
                 'please_input_post': 'Enter post name!', 'please_input_collection': 'Enter collection name!',
                 'operation_success': 'Success!', 'articles': 'articles',
@@ -589,10 +639,16 @@ class BlogManagerGUI:
         return trans[self.current_lang].get(key, key)
 
     def switch_lang(self, e):
+        if self.settings_dirty:
+            self.snack(self.copy('请先保存配置，再切换语言。', 'Save your settings before switching language.'), True)
+            return
         self.current_lang = 'en' if self.current_lang == 'zh' else 'zh'
+        self.settings_view = None
         self.build_ui()
 
     def switch_view(self, view):
+        if view == self.current_view:
+            return
         self.current_view = view
         self.build_ui()
 
@@ -614,24 +670,32 @@ class BlogManagerGUI:
             return False
 
     def build_ui(self):
-        """构建主界面"""
-        import time
-        print(f"[性能-时间戳] 开始build_ui: {time.time():.3f}")
-
-        self.page.controls.clear()
-        layout = ft.Row([
-            self.build_sidebar(),
-            ft.VerticalDivider(width=0, color="transparent"),
-            ft.Container(content=self.get_current_view(),
-                         expand=True, padding=28),
-        ], spacing=0, expand=True)
-        self.page.add(layout)
+        """Keep the shell mounted so local interactions retain their state."""
+        self.compact = (self.page.width or 1180) < 1000
+        if not hasattr(self, 'content_host'):
+            self.sidebar_host = ft.Container(content=self.build_sidebar())
+            self.content_host = ft.Container(content=self.get_current_view(), expand=True,
+                                             padding=20 if self.compact else 32)
+            self.status_text = ft.Text(self.copy('准备就绪', 'Ready'), size=12,
+                                       color=self.CLR_TEXT_SECONDARY, expand=True)
+            self.task_progress = ft.ProgressBar(height=2, visible=False, color=self.CLR_ACCENT)
+            self.page.add(ft.Row([
+                self.sidebar_host,
+                ft.Column([
+                    self.content_host,
+                    self.task_progress,
+                    ft.Container(ft.Row([
+                        ft.Icon(ft.Icons.CIRCLE, size=7, color=self.CLR_GOOD), self.status_text,
+                        ft.Text('KMBlog', size=12, color=self.CLR_TEXT_MUTED),
+                    ], spacing=8), padding=ft.Padding(24, 10, 24, 10),
+                        bgcolor=self.CLR_SURFACE,
+                        border=ft.Border(top=ft.BorderSide(1, self.CLR_BORDER))),
+                ], spacing=0, expand=True),
+            ], spacing=0, expand=True))
+        else:
+            self.sidebar_host.content = self.build_sidebar()
+            self.content_host.content = self.get_current_view()
         self.page.update()
-        print(f"[性能-时间戳] UI更新完成: {time.time():.3f}")
-
-    # ═══════════════════════════════════════════════════════════════
-    # Reusable helpers
-    # ═══════════════════════════════════════════════════════════════
 
     @staticmethod
     def _pick_image_file(title="选择图片"):
@@ -656,265 +720,261 @@ class BlogManagerGUI:
     @staticmethod
     def _card_hover(e, normal_bg, hover_bg):
         """Standard card hover: swap background on enter/leave."""
-        e.control.bgcolor = hover_bg if e.data == "true" else normal_bg
+        e.control.bgcolor = hover_bg if str(e.data).lower() == "true" else normal_bg
         e.control.update()
 
     def build_sidebar(self):
-        """Sidebar — refined dark panel"""
-        nav_items = [
-            ('dashboard', ft.Icons.DASHBOARD, self.t('dashboard')),
-            ('posts', ft.Icons.ARTICLE, self.t('posts')),
-            ('settings', ft.Icons.SETTINGS, self.t('settings')),
-        ]
-
+        compact = getattr(self, 'compact', False)
         buttons = []
-        for view, icon, label in nav_items:
+        for view, icon, label in [
+            ('dashboard', ft.Icons.SPACE_DASHBOARD_OUTLINED, self.t('dashboard')),
+            ('posts', ft.Icons.ARTICLE_OUTLINED, self.t('posts')),
+            ('settings', ft.Icons.TUNE, self.t('settings')),
+        ]:
             selected = self.current_view == view
-            buttons.append(ft.Container(
+            buttons.append(ft.TextButton(
                 content=ft.Row([
-                    ft.Icon(icon, size=18,
-                            color="#c0c8d4" if selected else "#6e7686"),
-                    ft.Text(label, size=13, weight=ft.FontWeight.W_500 if selected else ft.FontWeight.W_400,
-                            color="#c0c8d4" if selected else "#6e7686"),
-                ], spacing=10),
-                padding=ft.Padding(12, 10, 12, 10),
-                bgcolor=self.CLR_SIDEBAR_ACTIVE if selected else None,
-                border_radius=6,
+                    ft.Icon(icon, size=21, semantics_label=label if compact else None),
+                    *([] if compact else [ft.Text(label, size=14, expand=True)]),
+                    *([ft.Icon(ft.Icons.CIRCLE, size=6)] if selected and not compact else []),
+                ], spacing=12, alignment=ft.MainAxisAlignment.CENTER if compact else ft.MainAxisAlignment.START),
+                tooltip=label, height=48, width=52 if compact else 188,
                 on_click=lambda e, v=view: self.switch_view(v),
+                style=ft.ButtonStyle(
+                    color="#ffffff" if selected else "#b6c6db",
+                    bgcolor=self.CLR_SIDEBAR_ACTIVE if selected else "transparent",
+                    overlay_color=self.CLR_SIDEBAR_HOVER,
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=12,
+                ),
             ))
-
         return ft.Container(
+            width=80 if compact else 220, bgcolor=self.CLR_SIDEBAR,
+            padding=ft.Padding(14, 28, 14, 18),
             content=ft.Column([
-                ft.Container(
-                    content=ft.Row([
-                        ft.Text("Blog", size=22,
-                                weight=ft.FontWeight.W_700, color="#d0d6e0",
-                                font_family="Georgia"),
-                        ft.Container(width=4, height=4, bgcolor="#6e7686", border_radius=2),
-                        ft.Text("Manage", size=15,
-                                weight=ft.FontWeight.W_400, color="#6e7686"),
-                    ], spacing=8),
-                    padding=ft.Padding(20, 24, 20, 20),
-                ),
-                ft.Divider(height=1, color="#252a36"),
-                ft.Container(content=ft.Column(buttons, spacing=2), padding=ft.Padding(12, 8, 12, 8)),
+                ft.Container(ft.Row([
+                    ft.Container(ft.Icon(ft.Icons.AUTO_STORIES, color="#ffffff", size=23),
+                                 width=40, height=40, bgcolor=self.CLR_ACCENT,
+                                 border_radius=12, alignment=ft.Alignment(0, 0)),
+                    *([] if compact else [ft.Column([
+                        ft.Text('KMBlog', size=19, weight=ft.FontWeight.W_700, color="#ffffff"),
+                        ft.Text(self.copy('创作工作台', 'Your writing desk'), size=11, color="#b6c6db"),
+                    ], spacing=2)]),
+                ], spacing=12), padding=ft.Padding(0, 0, 0, 30)),
+                *buttons,
                 ft.Container(expand=True),
-                ft.Divider(height=1, color="#252a36"),
-                ft.Container(
-                    content=ft.TextButton(
-                        self.t('switch_lang'),
-                        icon=ft.Icons.LANGUAGE,
-                        on_click=self.switch_lang,
-                        style=ft.ButtonStyle(color="#6e7686"),
-                    ),
-                    padding=ft.Padding(16, 8, 16, 16),
-                ),
-            ], spacing=0),
-            width=220,
-            bgcolor=self.CLR_SIDEBAR,
+                *([] if compact else [ft.Container(ft.Column([
+                    ft.Row([ft.Icon(ft.Icons.CIRCLE, size=8, color="#77d4ad" if self.editor_running else "#b6c6db"),
+                            ft.Text(self.copy('编辑器运行中', 'Editor running') if self.editor_running else
+                                    self.copy('编辑器未启动', 'Editor offline'), size=12, color="#c8d5e7")], spacing=8),
+                    ft.Text('Ctrl+N  ' + self.t('add_post') + '\nCtrl+F  ' + self.copy('搜索文章', 'Find posts'),
+                            size=11, color="#b6c6db"),
+                ], spacing=12), padding=ft.Padding(8, 16, 8, 16))]),
+                ft.IconButton(icon=ft.Icons.LANGUAGE,
+                              tooltip=self.copy('切换语言', 'Switch language'), on_click=self.switch_lang,
+                              icon_color="#c8d5e7") if compact else ft.TextButton(
+                                  self.t('switch_lang'), icon=ft.Icons.LANGUAGE,
+                                  tooltip=self.copy('切换语言', 'Switch language'), on_click=self.switch_lang,
+                                  style=ft.ButtonStyle(color="#c8d5e7")),
+            ], spacing=6),
         )
 
     def get_current_view(self):
-        """获取当前视图"""
-        if self.current_view == 'dashboard':
-            return self.build_dashboard()
-        elif self.current_view == 'posts':
+        if self.current_view == 'posts':
             return self.build_posts_view()
-        elif self.current_view == 'settings':
-            return self.build_settings_view()
-        return ft.Text("Unknown view")
+        if self.current_view == 'settings':
+            if self.settings_view is None:
+                self.settings_view = self.build_settings_view()
+            return self.settings_view
+        return self.build_dashboard()
 
     def build_dashboard(self):
-        """Dashboard — editorial layout"""
         stats = self.get_stats()
-
-        stat_cards = ft.Row([
-            self.stat_card(self.t('total_posts'), str(stats['posts']), ft.Icons.ARTICLE),
-            self.stat_card(self.t('total_collections'), str(stats['collections']), ft.Icons.FOLDER),
-        ], spacing=16)
-
-        is_initialized = self.is_blog_initialized()
-
-        if not is_initialized:
-            action_buttons = [ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.ROCKET_LAUNCH, size=48, color=self.CLR_TEXT),
-                    ft.Text(self.t('init_blog'), size=18, weight=ft.FontWeight.W_600,
-                            color=self.CLR_TEXT),
-                    ft.Text(self.t('click_to_init'), size=13, color=self.CLR_TEXT_SECONDARY),
-                ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER),
-                width=360, height=160, padding=24,
-                bgcolor=self.CLR_SURFACE,
-                border=ft.Border.all(1, self.CLR_BORDER),
-                border_radius=4,
-                on_click=self.exec_init,
-            )]
-        else:
-            action_buttons = [
-                self.action_btn(self.t('add_post'), ft.Icons.ADD_CIRCLE, self.show_add_dialog, 'New post'),
-                self.action_btn(self.t('generate'), ft.Icons.BUILD_CIRCLE, self.exec_generate, 'Generate config'),
-                self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION, self.exec_build, 'Build output'),
-                self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD, self.show_github_dialog, 'Deploy'),
-                self.action_btn(self.t('migrate_hexo'), ft.Icons.TRANSFORM, self.show_migrate_dialog, 'Import'),
-                self.action_btn(self.t('update_framework'), ft.Icons.SYSTEM_UPDATE, self.show_update_options_dialog, 'Update',
-                                badge=(self.update_info['commits_behind'] + (1 if self.update_info['manager_has_update'] else 0)) if (self.update_info['has_updates'] or self.update_info['manager_has_update']) else None),
-            ]
-            if self.editor_running:
-                action_buttons.append(self.action_btn('Open editor', ft.Icons.OPEN_IN_BROWSER, self.open_editor_window, 'Running'))
-                action_buttons.append(self.action_btn(self.t('close_editor'), ft.Icons.STOP_CIRCLE, self.stop_editor, 'Stop'))
-            else:
-                action_buttons.append(self.action_btn('Start editor', ft.Icons.EDIT, self.start_editor, 'Markdown IDE'))
-
-        actions_section = ft.Container(
-            content=ft.Column([
-                ft.Text(self.t('quick_actions'), size=15, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
-                ft.Container(height=12),
-                ft.Row(action_buttons, spacing=12, run_spacing=12, wrap=True),
-            ]),
-            padding=ft.Padding(24, 20, 24, 24),
-            bgcolor=self.CLR_SURFACE,
+        initialized = self.is_blog_initialized()
+        primary = self.primary_button(
+            self.copy('继续写作', 'Open editor') if self.editor_running else self.t('start_editor'),
+            ft.Icons.EDIT_OUTLINED, self.open_editor_window if self.editor_running else self.start_editor)
+        hero = ft.Container(
+            content=ft.ResponsiveRow([
+                ft.Column([
+                    ft.Text(self.copy('让想法，成为文章。', 'Make room for your next idea.'),
+                            size=28, weight=ft.FontWeight.W_700, color=self.CLR_TEXT),
+                    ft.Text(self.copy('写作、整理与发布，从这里开始。', 'Write, organize and publish from one place.'),
+                            size=14, color=self.CLR_TEXT_SECONDARY),
+                    ft.Container(height=8),
+                    ft.Row([primary if initialized else self.primary_button(self.t('init_blog'), ft.Icons.ROCKET_LAUNCH, self.exec_init),
+                            ft.TextButton(self.t('add_post'), icon=ft.Icons.ADD, on_click=self.show_add_dialog)], wrap=True),
+                ], spacing=10, col={'xs': 12, 'md': 8}),
+                ft.Column([
+                    self.stat_card(self.t('total_posts'), str(stats['posts']), ft.Icons.ARTICLE_OUTLINED),
+                    self.stat_card(self.t('total_collections'), str(stats['collections']), ft.Icons.FOLDER_OUTLINED),
+                ], spacing=10, col={'xs': 12, 'md': 4}),
+            ], spacing=24, run_spacing=24),
+            padding=28, bgcolor=self.CLR_SURFACE, border_radius=16,
             border=ft.Border.all(1, self.CLR_BORDER),
-            border_radius=4,
         )
-
-        recent = self.build_recent_posts()
-
+        actions = [
+            self.action_btn(self.t('generate'), ft.Icons.SYNC, self.exec_generate,
+                            self.copy('同步文章目录与索引', 'Refresh the content index')),
+            self.action_btn(self.t('build_project'), ft.Icons.CONSTRUCTION, self.exec_build,
+                            self.copy('生成可发布的站点', 'Prepare your site for publishing')),
+            self.action_btn(self.t('deploy_github'), ft.Icons.CLOUD_UPLOAD_OUTLINED, self.show_github_dialog,
+                            self.copy('发布到 GitHub Pages', 'Publish to GitHub Pages')),
+            self.action_btn(self.t('migrate_hexo'), ft.Icons.DRIVE_FILE_MOVE_OUTLINED, self.show_migrate_dialog,
+                            self.copy('导入已有 Hexo 文章', 'Bring your Hexo posts over')),
+            self.action_btn(self.t('checking_update'), ft.Icons.SYSTEM_UPDATE_ALT, self.show_update_options_dialog,
+                            self.copy('框架与管理工具更新', 'Framework and manager updates'),
+                            badge=self.update_info['commits_behind'] + int(self.update_info['manager_has_update'])),
+        ]
+        if self.editor_running:
+            actions.append(self.action_btn(self.t('close_editor'), ft.Icons.STOP_CIRCLE_OUTLINED, self.stop_editor,
+                                            self.copy('停止本地编辑服务', 'Stop the local editor service')))
         return ft.Column([
-            ft.Text(self.t('dashboard'), size=22, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
-            ft.Container(height=16),
-            stat_cards,
-            ft.Container(height=16),
-            actions_section,
-            ft.Container(height=16),
-            recent,
-        ], scroll=ft.ScrollMode.AUTO, expand=True)
+            ft.Text(self.t('dashboard'), size=14, weight=ft.FontWeight.W_600, color=self.CLR_TEXT_SECONDARY),
+            hero,
+            ft.Container(ft.Text(self.t('quick_actions'), size=17, weight=ft.FontWeight.W_600,
+                                 color=self.CLR_TEXT), padding=ft.Padding(0, 10, 0, 0)),
+            ft.ResponsiveRow(actions, spacing=12, run_spacing=12) if initialized else ft.Text(self.t('click_to_init')),
+            self.build_recent_posts(),
+        ], spacing=18, scroll=ft.ScrollMode.AUTO, expand=True)
 
     def stat_card(self, title, value, icon):
-        """Stat card — minimal with accent stripe"""
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(icon, size=16, color=self.CLR_TEXT_SECONDARY),
-                    ft.Text(title, size=12, color=self.CLR_TEXT_SECONDARY),
-                ], spacing=6),
-                ft.Container(height=4),
-                ft.Text(value, size=36, weight=ft.FontWeight.W_300, color=self.CLR_TEXT),
-            ], spacing=0),
-            padding=ft.Padding(20, 16, 20, 20),
-            bgcolor=self.CLR_SURFACE,
-            border=ft.Border(left=ft.BorderSide(3, self.CLR_ACCENT), right=ft.BorderSide(1, self.CLR_BORDER), top=ft.BorderSide(1, self.CLR_BORDER), bottom=ft.BorderSide(1, self.CLR_BORDER)),
-            border_radius=4,
-            expand=True,
-        )
+        return ft.Container(ft.Row([
+            ft.Icon(icon, size=22, color=self.CLR_ACCENT),
+            ft.Text(title, size=12, color=self.CLR_TEXT_SECONDARY, expand=True),
+            ft.Text(value, size=26, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+        ], spacing=12), padding=16, bgcolor=self.CLR_BG, border_radius=10)
 
     def action_btn(self, text, icon, onclick, desc="", badge=None):
-        """Action button — refined, no gradients, no scale on hover"""
-        def on_hover(e):
-            e.control.border = ft.Border.all(1, self.CLR_ACCENT if e.data == "true" else self.CLR_BORDER)
-            e.control.update()
-
-        button_content = ft.Column([
-            ft.Icon(icon, size=22, color=self.CLR_ACCENT),
-            ft.Text(text, size=12, weight=ft.FontWeight.W_500, color=self.CLR_TEXT),
-        ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-
-        if badge and badge > 0:
-            content = ft.Stack([
-                button_content,
-                ft.Container(
-                    content=ft.Text(str(badge) if badge < 100 else "99+", size=10, weight=ft.FontWeight.W_600, color="#ffffff"),
-                    bgcolor=self.CLR_BAD, border_radius=10,
-                    padding=ft.Padding(6, 1, 6, 1),
-                    right=4, top=4,
-                ),
-            ])
-        else:
-            content = button_content
-
-        return ft.Container(
-            content=content,
-            width=130, height=100,
-            padding=16,
-            bgcolor=self.CLR_SURFACE,
-            border=ft.Border.all(1, self.CLR_BORDER),
-            border_radius=4,
-            on_hover=on_hover,
-            on_click=onclick,
+        return ft.OutlinedButton(
+            content=ft.Row([
+                ft.Icon(icon, size=22, color=self.CLR_ACCENT),
+                ft.Column([
+                    ft.Text(text, size=14, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+                    ft.Text(desc, size=11, color=self.CLR_TEXT_SECONDARY, max_lines=1,
+                            overflow=ft.TextOverflow.ELLIPSIS),
+                ], spacing=5, expand=True),
+            ], spacing=12),
+            badge=str(badge) if badge else None,
+            col={'xs': 12, 'sm': 6, 'lg': 4}, height=84, on_click=onclick,
+            style=ft.ButtonStyle(bgcolor=self.CLR_SURFACE, padding=16,
+                                 side=ft.BorderSide(1, self.CLR_BORDER),
+                                 shape=ft.RoundedRectangleBorder(radius=12)),
         )
 
     def build_recent_posts(self):
-        """Recent posts list"""
         try:
-            result = self.commands['ListAllPosts']().execute()
-            lines = [l for l in result.split('\n')[:6] if 'Post:' in l]
-            items = [self.post_item(l) for l in lines] if lines else [
-                ft.Text(self.t('no_posts'), size=13, color=self.CLR_TEXT_MUTED)]
+            records = [(line, coll) for coll, lines in self.get_posts_grouped_by_collection().items() for line in lines]
+            records.sort(key=lambda item: self.post_modified(item[0], item[1]), reverse=True)
+            items = [self.build_post_item(line, coll, compact=True) for line, coll in records[:5]]
+            if not items:
+                items = [self.empty_posts()]
+            return ft.Container(ft.Column([
+                ft.Row([ft.Text(self.copy('最近编辑', 'Recently edited'), size=17,
+                                weight=ft.FontWeight.W_600, color=self.CLR_TEXT, expand=True),
+                        ft.TextButton(self.copy('查看全部', 'View all'), on_click=lambda e: self.switch_view('posts'))]),
+                *items,
+            ], spacing=4), padding=20, bgcolor=self.CLR_SURFACE, border_radius=14,
+                border=ft.Border.all(1, self.CLR_BORDER))
+        except Exception as e:
+            return ft.Text(self.copy('无法读取文章：', 'Could not load posts: ') + str(e), color=self.CLR_BAD)
 
-            return ft.Container(
-                content=ft.Column([
-                    ft.Text(self.t('recent_posts'), size=15, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
-                    ft.Container(height=12),
-                    ft.Column(items, spacing=6),
-                ]),
-                padding=ft.Padding(24, 20, 24, 24),
-                bgcolor=self.CLR_SURFACE,
-                border=ft.Border.all(1, self.CLR_BORDER),
-                border_radius=4,
-            )
-        except:
-            return ft.Container()
+    @staticmethod
+    def parse_post(line):
+        parts = line.strip().removeprefix('Post:').strip().split(' | ')
+        name = parts[0].strip().replace('\\', '/').split('/')[-1].removesuffix('.md')
+        metadata = {}
+        for part in parts[1:]:
+            key, _, value = part.partition(':')
+            metadata[key.strip()] = value.strip()
+        return {'name': name, 'title': metadata.get('Title') or name,
+                'date': metadata.get('Created on', ''), 'characters': metadata.get('Characters', '')}
+
+    def post_modified(self, line, collection):
+        from mainTools.path_utils import get_posts_path
+        try:
+            return os.path.getmtime(os.path.join(get_posts_path(), collection, self.parse_post(line)['name'] + '.md'))
+        except OSError:
+            return 0
+
+    def empty_posts(self):
+        searching = bool(self.search_query.strip())
+        return ft.Container(ft.Column([
+            ft.Icon(ft.Icons.SEARCH_OFF if searching else ft.Icons.NOTE_ADD_OUTLINED,
+                    size=36, color=self.CLR_ACCENT),
+            ft.Text(self.copy('没有匹配的文章', 'No matching posts') if searching else self.t('no_posts'),
+                    size=16, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+            ft.Text(self.copy('试试其他标题、文件名或合集名称。', 'Try another title, filename or collection.') if searching else
+                    self.copy('创建第一篇文章，开始记录你的想法。', 'Create your first post to get started.'),
+                    size=13, color=self.CLR_TEXT_SECONDARY),
+            ft.TextButton(self.copy('清除搜索', 'Clear search') if searching else self.t('add_post'),
+                          icon=ft.Icons.CLEAR if searching else ft.Icons.ADD,
+                          on_click=self.clear_search if searching else self.show_add_dialog),
+        ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=32, alignment=ft.Alignment(0, 0))
 
     def post_item(self, line):
-        """Post list item"""
-        line_clean = line.replace('Post:', '').strip()
-        parts = line_clean.split('|')
-        post_info = parts[0].strip()
-        if '/' in post_info:
-            post_name = post_info.split('/')[-1].strip()
-        else:
-            post_name = post_info
-
-        def on_click(e):
-            self.show_post_preview(post_name)
-
-        return ft.Container(
-            content=ft.Row([
-                ft.Icon(ft.Icons.DESCRIPTION, size=16, color=self.CLR_TEXT_SECONDARY),
-                ft.Text(line.strip()[:80], size=13, color=self.CLR_TEXT),
-            ], spacing=10),
-            padding=ft.Padding(12, 10, 12, 10),
-            border=ft.Border(bottom=ft.BorderSide(1, self.CLR_BORDER_LIGHT)),
-            bgcolor="transparent",
-            on_hover=lambda e: self._card_hover(e, "transparent", self.CLR_ACCENT_SOFT),
-            on_click=on_click,
-        )
+        return self.build_post_item(line, 'Markdowns', compact=True)
 
     def build_posts_view(self):
-        """Posts view"""
-        self.post_field = ft.TextField(label=self.t('post_name'), width=300, border_radius=4, border_color=self.CLR_BORDER)
-        self.coll_field = ft.TextField(label=self.t('collection_name'), width=300, border_radius=4, border_color=self.CLR_BORDER)
-
-        header = ft.Container(
-            content=ft.Column([
-                ft.Text(self.t('post_list'), size=18, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
-                ft.Container(height=12),
-                ft.Row([self.post_field, self.coll_field], spacing=12),
-                ft.Container(height=12),
-                ft.Row([
-                    ft.ElevatedButton(self.t('add_post'), icon=ft.Icons.ADD, on_click=lambda e: self.exec_add_post(),
-                                      bgcolor=self.CLR_ACCENT, color="#ffffff",
-                                      style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=4))),
-                    ft.TextButton(self.t('refresh'), icon=ft.Icons.REFRESH, on_click=lambda e: self.force_refresh(),
-                                  style=ft.ButtonStyle(color=self.CLR_TEXT_SECONDARY)),
-                ], spacing=8),
-            ]),
-            padding=ft.Padding(24, 20, 24, 20),
-            bgcolor=self.CLR_SURFACE,
-            border=ft.Border.all(1, self.CLR_BORDER),
-            border_radius=4,
+        self.search_field = ft.TextField(
+            value=self.search_query, hint_text=self.copy('搜索标题、文件名或合集…', 'Search titles, filenames or collections…'),
+            prefix_icon=ft.Icons.SEARCH, on_change=self.on_search, expand=True,
+            border_radius=10, border_color=self.CLR_BORDER, bgcolor=self.CLR_SURFACE,
+            text_size=14, content_padding=14,
         )
+        sort = ft.Dropdown(value=self.post_sort, width=160, text_size=13, dense=True,
+                           border_color=self.CLR_BORDER, border_radius=10,
+                           options=[ft.dropdown.Option('recent', self.copy('最近编辑', 'Last edited')),
+                                    ft.dropdown.Option('name', self.copy('标题排序', 'Title A–Z'))],
+                           on_select=self.on_sort)
+        self.results_count = ft.Text(size=12, color=self.CLR_TEXT_SECONDARY, expand=True)
+        self.posts_results = ft.Container(content=self.build_collection_groups())
+        return ft.Column([
+            ft.Row([ft.Column([
+                ft.Text(self.t('posts'), size=26, weight=ft.FontWeight.W_700, color=self.CLR_TEXT),
+                ft.Text(self.copy('整理你的文章，让每个想法各得其所。', 'A home for every idea.'),
+                        size=13, color=self.CLR_TEXT_SECONDARY),
+            ], spacing=6, expand=True), self.primary_button(self.t('add_post'), ft.Icons.ADD, self.show_add_dialog)]),
+            ft.Row([self.search_field, ft.IconButton(icon=ft.Icons.CLEAR, tooltip=self.copy('清除搜索', 'Clear search'),
+                                                   on_click=self.clear_search), sort], spacing=8),
+            ft.Row([self.results_count,
+                    ft.TextButton(self.copy('全部展开', 'Expand all'), on_click=lambda e: self.expand_all(True)),
+                    ft.TextButton(self.copy('全部收起', 'Collapse all'), on_click=lambda e: self.expand_all(False)),
+                    ft.IconButton(icon=ft.Icons.REFRESH, tooltip=self.t('refresh'), on_click=lambda e: self.force_refresh())],
+                   spacing=4),
+            ft.ListView([self.posts_results], expand=True, spacing=12),
+        ], spacing=18, expand=True)
 
-        return ft.Column([header, ft.Container(height=12), self.build_collection_groups()], scroll=ft.ScrollMode.AUTO, expand=True)
+    async def on_search(self, e):
+        self.search_query = e.control.value or ''
+        self.search_auto_expand = True
+        revision = getattr(self, '_search_revision', 0) + 1
+        self._search_revision = revision
+        await asyncio.sleep(0.16)
+        if revision == self._search_revision and self.current_view == 'posts':
+            self.refresh_post_results()
+
+    def clear_search(self, e=None):
+        self.search_query = ''
+        self._search_revision = getattr(self, '_search_revision', 0) + 1
+        if self.current_view == 'posts':
+            self.search_field.value = ''
+            self.refresh_post_results()
+
+    def on_sort(self, e):
+        self.post_sort = e.control.value
+        self.refresh_post_results()
+
+    def expand_all(self, expanded):
+        self.search_auto_expand = expanded
+        self.expanded_collections = set(self.get_posts_grouped_by_collection()) if expanded else set()
+        self.refresh_post_results()
+
+    def refresh_post_results(self):
+        if self.current_view == 'posts':
+            self.posts_results.content = self.build_collection_groups()
+            self.page.update()
 
     def update_draggable_map(self, control=None):
         """递归更新 Draggable 控件的 ID 映射"""
@@ -950,62 +1010,36 @@ class BlogManagerGUI:
                 self.update_draggable_map(child)
 
     def build_collection_groups(self):
-        """构建合集分组列表"""
-        import time
-        start_time = time.time()
-
         try:
-            # 清空映射表和控件引用
-            self.draggable_data_map.clear()
+            data = self.get_posts_grouped_by_collection()
+            query = self.search_query.strip().casefold()
+            groups = []
+            matched = 0
+            total = sum(len(lines) for lines in data.values())
             self.collection_widgets.clear()
-
-            # 获取所有文章数据（使用缓存）
-            posts_data = self.get_posts_grouped_by_collection()
-
-            collection_widgets = []
-
-            # 首先显示 Markdowns (无合集) 的文章
-            if 'Markdowns' in posts_data and posts_data['Markdowns']:
-                collection_widgets.append(
-                    self.build_collection_group(
-                        '无合集', 'Markdowns', posts_data['Markdowns'], is_default=True)
-                )
-
-            # 然后显示其他合集
-            for coll_name in sorted(posts_data.keys()):
-                if coll_name != 'Markdowns' and posts_data[coll_name]:
-                    collection_widgets.append(
-                        self.build_collection_group(
-                            f'{coll_name}', coll_name, posts_data[coll_name])
-                    )
-
-            if not collection_widgets:
-                return ft.Container(
-                    content=ft.Text(self.t('no_posts'), size=14, color=self.CLR_TEXT_MUTED),
-                    padding=ft.Padding(24, 24, 24, 24),
-                    bgcolor=self.CLR_SURFACE,
-                    border=ft.Border.all(1, self.CLR_BORDER),
-                    border_radius=4,
-                )
-
-            container = ft.Container(
-                content=ft.Column(collection_widgets, spacing=8),
-                padding=ft.Padding(24, 16, 24, 24),
-                bgcolor=self.CLR_SURFACE,
-                border=ft.Border.all(1, self.CLR_BORDER),
-                border_radius=4,
-            )
-
-            elapsed = time.time() - start_time
-            print(
-                f"[性能] 构建合集列表耗时: {elapsed:.3f}秒 ({len(collection_widgets)}个合集)")
-            print(f"[性能-时间戳] 构建完成时刻: {time.time():.3f}")
-            return container
+            for collection in sorted(data, key=lambda name: (name != 'Markdowns', name.casefold())):
+                lines = [line for line in data[collection] if not query or query in collection.casefold()
+                         or query in self.parse_post(line)['title'].casefold()
+                         or query in self.parse_post(line)['name'].casefold()]
+                if query and not lines:
+                    continue
+                matched += len(lines)
+                if self.post_sort == 'name':
+                    lines.sort(key=lambda line: self.parse_post(line)['title'].casefold())
+                else:
+                    lines.sort(key=lambda line: self.post_modified(line, collection), reverse=True)
+                groups.append(self.build_collection_group(
+                    self.copy('无合集', 'Uncollected') if collection == 'Markdowns' else collection,
+                    collection, lines, is_default=collection == 'Markdowns'))
+            if hasattr(self, 'results_count'):
+                self.results_count.value = self.copy(f'{matched} / {total} 篇文章', f'{matched} of {total} posts')
+            return ft.Column(groups, spacing=12) if groups else self.empty_posts()
         except Exception as e:
-            print(f"Error building collection groups: {e}")
-            import traceback
-            traceback.print_exc()
-            return ft.Container(content=ft.Text(f"Error: {e}", color=self.CLR_BAD))
+            return ft.Container(ft.Column([
+                ft.Text(self.copy('文章加载失败', 'Unable to load posts'), color=self.CLR_BAD),
+                ft.Text(str(e), selectable=True),
+                ft.TextButton(self.t('refresh'), on_click=lambda e: self.force_refresh()),
+            ]), padding=24)
 
     def get_posts_grouped_by_collection(self, force_refresh=False):
         """获取按合集分组的文章数据（带缓存）"""
@@ -1058,78 +1092,20 @@ class BlogManagerGUI:
         return grouped_posts
 
     def build_image_upload_widget(self, label, current_path, on_upload_callback, width=200, height=150):
-        """可复用的图片上传组件
-
-        Args:
-            label: 标签文字
-            current_path: 当前图片路径（完整路径）
-            on_upload_callback: 上传回调函数 callback(file_path)
-            width: 图片宽度
-            height: 图片高度
-        """
-        # 检查图片是否存在
-        has_image = current_path and os.path.exists(current_path)
-
-        # 调试输出
-        print(
-            f"[ImageWidget] Label: {label}, Path: {current_path}, Exists: {has_image}")
-
         def pick_image(e):
-            """打开文件选择器"""
-            file_path = self._pick_image_file(f"选择{label}")
+            file_path = self._pick_image_file(self.copy('选择图片', 'Choose an image'))
             if file_path:
                 on_upload_callback(file_path)
-
-        # 构建图片显示内容
-        if has_image:
-            image_content = ft.Image(
-                src=current_path,
-                width=width,
-                height=height,
-                fit="cover",
-                border_radius=8,
-            )
-            overlay = ft.Container(
-                content=ft.Icon(ft.Icons.EDIT, size=24, color="#FFFFFF"),
-                width=width,
-                height=height,
-                bgcolor=ft.Colors.with_opacity(0.7, "#000000"),
-                border_radius=8,
-                alignment=ft.Alignment(0, 0),
-                visible=False,
-            )
-        else:
-            image_content = ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE,
-                            size=36, color="#718096"),
-                    ft.Text(self.t('click_to_upload'),
-                            size=12, color="#A0AEC0"),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                width=width,
-                height=height,
-                bgcolor=ft.Colors.with_opacity(0.05, "#FFFFFF"),
-                border_radius=8,
-                alignment=ft.Alignment(0, 0),
-            )
-            overlay = ft.Container()
-
-        return ft.Container(
-            content=ft.Column([
-                ft.Text(label, size=14, weight=ft.FontWeight.BOLD,
-                        color="#FFFFFF"),
-                ft.Container(height=8),
-                ft.Container(
-                    content=ft.Stack([image_content, overlay]),
-                    on_click=pick_image,
-                    ink=True,
-                    border=ft.Border.all(
-                        1, ft.Colors.with_opacity(0.2, "#FFFFFF")),
-                    border_radius=8,
-                ),
-            ], spacing=0),
-            padding=10,
-        )
+        has_image = current_path and os.path.exists(current_path)
+        preview = ft.Image(src=current_path, width=width, height=height, fit="cover", border_radius=10) if has_image else ft.Container(
+            ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE_OUTLINED, size=36, color=self.CLR_TEXT_SECONDARY),
+            width=width, height=height, bgcolor=self.CLR_BG, border_radius=10, alignment=ft.Alignment(0, 0))
+        return ft.Column([
+            *([ft.Text(label, size=14, color=self.CLR_TEXT)] if label else []),
+            preview,
+            ft.OutlinedButton(self.copy('更换图片', 'Replace image') if has_image else self.t('click_to_upload'),
+                              icon=ft.Icons.UPLOAD_OUTLINED, on_click=pick_image),
+        ], spacing=12)
 
     def process_config_image(self, source_path, target_field_name):
         """处理配置图片上传
@@ -1190,152 +1166,121 @@ class BlogManagerGUI:
             return None
 
     def build_collection_group(self, display_name, collection_name, posts, is_default=False):
-        """构建单个合集组"""
-        is_expanded = collection_name in self.expanded_collections
+        expanded = collection_name in self.expanded_collections or (
+            bool(self.search_query.strip()) and self.search_auto_expand)
+        body = ft.Column(spacing=0, visible=expanded)
+        toggle = ft.IconButton(icon=ft.Icons.EXPAND_MORE if expanded else ft.Icons.CHEVRON_RIGHT,
+                               icon_color=self.CLR_TEXT_SECONDARY,
+                               tooltip=self.copy('展开或收起合集', 'Expand or collapse collection'))
 
-        # 合集头部
+        def populate():
+            body.controls = [self.build_post_item(line, collection_name) for line in posts] or [
+                ft.Container(ft.Text(self.copy('这个合集还没有文章。', 'This collection is empty.'),
+                                     color=self.CLR_TEXT_SECONDARY, size=13), padding=20)]
+
         def toggle_expand(e):
-            if is_expanded:
-                self.expanded_collections.discard(collection_name)
-            else:
+            body.visible = not body.visible
+            if body.visible:
                 self.expanded_collections.add(collection_name)
-            self.build_ui()
+                if not body.controls:
+                    populate()
+            else:
+                self.expanded_collections.discard(collection_name)
+            toggle.icon = ft.Icons.EXPAND_MORE if body.visible else ft.Icons.CHEVRON_RIGHT
+            self.page.update()
 
-        # 删除合集按钮 (仅非默认合集)
-        delete_button = None
+        toggle.on_click = toggle_expand
+        if expanded:
+            populate()
+        actions = []
         if not is_default:
-            def on_delete_collection(e):
-                self.confirm(
-                    self.t('confirm_delete'),
-                    self.t('confirm_delete_collection').format(
-                        collection_name),
-                    lambda: self.do_del_coll(collection_name)
-                )
-            delete_button = ft.IconButton(
-                icon=ft.Icons.DELETE,
-                icon_color=self.CLR_BAD,
-                tooltip=self.t('delete_collection'),
-                on_click=on_delete_collection,
-            )
+            def pick_image(e):
+                from mainTools.path_utils import get_posts_path
+                collection_path = os.path.join(get_posts_path(), collection_name)
+                image = self._pick_image_file(self.copy('选择合集封面', 'Choose collection cover'))
+                if image:
+                    if os.path.exists(os.path.join(collection_path, 'image.png')):
+                        self.show_image_replace_dialog(image, collection_name, collection_path)
+                    else:
+                        self.process_collection_image(image, collection_name, collection_path)
+            actions = [
+                ft.IconButton(icon=ft.Icons.IMAGE_OUTLINED, tooltip=self.t('click_upload_cover'), on_click=pick_image,
+                              icon_color=self.CLR_TEXT_SECONDARY),
+                ft.PopupMenuButton(icon=ft.Icons.MORE_HORIZ, tooltip=self.copy('合集操作', 'Collection actions'),
+                    items=[ft.PopupMenuItem(content=self.t('delete_collection'), icon=ft.Icons.DELETE_OUTLINE,
+                        on_click=lambda e: self.confirm(self.t('confirm_delete'),
+                            self.t('confirm_delete_collection').format(collection_name),
+                            lambda: self.do_del_coll(collection_name)))]),
+            ]
+        header = ft.Row([
+            toggle,
+            ft.TextButton(content=ft.Row([
+                ft.Icon(ft.Icons.FOLDER_OUTLINED, size=20, color=self.CLR_ACCENT),
+                ft.Text(display_name, size=14, weight=ft.FontWeight.W_600,
+                        color=self.CLR_TEXT, expand=True, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                ft.Text(str(len(posts)), size=12, color=self.CLR_TEXT_SECONDARY),
+            ], spacing=10), expand=True, on_click=toggle_expand),
+            *actions,
+        ], spacing=2)
+        group = ft.Container(ft.Column([
+            ft.Container(header, padding=ft.Padding(8, 6, 8, 6)), body,
+        ], spacing=0), bgcolor=self.CLR_SURFACE, border=ft.Border.all(1, self.CLR_BORDER), border_radius=12)
+        self.collection_widgets[collection_name] = group
+        return group
 
-        # 检查是否有封面图片
-        from mainTools.path_utils import get_posts_path
-        collection_path = os.path.join(get_posts_path(), collection_name)
-        image_path = os.path.join(collection_path, 'image.png')
-        has_image = os.path.exists(image_path)
-
-        # 创建文件选择器（用于选择图片）
-        def pick_image(e):
-            """打开文件选择器选择图片"""
-            file_path = self._pick_image_file(f"选择 {collection_name} 的封面图片")
-            if file_path:
-                # 检查是否已有图片
-                img_path = os.path.join(collection_path, 'image.png')
-                if os.path.exists(img_path):
-                    self.show_image_replace_dialog(
-                        file_path, collection_name, collection_path)
-                else:
-                    self.process_collection_image(
-                        file_path, collection_name, collection_path)
-
-        # 构建图片上传区域（仅支持点击上传，Flet 不支持从外部拖放文件）
-        image_upload_area = ft.Container(
-            content=ft.Stack([
-                ft.Image(
-                    src=image_path,
-                    width=150,
-                    height=100,
-                    fit="cover",
-                    border_radius=8,
-                ) if has_image else ft.Container(
-                    content=ft.Column([
-                        ft.Icon(ft.Icons.ADD_PHOTO_ALTERNATE,
-                                size=36, color=self.CLR_TEXT_MUTED),
-                        ft.Text(self.t('click_upload_cover'),
-                                size=12, color=self.CLR_TEXT_MUTED),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                    width=150,
-                    height=100,
-                    bgcolor=self.CLR_BORDER_LIGHT,
-                    border_radius=8,
-                    alignment=ft.Alignment(0, 0),
-                ),
-                # 悬停时显示更换按钮
-                ft.Container(
-                    content=ft.Icon(ft.Icons.EDIT, size=24,
-                                    color=ft.Colors.WHITE),
-                    width=150,
-                    height=100,
-                    bgcolor=ft.Colors.with_opacity(0.7, ft.Colors.BLACK),
-                    border_radius=8,
-                    alignment=ft.Alignment(0, 0),
-                    visible=False,
-                ) if has_image else ft.Container(),
-            ]),
-            padding=ft.Padding(0, 10, 0, 0),
-            on_click=pick_image if not is_default else None,
-            ink=True if not is_default else False,
-        ) if not is_default else ft.Container()
-
-        # Collection header
-        header_content = ft.Column([
-            ft.Row([
-                ft.Icon(ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT,
-                        size=18, color=self.CLR_TEXT_SECONDARY),
-                ft.Text(f"{display_name} ({len(posts)})", size=14, weight=ft.FontWeight.W_600,
-                        color=self.CLR_TEXT, expand=True),
-                delete_button if delete_button else ft.Container(),
-            ], spacing=10),
-            image_upload_area,
-        ], spacing=5)
-
-        header_container = ft.Container(
-            content=header_content,
-            padding=ft.Padding(16, 12, 16, 12),
-            bgcolor=self.CLR_ACCENT_SOFT if not is_default else self.CLR_BORDER_LIGHT,
-            border_radius=4,
-            on_click=toggle_expand,
-        )
-
-        posts_list = None
-        if is_expanded:
-            post_widgets = [self.build_post_item(line, collection_name) for line in posts]
-            posts_list = ft.Container(
-                content=ft.Column(post_widgets, spacing=2),
-                padding=ft.Padding(28, 4, 4, 4),
-            )
-
-        return ft.Column([header_container, posts_list if posts_list else ft.Container()], spacing=4)
-
-    def build_post_item(self, line, source_collection):
-        """Post item — refined list style"""
-        line_clean = line.replace('Post:', '').strip()
-        parts = line_clean.split('|')
-        post_info = parts[0].strip()
-        if '/' in post_info:
-            post_name = post_info.split('/')[-1].strip()
-        else:
-            post_name = post_info
-        if post_name.endswith('.md'):
-            post_name = post_name[:-3]
-
-        def on_delete(e):
-            e.stop_propagation()
-            self.confirm(self.t('confirm_delete'), self.t('confirm_delete_post').format(post_name),
-                         lambda: self.do_del_post(post_name, None if source_collection == 'Markdowns' else source_collection))
-
-        return ft.Container(
+    def build_post_item(self, line, source_collection, compact=False):
+        post = self.parse_post(line)
+        detail = self.copy('无合集', 'Uncollected') if source_collection == 'Markdowns' else source_collection
+        if post['characters']:
+            detail += '  /  ' + post['characters'] + self.copy(' 字符', ' characters')
+        preview = ft.TextButton(
             content=ft.Row([
-                ft.Icon(ft.Icons.ARTICLE, size=16, color=self.CLR_TEXT_MUTED),
-                ft.Text(line.strip(), size=13, color=self.CLR_TEXT, expand=True),
-                ft.IconButton(icon=ft.Icons.DELETE, icon_size=16, icon_color=self.CLR_BAD,
-                              tooltip=self.t('delete_post'), on_click=on_delete),
-            ], spacing=8),
-            padding=ft.Padding(12, 8, 8, 8),
-            border=ft.Border(bottom=ft.BorderSide(1, self.CLR_BORDER_LIGHT)),
-            bgcolor="transparent",
-            on_hover=lambda e: self._card_hover(e, "transparent", self.CLR_ACCENT_SOFT),
+                ft.Container(ft.Icon(ft.Icons.DESCRIPTION_OUTLINED, size=20, color=self.CLR_ACCENT),
+                             padding=10, bgcolor=self.CLR_BG, border_radius=10),
+                ft.Column([
+                    ft.Text(post['title'], size=14, color=self.CLR_TEXT, weight=ft.FontWeight.W_500,
+                            max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                    ft.Text(detail, size=11, color=self.CLR_TEXT_SECONDARY,
+                            max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                ], spacing=5, expand=True),
+            ], spacing=12), expand=True, height=70,
+            tooltip=post['name'] + '.md',
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8), padding=10),
+            on_click=lambda e: self.show_post_preview(post['name'], source_collection),
         )
+        trailing = ft.Icon(ft.Icons.CHEVRON_RIGHT, size=18, color=self.CLR_TEXT_MUTED) if compact else ft.PopupMenuButton(
+            icon=ft.Icons.MORE_HORIZ, tooltip=self.copy('文章操作', 'Post actions'),
+            items=[
+                ft.PopupMenuItem(content=self.copy('预览文章', 'Preview post'), icon=ft.Icons.VISIBILITY_OUTLINED,
+                                on_click=lambda e: self.show_post_preview(post['name'], source_collection)),
+                ft.PopupMenuItem(content=self.copy('移动到合集', 'Move to collection'), icon=ft.Icons.DRIVE_FILE_MOVE_OUTLINED,
+                                on_click=lambda e: self.show_move_dialog(post['name'], source_collection)),
+                ft.PopupMenuItem(content=self.t('delete_post'), icon=ft.Icons.DELETE_OUTLINE,
+                                on_click=lambda e: self.confirm(self.t('confirm_delete'),
+                                    self.t('confirm_delete_post').format(post['name']),
+                                    lambda: self.do_del_post(post['name'], None if source_collection == 'Markdowns' else source_collection))),
+            ])
+        return ft.Container(ft.Row([preview, trailing], spacing=4), padding=ft.Padding(8, 0, 12, 0),
+                             border=ft.Border(top=ft.BorderSide(1, self.CLR_BORDER_LIGHT)))
+
+    def show_move_dialog(self, post, source):
+        options = sorted(set(self.get_posts_grouped_by_collection()) | {'Markdowns'})
+        targets = [name for name in options if name != source]
+        if not targets:
+            self.snack(self.copy('暂无其他合集。新建文章时可填写一个新合集名称。',
+                                 'No other collection yet. Create one when adding a post.'))
+            return
+        target = ft.Dropdown(label=self.t('collection_name'), value=targets[0], width=380,
+                             options=[ft.dropdown.Option(name, self.copy('无合集', 'Uncollected') if name == 'Markdowns' else name)
+                                      for name in targets])
+        def move(e):
+            self.close_dlg(dialog)
+            self.move_post_to_collection(post, source, target.value)
+        dialog = ft.AlertDialog(title=ft.Text(self.copy('移动文章', 'Move post')),
+                                content=ft.Column([ft.Text(post), target], tight=True, spacing=16),
+                                actions=[ft.TextButton(self.t('cancel'), on_click=lambda e: self.close_dlg(dialog)),
+                                         self.primary_button(self.copy('移动', 'Move'), ft.Icons.DRIVE_FILE_MOVE_OUTLINED, move)])
+        self.open_dialog(dialog)
 
     def process_collection_image(self, source_path, collection_name, collection_path):
         """处理合集封面图片"""
@@ -1412,8 +1357,7 @@ class BlogManagerGUI:
                     content=ft.Image(
                         src=old_image_path,
                         width=200,
-                        height=150,
-                        fit="contain",
+                            fit="contain",
                     ),
                     border=ft.Border.all(2, ft.Colors.GREY_400),
                     border_radius=8,
@@ -1427,8 +1371,7 @@ class BlogManagerGUI:
                     content=ft.Image(
                         src=new_image_path,
                         width=200,
-                        height=150,
-                        fit="contain",
+                            fit="contain",
                     ),
                     border=ft.Border.all(2, ft.Colors.GREEN_400),
                     border_radius=8,
@@ -1469,75 +1412,29 @@ class BlogManagerGUI:
             ],
         )
 
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def move_post_to_collection(self, post_name, source_collection, target_collection):
-        """移动文章到目标合集"""
-        import time
-        start_time = time.time()
-
-        try:
+        def operation():
             from mainTools.move_post_command import MovePost
-            move_cmd = MovePost()
-            result = move_cmd.execute(
-                post_name, source_collection, target_collection)
-
-            if result['success']:
-                print(f"[性能] 文件移动耗时: {time.time() - start_time:.3f}秒")
-
-                # 标记需要重新生成配置（延迟执行）
-                self.needs_generate = True
-                self.schedule_generate()
-
-                # 使缓存失效（下次刷新时会重新获取）
-                self.is_cache_valid = False
-
-                # 显示简短提示（不刷新UI）
-                self.snack(f"已移动 {post_name} → 点击刷新按钮查看")
-            else:
-                self.snack(result['message'], True)
-        except Exception as e:
-            print(f"Move post error: {e}")
-            import traceback
-            traceback.print_exc()
-            self.snack(f"移动失败: {e}", True)
+            result = MovePost().execute(post_name, source_collection, target_collection)
+            if not result['success']:
+                raise RuntimeError(result['message'])
+            self.commands['Generate']().execute()
+        self.run_operation(self.copy('移动文章', 'Move post') + ' / ' + post_name, operation,
+                           lambda: self.expanded_collections.add(target_collection))
 
     def force_refresh(self):
-        """强制刷新（使缓存失效）"""
-        print("[Cache] Force refresh - invalidating cache")
         self.is_cache_valid = False
-        self.build_ui()
+        if self.current_view == 'posts':
+            self.refresh_post_results()
+        else:
+            self.build_ui()
+        self.snack(self.copy('文章列表已刷新', 'Posts refreshed'))
 
     def incremental_refresh_posts(self):
-        """增量刷新posts视图（快速更新）"""
-        import time
-        start_time = time.time()
-        print(f"[性能-时间戳] 开始增量刷新: {start_time:.3f}")
-
-        if self.current_view != 'posts':
-            return
-
-        try:
-            # 找到主布局中的内容容器
-            layout = self.page.controls[0]
-            content_container = layout.controls[2]
-
-            # 重新构建posts视图（会使用新的缓存数据）
-            new_content = self.build_posts_view()
-            content_container.content = new_content
-
-            # 只更新这个容器
-            self.page.update()
-            print(f"[性能-时间戳] 增量刷新UI更新完成: {time.time():.3f}")
-
-            elapsed = time.time() - start_time
-            print(f"[性能] 增量刷新UI耗时: {elapsed:.3f}秒")
-        except Exception as e:
-            print(f"Error in incremental refresh: {e}")
-            import traceback
-            traceback.print_exc()
+        self.refresh_post_results()
 
     def schedule_ui_refresh(self):
         """延迟2秒后刷新UI（防抖，支持连续拖动）"""
@@ -1589,130 +1486,138 @@ class BlogManagerGUI:
         self.generate_timer.start()
 
     def get_stats(self):
-        """统计数据"""
-        stats = {'posts': 0, 'collections': 0}
         try:
-            if 'ListAllPosts' not in self.commands:
-                print(
-                    f"Warning: ListAllPosts not found. Available: {list(self.commands.keys())}")
-                return stats
-
-            result = self.commands['ListAllPosts']().execute()
-            print(f"ListAllPosts result: {result[:200] if result else 'None'}")
-            stats['posts'] = result.count('Post:') if result else 0
-
-            if 'ListCollections' in self.commands:
-                result = self.commands['ListCollections']().execute()
-                print(
-                    f"ListCollections result: {result[:200] if result else 'None'}")
-                stats['collections'] = result.count(
-                    'Collection:') if result else 0
-        except Exception as e:
-            print(f"Error in get_stats: {e}")
-            import traceback
-            traceback.print_exc()
-        return stats
+            groups = self.get_posts_grouped_by_collection()
+            return {'posts': sum(len(posts) for posts in groups.values()),
+                    'collections': sum(name != 'Markdowns' for name in groups)}
+        except Exception:
+            return {'posts': 0, 'collections': 0}
 
     def snack(self, msg, error=False):
-        """Toast notification"""
-        snack_bar = ft.SnackBar(
-            content=ft.Text(msg, color="#ffffff", size=13),
-            bgcolor=self.CLR_BAD if error else self.CLR_GOOD,
-            duration=3000,
+        if self._active_snack is not None:
+            self._active_snack.open = False
+        self._active_snack = ft.SnackBar(
+            content=ft.Row([
+                ft.Icon(ft.Icons.ERROR_OUTLINE if error else ft.Icons.CHECK_CIRCLE_OUTLINE, size=20, color="#ffffff"),
+                ft.Text(str(msg), color="#ffffff", size=13, expand=True, selectable=True),
+            ], spacing=10), bgcolor=self.CLR_BAD if error else self.CLR_SIDEBAR,
+            duration=6500 if error else 2800, show_close_icon=True,
         )
-        snack_bar.open = True
-        self.page.overlay.append(snack_bar)
+        self.page.show_dialog(self._active_snack)
+        if hasattr(self, 'status_text'):
+            self.status_text.value = str(msg).split('\n')[0]
         self.page.update()
 
     def close_dialog(self, dialog):
-        """关闭对话框的辅助方法"""
-        dialog.open = False
-        self.page.update()
+        self.close_dlg(dialog)
 
     def show_add_dialog(self, e):
-        """添加文章对话框"""
-        post = ft.TextField(label=self.t('post_name'), width=350)
-        coll = ft.TextField(label=self.t('collection_name'), width=350)
+        post = ft.TextField(label=self.t('post_name'), autofocus=True,
+                            hint_text=self.copy('例如：我的第一篇文章', 'For example: My first post'),
+                            border_radius=10, text_size=14)
+        coll = ft.TextField(label=self.t('collection_name'), border_radius=10, text_size=14,
+                            helper=self.copy('选填；留空归入「无合集」，新名称会创建合集。',
+                                                  'Optional. A new name creates a collection.'))
 
         def add(e):
-            if not post.value or not post.value.strip():
-                self.snack(self.t('please_input_post'), True)
+            name = (post.value or '').strip().removesuffix('.md')
+            collection = (coll.value or '').strip()
+            error = self.validate_post_name(name, collection)
+            if error:
+                post.error = error
+                self.page.update()
+                return
+            post.error = None
+            if self.busy:
+                self.snack(self.copy('请等待当前操作完成。', 'Wait for the current task to finish.'), True)
                 return
             self.close_dlg(dlg)
-            self.do_add_post(post.value.strip(),
-                             coll.value.strip() if coll.value else None)
+            self.do_add_post(name, collection or None)
 
-        dlg = ft.AlertDialog(
-            title=ft.Text(self.t('add_post')),
-            content=ft.Column([post, coll], tight=True),
-            actions=[
-                ft.TextButton(self.t('cancel'),
-                              on_click=lambda e: self.close_dlg(dlg)),
-                ft.Button(self.t('confirm'), on_click=add),
-            ],
-        )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        post.on_submit = add
+        coll.on_submit = add
+        dlg = ft.AlertDialog(title=ft.Text(self.t('add_post')),
+                            content=ft.Container(ft.Column([post, coll], tight=True, spacing=20), width=420),
+                            actions=[ft.TextButton(self.t('cancel'), on_click=lambda e: self.close_dlg(dlg)),
+                                     self.primary_button(self.copy('创建文章', 'Create post'), ft.Icons.ADD, add)])
+        self.open_dialog(dlg)
+
+    def validate_post_name(self, name, collection):
+        from mainTools.path_utils import get_posts_path
+        if not name:
+            return self.t('please_input_post')
+        reserved = {'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)), *(f'LPT{i}' for i in range(1, 10))}
+        for value in (name, collection):
+            if value and (value in {'.', '..'} or re.search(r'[<>:"/\\|?*\x00-\x1f]', value)
+                          or value.endswith(('.', ' ')) or value.split('.')[0].upper() in reserved):
+                return self.copy('名称不能包含路径、特殊字符或系统保留名称。', 'Use a valid filename without paths or reserved characters.')
+        if collection.casefold() in {'images', 'waterfallgraph'}:
+            return self.copy('这是系统目录，请使用其他合集名称。', 'This folder is reserved. Choose another collection name.')
+        if os.path.exists(os.path.join(get_posts_path(), collection or 'Markdowns', name + '.md')):
+            return self.copy('同名文章已存在，请换一个名称。', 'A post with this name already exists.')
+        return None
+
+    def run_operation(self, label, operation, on_success=None):
+        """Serialize commands that temporarily replace input; never block the UI."""
+        if not self.operation_lock.acquire(blocking=False):
+            self.snack(self.copy('请等待当前操作完成。', 'Wait for the current task to finish.'), True)
+            return False
+        self.busy = True
+        self.status_text.value = label
+        self.task_progress.visible = True
         self.page.update()
 
-    def exec_add_post(self):
-        """执行添加文章"""
-        post = self.post_field.value.strip() if self.post_field.value else ""
-        coll = self.coll_field.value.strip() if self.coll_field.value else None
-        if not post:
-            self.snack(self.t('please_input_post'), True)
-            return
-        self.do_add_post(post, coll)
+        async def run():
+            try:
+                result = await asyncio.to_thread(operation)
+                if isinstance(result, str) and (result.startswith('Error:') or 'aborted.' in result):
+                    raise RuntimeError(result)
+                self.is_cache_valid = False
+                if on_success:
+                    on_success()
+                if self.current_view == 'posts':
+                    self.refresh_post_results()
+                elif self.current_view == 'dashboard':
+                    self.build_ui()
+                self.snack(self.copy('已完成：', 'Completed: ') + label)
+            except Exception as exc:
+                self.snack(self.copy('操作失败：', 'Operation failed: ') + str(exc), True)
+            finally:
+                self.busy = False
+                self.operation_lock.release()
+                self.task_progress.visible = False
+                self.page.update()
+        self.page.run_task(run)
+        return True
 
     def do_add_post(self, post, coll):
-        """实际添加文章"""
-        try:
-            with mock_input(post, coll or '', 'y'):
-                self.commands['AddPost']().execute()
-            self.snack(self.t('operation_success'))
-            self.build_ui()
-        except Exception as e:
-            self.snack(f"{self.t('error')}: {e}", True)
+        def operation():
+            error = self.validate_post_name(post, coll or '')
+            if error:
+                raise ValueError(error)
+            with mock_input(post, coll or '', 'n'):
+                return self.commands['AddPost']().execute()
+        def reveal():
+            self.expanded_collections.add(coll or 'Markdowns')
+            self.search_query = ''
+            if self.current_view == 'posts':
+                self.search_field.value = ''
+        return self.run_operation(self.t('add_post') + ' / ' + post, operation, reveal)
 
     def do_del_post(self, post, coll):
-        """实际删除文章"""
-        print(f"DEBUG do_del_post: post='{post}', coll='{coll}'")
-        try:
+        def operation():
             with mock_input(post, coll or '', 'y'):
-                result = self.commands['DeletePost']().execute()
-            print(f"DEBUG delete result: {result}")
-            self.snack(self.t('operation_success'))
-            self.build_ui()
-        except Exception as e:
-            print(f"DEBUG delete error: {e}")
-            traceback.print_exc()
-            self.snack(f"{self.t('error')}: {e}", True)
+                return self.commands['DeletePost']().execute()
+        self.run_operation(self.t('delete_post') + ' / ' + post, operation)
 
     def do_del_coll(self, coll):
-        """实际删除合集"""
-        print(f"DEBUG do_del_coll: coll='{coll}'")
-        try:
-            orig_pr = builtins.print
-            builtins.print = lambda *a, **k: None
+        def operation():
             with mock_input(coll, 'y'):
-                result = self.commands['DeleteCollection']().execute()
-            builtins.print = orig_pr
-            print(f"DEBUG delete result: {result}")
-            self.snack(self.t('operation_success'))
-            self.build_ui()
-        except Exception as e:
-            builtins.print = orig_pr
-            print(f"DEBUG delete error: {e}")
-            traceback.print_exc()
-            self.snack(f"{self.t('error')}: {e}", True)
+                return self.commands['DeleteCollection']().execute()
+        self.run_operation(self.t('delete_collection') + ' / ' + coll, operation)
 
     def exec_generate(self, e):
-        """生成配置"""
-        try:
-            self.commands['Generate']().execute()
-            self.snack(self.t('operation_success'))
-        except Exception as e:
-            self.snack(f"{self.t('error')}: {e}", True)
+        self.run_operation(self.t('generate'), lambda: self.commands['Generate']().execute())
 
     def exec_init(self, e):
         """初始化博客 - 带详细进度条"""
@@ -1745,8 +1650,7 @@ class BlogManagerGUI:
             ),
             modal=True,
         )
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         def init_task():
@@ -1845,8 +1749,7 @@ class BlogManagerGUI:
             ], tight=True, spacing=5),
             modal=True,
         )
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         def build_task():
@@ -1945,8 +1848,7 @@ class BlogManagerGUI:
                 ),
             ],
         )
-        self.page.overlay.append(choice_dlg)
-        choice_dlg.open = True
+        self.open_dialog(choice_dlg)
         self.page.update()
 
     def _start_editor_with_option(self, allow_lan=False):
@@ -1974,8 +1876,7 @@ class BlogManagerGUI:
             ], tight=True, spacing=5),
             modal=True,
         )
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         def editor_task():
@@ -2432,8 +2333,7 @@ class BlogManagerGUI:
 
                 # 如果是局域网模式，显示访问信息对话框
                 if allow_lan and lan_info_dlg:
-                    self.page.dialog = lan_info_dlg
-                    lan_info_dlg.open = True
+                    self.open_dialog(lan_info_dlg)
                     self.page.update()
 
                 # 刷新UI以显示新按钮
@@ -2543,8 +2443,7 @@ class BlogManagerGUI:
                     ],
                 )
 
-                self.page.overlay.append(error_dlg)
-                error_dlg.open = True
+                self.open_dialog(error_dlg)
                 self.page.update()
 
                 print(f"[Editor] Error: {ex}")
@@ -2805,8 +2704,7 @@ class BlogManagerGUI:
                           on_click=lambda e: self.confirm_migrate(dlg)),
             ],
         )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def confirm_migrate(self, dlg):
@@ -2828,8 +2726,7 @@ class BlogManagerGUI:
             ], tight=True, spacing=5),
             modal=True,
         )
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         def migrate_task():
@@ -2885,8 +2782,7 @@ class BlogManagerGUI:
                 padding=20,
             ),
         )
-        self.page.overlay.append(checking_dlg)
-        checking_dlg.open = True
+        self.open_dialog(checking_dlg)
         self.page.update()
 
         # 在后台线程中检查更新
@@ -3062,8 +2958,7 @@ class BlogManagerGUI:
                 ft.TextButton("确定", on_click=lambda e: self.close_dlg(dlg)),
             ],
         )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def close_and_show_framework_update(self, dlg):
@@ -3104,8 +2999,7 @@ class BlogManagerGUI:
                           color=ft.Colors.WHITE),
             ],
         )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def confirm_update_framework(self, dlg):
@@ -3130,8 +3024,7 @@ class BlogManagerGUI:
                     ft.Container(height=10),
                     ft.Container(
                         content=log_text,
-                        height=150,
-                        bgcolor=self.CLR_ACCENT_SOFT,
+                            bgcolor=self.CLR_ACCENT_SOFT,
                         border_radius=5,
                         padding=10,
                     ),
@@ -3140,8 +3033,7 @@ class BlogManagerGUI:
             ),
             modal=True,
         )
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         def update_task():
@@ -3347,8 +3239,7 @@ class BlogManagerGUI:
                 ),
             ],
         )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def close_and_update_manager(self, dlg):
@@ -3420,8 +3311,7 @@ class BlogManagerGUI:
             actions_alignment=ft.MainAxisAlignment.CENTER,
         )
 
-        self.page.dialog = dlg
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def show_manager_update_dialog(self, update_info, updater):
@@ -3484,8 +3374,7 @@ class BlogManagerGUI:
             )
 
             # 使用 overlay 而不是 dialog 属性，避免被其他对话框覆盖
-            self.page.overlay.append(dlg)
-            dlg.open = True
+            self.open_dialog(dlg)
             self.page.update()
             print(f"[管理工具更新] 对话框已添加到 overlay 并显示")
 
@@ -3530,8 +3419,7 @@ class BlogManagerGUI:
             modal=True,
         )
 
-        self.page.overlay.append(progress_dlg)
-        progress_dlg.open = True
+        self.open_dialog(progress_dlg)
         self.page.update()
 
         # 进度回调函数（在主线程中更新 UI）
@@ -3636,16 +3524,15 @@ class BlogManagerGUI:
                                   style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=4))),
             ],
         )
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def close_dlg(self, dlg):
-        """关闭对话框"""
         dlg.open = False
+        self._modal_open = False
         self.page.update()
 
-    def show_post_preview(self, post_name):
+    def show_post_preview(self, post_name, collection=None):
         """显示文章预览"""
         try:
             from mainTools.path_utils import get_posts_path
@@ -3663,12 +3550,12 @@ class BlogManagerGUI:
 
             # 在 Markdowns 目录中查找
             markdowns_path = os.path.join(
-                posts_path, 'Markdowns', f'{post_name}.md')
+                posts_path, collection or 'Markdowns', f'{post_name}.md')
             print(f"Checking: {markdowns_path}")  # 调试
             if os.path.exists(markdowns_path):
                 file_path = markdowns_path
                 print(f"Found in Markdowns")  # 调试
-            else:
+            elif collection is None:
                 # 在合集目录中查找
                 print(f"Searching in collections...")  # 调试
                 for item in os.listdir(posts_path):
@@ -3743,18 +3630,16 @@ class BlogManagerGUI:
                 ))
 
             # 显示内容预览（前500字符）
-            body = content.split('---', 2)[-1].strip()[:500]
+            body = (content.split('---', 2)[-1] if content.startswith('---') else content).strip()
             if body:
                 preview_items.append(ft.Container(height=10))
                 preview_items.append(
                     ft.Text("内容预览:", size=14, weight=ft.FontWeight.BOLD))
                 preview_items.append(ft.Container(
-                    content=ft.Text(body + "...", size=12,
-                                    color=self.CLR_TEXT),
+                    content=ft.Markdown(body[:12000] + ("…" if len(body) > 12000 else ""), selectable=True),
                     padding=10,
                     bgcolor=self.CLR_ACCENT_SOFT,
                     border_radius=8,
-                    height=150,
                 ))
 
             dlg = ft.AlertDialog(
@@ -3767,11 +3652,10 @@ class BlogManagerGUI:
                 ),
                 actions=[
                     ft.TextButton(
-                        "关闭", on_click=lambda e: self.close_dlg(dlg)),
+                        self.t('close'), on_click=lambda e: self.close_dlg(dlg)),
                 ],
             )
-            self.page.overlay.append(dlg)
-            dlg.open = True
+            self.open_dialog(dlg)
             self.page.update()
 
         except Exception as e:
@@ -3782,7 +3666,17 @@ class BlogManagerGUI:
         config_fields = {}
         list_fields = {}
         links_data = []
+        self.settings_status = ft.Text(self.copy('配置已加载', 'Settings loaded'), size=13,
+                                       color=self.CLR_TEXT_SECONDARY, expand=True)
+        def mark_dirty(e=None):
+            self.settings_dirty = True
+            self.settings_status.value = self.copy('有未保存的修改 · Ctrl+S 保存', 'Unsaved changes · Ctrl+S to save')
+            self.settings_status.color = self.CLR_WARN
+            self.page.update()
 
+
+        # Never replace unreadable settings with defaults on save.
+        config_loaded = True
         # 加载当前配置
         try:
             from mainTools.commands import GetConfig
@@ -3792,6 +3686,7 @@ class BlogManagerGUI:
         except Exception as e:
             self.snack(f"加载配置失败: {e}", True)
             current_config = {}
+            config_loaded = False
 
         # 创建配置表单
         form_rows = []
@@ -3824,7 +3719,7 @@ class BlogManagerGUI:
 
         # 主题配置部分
         form_rows.append(ft.Divider())
-        form_rows.append(ft.Text('主题配置', size=20, weight=ft.FontWeight.BOLD))
+        form_rows.append(ft.Text(self.t('theme_config'), size=20, weight=ft.FontWeight.BOLD))
 
         theme_items = [
             ('LightTheme', '浅色主题', 'dropdown', ['day', 'bright']),
@@ -3855,7 +3750,7 @@ class BlogManagerGUI:
             elif field_type == 'number':
                 field = ft.TextField(
                     label=label,
-                    value=str(value) if value else '300',
+                    value=str(value) if value != '' else '300',
                     width=200,
                     keyboard_type=ft.KeyboardType.NUMBER,
                 )
@@ -3871,7 +3766,7 @@ class BlogManagerGUI:
         # 图片上传区域
         form_rows.append(ft.Divider())
         form_rows.append(
-            ft.Text('图片配置', size=20, weight=ft.FontWeight.BOLD, color="#FFFFFF"))
+            ft.Text(self.t('image_config'), size=20, weight=ft.FontWeight.BOLD, color=self.CLR_TEXT))
 
         # 获取项目根目录
         if getattr(sys, 'frozen', False):
@@ -3926,7 +3821,10 @@ class BlogManagerGUI:
             if result:
                 bg_img_uploaded[0] = result
                 self.snack(f"背景图片已上传", False)
-                self.build_ui()  # 刷新界面以显示新图片
+                config_fields['BackgroundImg'].value = result
+                images_section.controls[0].controls[-1] = self.build_image_upload_widget(
+                    '', file_path, on_bg_upload, width=400, height=250)
+                mark_dirty()
 
         def on_head_upload(file_path):
             """头像图片上传回调"""
@@ -3934,7 +3832,10 @@ class BlogManagerGUI:
             if result:
                 head_img_uploaded[0] = result
                 self.snack(f"头像图片已上传", False)
-                self.build_ui()  # 刷新界面以显示新图片
+                config_fields['HeadImg'].value = result
+                images_section.controls[2].controls[-1] = self.build_image_upload_widget(
+                    '', file_path, on_head_upload, width=200, height=200)
+                mark_dirty()
 
         # 图片上传组件
         images_section = ft.Column([
@@ -3944,7 +3845,7 @@ class BlogManagerGUI:
                     self.t('background_img'),
                     size=16,
                     weight=ft.FontWeight.BOLD,
-                    color="#FFFFFF"
+                    color=self.CLR_TEXT
                 ),
                 ft.Text(
                     "用于博客主页的背景图片，建议尺寸：1920x1080px" if self.current_lang == 'zh' else "Background image for blog homepage, recommended size: 1920x1080px",
@@ -3969,7 +3870,7 @@ class BlogManagerGUI:
                     self.t('head_img'),
                     size=16,
                     weight=ft.FontWeight.BOLD,
-                    color="#FFFFFF"
+                    color=self.CLR_TEXT
                 ),
                 ft.Text(
                     "用于个人信息面板的头像，建议尺寸：200x200px" if self.current_lang == 'zh' else "Avatar for personal info panel, recommended size: 200x200px",
@@ -3995,6 +3896,8 @@ class BlogManagerGUI:
         config_fields['HeadImg'] = type(
             'obj', (object,), {'value': head_img_uploaded[0]})()
 
+        form_rows.append(ft.Divider())
+        form_rows.append(ft.Text(self.copy('基本信息', 'General'), size=20, weight=ft.FontWeight.BOLD))
         # 基本配置字段
         for key, label, field_type in config_items:
             value = current_config.get(key, '')
@@ -4222,55 +4125,30 @@ class BlogManagerGUI:
         links = current_config.get('Links', [])
         links_container = ft.Column(spacing=10)
 
-        def build_link_row(link_data, index):
-            """构建单个链接编辑行"""
-            name_field = ft.TextField(
-                label=self.t('link_name'),
-                value=link_data.get('name', ''),
-                width=200,
-            )
-            url_field = ft.TextField(
-                label=self.t('link_url'),
-                value=link_data.get('url', ''),
-                width=350,
-            )
-
+        def build_link_row(link_data):
+            name_field = ft.TextField(label=self.t('link_name'), value=link_data.get('name', ''),
+                                      col={'xs': 12, 'md': 4}, on_change=mark_dirty, border_radius=10)
+            url_field = ft.TextField(label=self.t('link_url'), value=link_data.get('url', ''),
+                                     col={'xs': 10, 'md': 7}, on_change=mark_dirty, border_radius=10)
+            entry = {'name': name_field, 'url': url_field}
             def remove_link(e):
-                links_data[index] = None
-                update_links_ui()
+                links_data.remove(entry)
+                links_container.controls.remove(row)
+                mark_dirty()
+            row = ft.ResponsiveRow([
+                name_field, url_field,
+                ft.IconButton(icon=ft.Icons.DELETE_OUTLINE, icon_color=self.CLR_BAD,
+                              tooltip=self.t('remove_item'), col={'xs': 2, 'md': 1}, on_click=remove_link),
+            ], spacing=10, run_spacing=10)
+            links_data.append(entry)
+            return row
 
-            remove_btn = ft.IconButton(
-                icon=ft.Icons.DELETE,
-                icon_color=self.CLR_BAD,
-                on_click=remove_link,
-            )
-
-            links_data.append({'name': name_field, 'url': url_field})
-
-            return ft.Row([
-                name_field,
-                url_field,
-                remove_btn,
-            ], spacing=10)
-
-        def update_links_ui():
-            """更新链接界面"""
-            links_container.controls.clear()
-            for i, link in enumerate(links):
-                if i < len(links_data) and links_data[i] is not None:
-                    links_container.controls.append(build_link_row(link, i))
-            self.page.update()
-
-        # 初始化链接
-        for i, link in enumerate(links):
-            links_container.controls.append(build_link_row(link, i))
+        for link in links:
+            links_container.controls.append(build_link_row(link))
 
         def add_link(e):
-            """添加新链接"""
-            links.append({'name': '', 'url': ''})
-            links_container.controls.append(build_link_row(
-                {'name': '', 'url': ''}, len(links) - 1))
-            self.page.update()
+            links_container.controls.append(build_link_row({'name': '', 'url': ''}))
+            mark_dirty()
 
         add_link_btn = ft.Button(
             self.t('add_link'),
@@ -4283,7 +4161,37 @@ class BlogManagerGUI:
 
         def save_config(e):
             """保存配置"""
+            if not config_loaded:
+                self.snack(self.copy('配置未能加载，修复配置文件后请重新打开管理工具。',
+                                     'Settings could not be loaded. Repair config.js and reopen the manager.'), True)
+                return
             try:
+                invalid = False
+                limits = {'BackgroundImgOpacity': (0, 1, float), 'BackgroundImgBlur': (0, 100, float),
+                          'PostsPerPage': (1, 1000, int), 'transitionDuration': (0, 10000, int)}
+                for key, (minimum, maximum, convert) in limits.items():
+                    field = config_fields[key]
+                    try:
+                        value = convert(field.value)
+                        if not minimum <= value <= maximum:
+                            raise ValueError()
+                        field.error = None
+                    except (TypeError, ValueError):
+                        field.error = self.copy(f'请输入 {minimum} 到 {maximum} 之间的有效数值',
+                                                     f'Enter a valid number from {minimum} to {maximum}')
+                        invalid = True
+                for link in links_data:
+                    name, url = (link['name'].value or '').strip(), (link['url'].value or '').strip()
+                    link['url'].error = None
+                    if (name or url) and (not name or not re.match(r'^(https?://|mailto:)', url)):
+                        link['url'].error = self.copy('请填写名称和完整的 http(s) 或 mailto 链接',
+                                                           'Enter a name and an http(s) or mailto URL')
+                        invalid = True
+                if invalid:
+                    self.snack(self.copy('请检查基本信息、主题或社交链接中的标记字段。',
+                                         'Check the marked fields in General, Theme or Social links.'), True)
+                    self.page.update()
+                    return
                 # 收集基本配置值
                 config_updates = {}
                 for key, field in config_fields.items():
@@ -4348,7 +4256,10 @@ class BlogManagerGUI:
                     from mainTools.commands import UpdateCryptoPassword
                     update_pwd_cmd = UpdateCryptoPassword()
                     pwd_result = update_pwd_cmd.execute(password)
-                    self.snack(f"{result}\n{pwd_result}", False)
+                    self.settings_dirty = False
+                    self.settings_status.value = self.copy('所有修改已保存', 'All changes saved')
+                    self.settings_status.color = self.CLR_GOOD
+                    self.snack(self.copy('配置已保存', 'Settings saved'))
                 except Exception as pwd_ex:
                     self.snack(f"{result}\n密码保存失败: {pwd_ex}", True)
 
@@ -4357,55 +4268,70 @@ class BlogManagerGUI:
                 import traceback
                 traceback.print_exc()
 
-        save_btn = ft.Button(
-            self.t('save_config'),
-            icon=ft.Icons.SAVE,
-            on_click=save_config,
-            bgcolor=self.CLR_GOOD,
-            color=self.CLR_SURFACE,
-        )
+        self.save_settings = save_config
 
-        # 添加底部保存按钮（方便滚动到最后时保存）
-        form_rows.append(ft.Divider())
-        form_rows.append(ft.Container(content=save_btn, padding=10))
+        # Keep the actual controls mounted across section and main navigation changes.
+        def style_fields(control):
+            if isinstance(control, (ft.TextField, ft.Dropdown)):
+                control.border_radius = 10
+                control.border_color = self.CLR_BORDER
+                control.focused_border_color = self.CLR_ACCENT
+                control.text_size = 14
+                control.width = None
+                if isinstance(control, ft.Dropdown):
+                    control.on_select = mark_dirty
+                else:
+                    control.on_change = mark_dirty
+            elif isinstance(control, ft.Checkbox):
+                control.on_change = mark_dirty
+            for child in getattr(control, 'controls', []):
+                style_fields(child)
+            content = getattr(control, 'content', None)
+            if isinstance(content, ft.Control):
+                style_fields(content)
 
-        # 创建顶部固定的保存提示区域
-        save_reminder = ft.Container(
-            content=ft.Row([
-                ft.Icon(ft.Icons.INFO_OUTLINE,
-                        color=self.CLR_ACCENT, size=20),
-                ft.Text(
-                    self.t('config_save_reminder'),
-                    size=13,
-                    color=self.CLR_ACCENT,
-                    expand=True,
-                ),
-                ft.Button(
-                    self.t('save_config'),
-                    icon=ft.Icons.SAVE,
-                    on_click=save_config,
-                    bgcolor=self.CLR_GOOD,
-                    color=self.CLR_SURFACE,
-                    height=36,
-                ),
-            ], spacing=10),
-            bgcolor=self.CLR_ACCENT_SOFT,
-            padding=15,
-            border_radius=8,
-            border=ft.Border.all(1, self.CLR_BORDER),
-        )
-
+        sections = []
+        heading, controls = None, []
+        for control in form_rows[1:]:
+            if isinstance(control, ft.Divider):
+                if heading is not None:
+                    sections.append((heading, controls))
+                heading, controls = None, []
+            elif heading is None and isinstance(control, ft.Text):
+                heading = control.value
+            else:
+                style_fields(control)
+                field = getattr(control, 'content', None)
+                if isinstance(field, (ft.TextField, ft.Dropdown)):
+                    wide = field.label in [self.t('author_desc'), self.t('project_url'),
+                                           self.t('crypto_password')] or field in list_fields.values()
+                    control.col = {'xs': 12, 'md': 12 if wide else 6}
+                controls.append(control)
+        if heading is not None:
+            sections.append((heading, controls))
+        general = self.copy('基本信息', 'General')
+        sections.sort(key=lambda section: section[0] != general)
+        panels = [ft.Container(ft.Column([
+            ft.Text(title, size=19, weight=ft.FontWeight.W_600, color=self.CLR_TEXT),
+            ft.ResponsiveRow(controls, spacing=16, run_spacing=16),
+        ], spacing=16), padding=24, bgcolor=self.CLR_SURFACE, border_radius=14,
+            border=ft.Border.all(1, self.CLR_BORDER), visible=index == 0)
+            for index, (title, controls) in enumerate(sections)]
+        def select_section(e):
+            for index, panel in enumerate(panels):
+                panel.visible = index == int(e.control.value)
+            self.page.update()
+        selector = ft.Dropdown(value='0', width=240, dense=True, border_radius=10,
+                               border_color=self.CLR_BORDER, text_size=14,
+                               options=[ft.dropdown.Option(str(index), title) for index, (title, _) in enumerate(sections)],
+                               on_select=select_section)
         return ft.Column([
-            save_reminder,
-            ft.Container(height=10),
-            ft.Container(
-                content=ft.Column(
-                    form_rows,
-                    scroll=ft.ScrollMode.AUTO,
-                ),
-                expand=True,
-            ),
-        ], expand=True, spacing=0)
+            ft.Row([ft.Text(self.t('settings'), size=26, weight=ft.FontWeight.W_700,
+                            color=self.CLR_TEXT, expand=True),
+                    self.primary_button(self.t('save_config'), ft.Icons.SAVE_OUTLINED, save_config)]),
+            ft.Row([selector, self.settings_status], spacing=16),
+            ft.ListView(panels, spacing=0, expand=True),
+        ], spacing=18, expand=True)
 
     def show_github_dialog(self, e):
         """显示GitHub部署配置对话框"""
@@ -4543,8 +4469,7 @@ class BlogManagerGUI:
             ],
         )
 
-        self.page.overlay.append(dlg)
-        dlg.open = True
+        self.open_dialog(dlg)
         self.page.update()
 
     def verify_github_token(self, token_field, status_text):
@@ -4587,8 +4512,7 @@ class BlogManagerGUI:
             modal=True,
         )
 
-        self.page.overlay.append(loading_dlg)
-        loading_dlg.open = True
+        self.open_dialog(loading_dlg)
         self.page.update()
 
         def deploy_task():
@@ -4667,8 +4591,7 @@ class BlogManagerGUI:
                                 '确定', on_click=lambda e: self.close_dlg(success_dlg))
                         ],
                     )
-                    self.page.overlay.append(success_dlg)
-                    success_dlg.open = True
+                    self.open_dialog(success_dlg)
                     self.page.update()
                 else:
                     self.snack(result.get('message', '部署失败'), True)

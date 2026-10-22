@@ -1567,126 +1567,19 @@ class GetConfig(Command):
     description = "Gets the current blog configuration from config.js."
 
     def execute(self):
-        base_path = get_base_path()
-        config_path = os.path.join(base_path, 'src', 'config.js')
-
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Config file not found: {config_path}")
-
-        with open(config_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # 解析配置文件
-        config = {}
-
-        # 匹配字符串值（单引号或双引号）- 注意 CryptoTag 也会被这里匹配
-        string_pattern = r"(\w+):\s*['\"]([^'\"]*)['\"]"
-        for match in re.finditer(string_pattern, content):
-            key = match.group(1)
-            value = match.group(2)
-            config[key] = value
-
-        # 匹配数字值（包括小数）
-        number_pattern = r"(\w+):\s*(\d+\.?\d*)\s*[,\/]"
-        for match in re.finditer(number_pattern, content):
-            key = match.group(1)
-            value = match.group(2)
-            if key not in config:  # 避免覆盖已匹配的字符串
-                config[key] = float(value) if '.' in value else int(value)
-
-        # 匹配布尔值
-        bool_pattern = r"(\w+):\s*(true|false)\s*[,\/]"
-        for match in re.finditer(bool_pattern, content):
-            key = match.group(1)
-            config[key] = match.group(2) == 'true'
-
-        # 匹配简单字符串数组（如 InfoListUp）
-        list_pattern = r"(\w+List(?:Up|Down|Float)?):\s*\[([^\]]+)\]"
-        for match in re.finditer(list_pattern, content):
-            key = match.group(1)
-            array_content = match.group(2)
-            # 提取数组中的字符串
-            items = re.findall(r"['\"]([^'\"]+)['\"]", array_content)
-            config[key] = items
-
-        # 匹配 Links 数组（对象数组）
-        links_pattern = r"Links:\s*\[(.*?)\]"
-        links_match = re.search(links_pattern, content, re.DOTALL)
-        if links_match:
-            links_content = links_match.group(1)
-            links = []
-            # 匹配每个链接对象（支持尾随逗号）
-            link_objects = re.finditer(
-                r"\{\s*name:\s*['\"]([^'\"]+)['\"]\s*,\s*url:\s*['\"]([^'\"]+)['\"]\s*,?\s*\}", links_content, re.DOTALL)
-            for link_obj in link_objects:
-                links.append({
-                    'name': link_obj.group(1),
-                    'url': link_obj.group(2)
-                })
-            config['Links'] = links
-
-        return json.dumps(config, indent=2, ensure_ascii=False)
+        from config_io import read_config
+        path = os.path.join(get_base_path(), 'src', 'config.js')
+        return json.dumps(read_config(path), indent=2, ensure_ascii=False)
 
 
 class UpdateConfig(Command):
     description = "Updates the blog configuration in config.js."
 
     def execute(self, **kwargs):
-        base_path = get_base_path()
-        config_path = os.path.join(base_path, 'src', 'config.js')
-
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Config file not found: {config_path}")
-
-        with open(config_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # 更新配置项
-        for key, value in kwargs.items():
-            # 根据值类型决定如何格式化
-            if isinstance(value, list):
-                # 处理数组类型
-                if key == 'Links':
-                    # Links 是对象数组
-                    links_str = '[\n'
-                    for link in value:
-                        links_str += f"        {{\n            name: '{link['name']}',\n            url: '{link['url']}',\n        }},\n"
-                    links_str += '    ]'
-                    pattern = rf"{key}:\s*\[[^\]]*\]"
-                    content = re.sub(
-                        pattern, f"{key}: {links_str}", content, flags=re.DOTALL)
-                else:
-                    # 其他 List 是字符串数组
-                    if value:
-                        items_str = ',\n        '.join(
-                            [f"'{item}'" for item in value])
-                        formatted_value = f"[\n        {items_str},\n    ]"
-                    else:
-                        formatted_value = "[\n    ]"
-                    pattern = rf"{key}:\s*\[[^\]]*\]"
-                    content = re.sub(
-                        pattern, f"{key}: {formatted_value}", content, flags=re.DOTALL)
-            elif isinstance(value, str):
-                formatted_value = f"'{value}'"
-                pattern = rf"\b{key}\s*:\s*[^,\n]+([,\/])"
-                replacement = f"{key}: {formatted_value}\\1"
-                content = re.sub(pattern, replacement, content)
-            elif isinstance(value, bool):
-                formatted_value = 'true' if value else 'false'
-                pattern = rf"\b{key}\s*:\s*[^,\n]+([,\/])"
-                replacement = f"{key}: {formatted_value}\\1"
-                content = re.sub(pattern, replacement, content)
-            else:
-                formatted_value = str(value)
-                pattern = rf"\b{key}\s*:\s*[^,\n]+([,\/])"
-                replacement = f"{key}: {formatted_value}\\1"
-                content = re.sub(pattern, replacement, content)
-
-        # 写回文件
-        with open(config_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        return f"Configuration updated successfully!"
+        from config_io import write_config
+        path = os.path.join(get_base_path(), 'src', 'config.js')
+        write_config(path, kwargs)
+        return "Configuration updated successfully!"
 
 
 class UpdateCryptoPassword(Command):
