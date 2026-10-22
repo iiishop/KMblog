@@ -9,12 +9,13 @@
 <script setup>
 import { ref, watch, nextTick, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue';
 import fm from 'front-matter';
+import { prepareMarkdownImages } from '@/utils/markdownImages';
 
 // 复用MarkdownPanel.vue的渲染模块
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import mermaid from 'mermaid';
+import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 
 // 复用MarkdownPanel.vue的Block组件
 const SteamGameBlock = defineAsyncComponent(() =>
@@ -51,25 +52,29 @@ const emit = defineEmits(['scroll']);
 
 const htmlContent = ref('');
 const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 let isScrollingFromEditor = false; // 标记是否来自编辑器的滚动
+let renderVersion = 0;
+let scrollResetTimer = null;
 
 // 渲染Markdown - 完全复用MarkdownPanel.vue的逻辑
 const renderMarkdown = async (markdown) => {
+    const version = ++renderVersion;
     try {
         // 解析front-matter
         const { body } = fm(markdown);
 
         // 预处理：修复带空格的图片路径（添加尖括号）
-        const processedBody = body.replace(
-            /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-            '![$1](<$2>)'
-        );
+        const processedBody = prepareMarkdownImages(body);
 
         // 使用相同的markdown-it实例渲染
-        htmlContent.value = md.render(processedBody);
+        const rendered = md.render(processedBody);
+        unmountDynamicComponents(contentRef.value);
+        htmlContent.value = rendered;
 
         // 在nextTick中渲染动态组件
         await nextTick();
+        if (version !== renderVersion) return;
         const container = contentRef.value;
         if (container) {
             // 使用相同的动态组件渲染器
@@ -82,32 +87,7 @@ const renderMarkdown = async (markdown) => {
                 'carouselblock': CarouselBlock
             });
 
-            // 渲染Mermaid图表
-            await nextTick();
-            if (typeof mermaid !== 'undefined') {
-                try {
-                    mermaid.mermaidAPI.reset();
-                    await mermaid.run({
-                        nodes: container.querySelectorAll('.mermaid'),
-                    });
-
-                    // 修复SVG尺寸
-                    await nextTick();
-                    const mermaidSvgs = container.querySelectorAll('.mermaid svg');
-                    mermaidSvgs.forEach(svg => {
-                        svg.removeAttribute('width');
-                        svg.removeAttribute('height');
-                        svg.style.width = '100%';
-                        svg.style.height = '400px';
-                        svg.style.maxWidth = '100%';
-                        svg.style.maxHeight = '400px';
-                        svg.style.display = 'block';
-                        svg.style.margin = '0 auto';
-                    });
-                } catch (error) {
-                    console.warn('Mermaid rendering failed:', error);
-                }
-            }
+            await mermaidRenderer.render();
         }
     } catch (error) {
         console.error('Markdown rendering failed:', error);
@@ -128,7 +108,8 @@ watch(() => props.scrollSync, (scrollPercentage) => {
         container.scrollTop = maxScroll * scrollPercentage;
 
         // 重置标记
-        setTimeout(() => {
+        clearTimeout(scrollResetTimer);
+        scrollResetTimer = setTimeout(() => {
             isScrollingFromEditor = false;
         }, 100);
     }
@@ -161,6 +142,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    renderVersion++;
+    mermaidRenderer.dispose();
+    clearTimeout(scrollResetTimer);
+    unmountDynamicComponents(contentRef.value);
     if (previewContainer) {
         previewContainer.removeEventListener('scroll', handlePreviewScroll);
     }

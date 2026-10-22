@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, shallowRef, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
     contentSelector: {
@@ -38,11 +38,14 @@ const props = defineProps({
     }
 });
 
-const tocItems = ref([]);
+const tocItems = shallowRef([]);
 const activeHeadingId = ref('');
 const collapsed = ref(false);
 const headingObserver = ref(null);
 const contentObserver = ref(null);
+let retryTimer = null;
+let refreshFrame = null;
+let disposed = false;
 
 // 提取目录
 const extractTOC = () => {
@@ -78,7 +81,7 @@ const setupHeadingObserver = () => {
         headingObserver.value.disconnect();
     }
 
-    if (tocItems.value.length === 0) return;
+    if (tocItems.value.length === 0 || typeof IntersectionObserver === 'undefined') return;
 
     const options = {
         rootMargin: '-80px 0px -80% 0px',
@@ -121,16 +124,21 @@ const scrollToHeading = (id) => {
 
 // 监听内容变化，重新提取目录
 const observeContentChanges = () => {
+    if (disposed) return;
     const container = document.querySelector(props.contentSelector);
     if (!container) {
         // 如果容器还不存在，延迟重试
-        setTimeout(observeContentChanges, 500);
+        retryTimer = setTimeout(observeContentChanges, 500);
         return;
     }
 
     // 使用 MutationObserver 监听内容变化
     contentObserver.value = new MutationObserver(() => {
-        extractTOC();
+        if (refreshFrame !== null) return;
+        refreshFrame = requestAnimationFrame(() => {
+            refreshFrame = null;
+            if (!disposed) extractTOC();
+        });
     });
 
     contentObserver.value.observe(container, {
@@ -147,6 +155,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    disposed = true;
+    clearTimeout(retryTimer);
+    if (refreshFrame !== null) cancelAnimationFrame(refreshFrame);
     if (headingObserver.value) {
         headingObserver.value.disconnect();
     }

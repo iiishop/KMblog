@@ -173,13 +173,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue';
 
 // 使用完整的 Markdown 渲染系统
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import mermaid from 'mermaid';
+import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 import config from '@/config';
 
 // 导入所有嵌入式组件
@@ -228,6 +228,7 @@ const emit = defineEmits(['close', 'next', 'prev']);
 // Refs
 const modalRef = ref(null);
 const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 
 // 状态
 const isOpen = ref(false);
@@ -573,8 +574,12 @@ watch(isOpen, (newVal) => {
 });
 
 // 监听描述内容变化，渲染动态组件和 Mermaid
-watch(renderedDescription, async () => {
+watch([renderedDescription, isFullscreen], async (_, __, onCleanup) => {
+    let cancelled = false;
+    onCleanup(() => { cancelled = true; });
+    unmountDynamicComponents(contentRef.value);
     await nextTick();
+    if (cancelled) return;
     const container = contentRef.value;
     if (container) {
         // 渲染动态组件（Bilibili, Steam, Bangumi, GitHub, Xiaohongshu）
@@ -586,40 +591,21 @@ watch(renderedDescription, async () => {
             'xiaohongshunoteblock': XiaohongshuNoteBlock
         });
 
-        // 渲染 Mermaid 图表
-        await nextTick();
-        if (typeof mermaid !== 'undefined') {
-            try {
-                await mermaid.run({
-                    nodes: container.querySelectorAll('.mermaid'),
-                });
-
-                // 修复 SVG 尺寸
-                await nextTick();
-                const mermaidSvgs = container.querySelectorAll('.mermaid svg');
-                mermaidSvgs.forEach(svg => {
-                    svg.removeAttribute('width');
-                    svg.removeAttribute('height');
-                    svg.style.width = '100%';
-                    svg.style.height = '400px';
-                    svg.style.maxWidth = '100%';
-                    svg.style.maxHeight = '400px';
-                    svg.style.display = 'block';
-                    svg.style.margin = '0 auto';
-                });
-            } catch (error) {
-                console.warn('[ImageModal] Mermaid rendering failed:', error);
-            }
+        try {
+            await mermaidRenderer.render();
+        } catch (error) {
+            console.warn('[ImageModal] Mermaid rendering failed:', error);
         }
     }
-});
+}, { immediate: true });
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
-    loadMarkdownDescription();
 });
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
+    mermaidRenderer.dispose();
+    unmountDynamicComponents(contentRef.value);
     document.removeEventListener('keydown', handleKeydown);
 });
 </script>
