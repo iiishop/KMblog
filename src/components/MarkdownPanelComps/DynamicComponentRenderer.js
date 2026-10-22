@@ -2,6 +2,17 @@ import { createApp, h } from 'vue';
 
 const mountedApps = new Map();
 
+// Only dispose apps owned by this preview; other rendered articles stay mounted.
+export function unmountDynamicComponents(container) {
+    if (!container) return;
+    for (const [element, app] of mountedApps) {
+        if (element === container || container.contains(element)) {
+            app.unmount();
+            mountedApps.delete(element);
+        }
+    }
+}
+
 export function renderDynamicComponents(container, componentsMap) {
     if (container) {
         Object.keys(componentsMap).forEach((selector) => {

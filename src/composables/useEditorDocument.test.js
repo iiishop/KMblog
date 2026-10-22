@@ -117,6 +117,18 @@ describe('editor document reliability', () => {
         expect(doc.issue.value.kind).toBe('load');
     });
 
+    it('does not carry discarded edits into a renamed document', async () => {
+        await doc.open(file('a.md'));
+        doc.content.value = 'discarded';
+        const leaving = doc.canLeave();
+        doc.answerLeave('discard');
+        expect(await leaving).toBe(true);
+        doc.relocate('/Posts/Markdowns/renamed.md', 'renamed.md');
+        expect(doc.content.value).toBe('original');
+        expect(doc.isDirty.value).toBe(false);
+        expect(localStorage.getItem('draft:Markdowns/renamed.md')).toBeNull();
+    });
+
     it('persists pending edits and cancels timers when disposed', async () => {
         await doc.open(file('a.md'));
         doc.content.value = 'last keystroke';

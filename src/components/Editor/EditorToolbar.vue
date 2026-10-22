@@ -1,5 +1,5 @@
 <template>
-    <div class="ethereal-toolbar">
+    <div class="ethereal-toolbar" :class="{ 'tools-expanded': toolsExpanded, 'document-disabled': disabled }">
         <!-- 呼吸式背景光晕 -->
         <div class="toolbar-glow" :class="{ 'active': saveStatus === 'saving' }"></div>
 
@@ -20,6 +20,8 @@
                         <div class="file-indicator"></div>
                         <span class="file-name">{{ fileName || '未选择文件' }}</span>
                     </div>
+
+                    <button class="tool-btn mobile-tools-toggle" @click="toolsExpanded = !toolsExpanded" :aria-expanded="toolsExpanded">格式工具</button>
 
                     <div class="divider"></div>
 
@@ -437,6 +439,8 @@ const emit = defineEmits(['save', 'insert-format', 'insert-block', 'toggle-file-
 // Theme management
 const { currentMode, isDarkMode, toggleTheme } = useTheme();
 
+const toolsExpanded = ref(false);
+
 // Dropdown states
 const dropdownVisible = ref(false);
 const dropdownRef = ref(null);
@@ -574,32 +578,14 @@ const saveStatusClass = computed(() => {
     return {
         'status-saved': props.saveStatus === 'saved',
         'status-saving': props.saveStatus === 'saving',
-        'status-unsaved': props.saveStatus === 'unsaved'
+        'status-unsaved': props.saveStatus === 'unsaved',
+        'status-error': ['error', 'conflict'].includes(props.saveStatus)
     };
 });
 
 const saveStatusText = computed(() => {
     if (props.lastSaveTime && props.saveStatus === 'saved') {
-        const now = Date.now();
-        const diff = now - props.lastSaveTime;
-
-        if (diff < 60000) { // 小于1分钟
-            return '刚刚保存';
-        } else if (diff < 3600000) { // 小于1小时
-            const minutes = Math.floor(diff / 60000);
-            return `${minutes}分钟前`;
-        } else if (diff < 86400000) { // 小于1天
-            const hours = Math.floor(diff / 3600000);
-            return `${hours}小时前`;
-        } else {
-            const date = new Date(props.lastSaveTime);
-            return date.toLocaleString('zh-CN', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
+        return `已保存 ${new Date(props.lastSaveTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
     switch (props.saveStatus) {
@@ -748,6 +734,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.ethereal-toolbar .mobile-tools-toggle { display: none; }
+.document-disabled .toolbar-tools > .tool-group, .document-disabled .toolbar-tools > .dropdown, .document-disabled .toolbar-tools > .format-btn { opacity: .4; pointer-events: none; }
+.status-error { color: #c24b36; }
+button:focus-visible { outline: 2px solid var(--theme-primary); outline-offset: 2px; }
 .ethereal-toolbar {
     position: relative;
     background: var(--theme-panel-bg);
@@ -1357,6 +1347,11 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+    .ethereal-toolbar .mobile-tools-toggle { display: inline-flex; }
+    .ethereal-toolbar:not(.tools-expanded) .toolbar-tools > .tool-group,
+    .ethereal-toolbar:not(.tools-expanded) .toolbar-tools > .dropdown,
+    .ethereal-toolbar:not(.tools-expanded) .toolbar-tools > .format-btn,
+    .ethereal-toolbar:not(.tools-expanded) .toolbar-tools > .divider { display: none; }
     .toolbar-content {
         padding: 8px 13px;
     }

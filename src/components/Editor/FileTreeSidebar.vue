@@ -1,5 +1,5 @@
 <template>
-    <div class="ethereal-sidebar" :class="{ 'collapsed': !visible }" :style="{ width: visible ? width + 'px' : '0' }">
+    <div class="ethereal-sidebar" :class="{ 'collapsed': !visible }" :inert="!visible" :aria-hidden="!visible" :style="{ width: visible ? width + 'px' : '0' }">
         <!-- 侧边栏光晕背景 -->
         <div class="sidebar-glow"></div>
 
@@ -10,9 +10,23 @@
                 </svg>
                 <h3>文件浏览器</h3>
             </div>
+            <button class="sidebar-action" @click="$emit('update:visible', false)" aria-label="关闭文件浏览器">×</button>
         </div>
 
-        <div class="file-tree" @contextmenu.prevent="handleTreeContextMenu">
+        <div class="file-search">
+            <input ref="searchInput" v-model="query" type="search" aria-label="搜索文章" placeholder="搜索文章或路径…"
+                @keydown.enter.prevent="openFirstResult" @keydown.down.prevent="focusFirstResult" @keydown.esc="query = ''" />
+            <button class="sidebar-action new-file" @click="handleCreateFileInRoot" title="新建文章" aria-label="新建文章">+</button>
+        </div>
+        <div v-if="query.trim()" class="search-results" ref="searchResults" aria-label="搜索结果">
+            <p class="search-count" role="status">{{ matches.length }} 篇匹配文章</p>
+            <button v-for="node in matches" :key="node.path" class="search-result" :aria-current="currentFile?.path === node.path ? 'page' : undefined"
+                @click="$emit('file-select', node)">
+                <strong>{{ node.name }}</strong><small>{{ node.path.replace('/Posts/', '') }}</small>
+            </button>
+            <p v-if="!matches.length" class="search-count">试试更短的文件名或路径。</p>
+        </div>
+        <div v-show="!query.trim()" class="file-tree" @contextmenu.prevent="handleTreeContextMenu">
             <FileTreeNode v-for="node in files" :key="node.path" :node="node" :current-file="currentFile"
                 @select="$emit('file-select', $event)" @create="$emit('file-create', $event)"
                 @delete="$emit('file-delete', $event)" @move="$emit('file-move', $event)"
@@ -64,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import FileTreeNode from './FileTreeNode.vue';
 
 const props = defineProps({
@@ -100,6 +114,29 @@ const emit = defineEmits([
     'external-file-drop'
 ]);
 
+const query = ref('');
+const searchInput = ref(null);
+const searchResults = ref(null);
+const articles = computed(() => {
+    const result = [];
+    const visit = nodes => nodes.forEach(node => {
+        if (node.type === 'folder') visit(node.children || []);
+        else if (/\.md$/i.test(node.name)) result.push(node);
+    });
+    visit(props.files);
+    return result;
+});
+const matches = computed(() => {
+    const terms = query.value.trim().toLocaleLowerCase().split(/\s+/);
+    return articles.value.filter(node => terms.every(term => node.path.toLocaleLowerCase().includes(term)));
+});
+const openFirstResult = () => { if (query.value.trim() && matches.value[0]) emit('file-select', matches.value[0]); };
+const focusFirstResult = () => searchResults.value?.querySelector('button')?.focus();
+defineExpose({ focusSearch: () => { searchInput.value?.focus(); searchInput.value?.select(); } });
+let stopResize;
+const closeMenu = () => { showTreeContextMenu.value = false; };
+let menuTimer;
+
 // Tree context menu state
 const showTreeContextMenu = ref(false);
 const treeContextMenuStyle = ref({});
@@ -116,16 +153,8 @@ const handleTreeContextMenu = (e) => {
             left: `${e.clientX}px`
         };
 
-        // Close menu when clicking outside
-        const closeMenu = () => {
-            showTreeContextMenu.value = false;
-            document.removeEventListener('click', closeMenu);
-        };
-
-        // Delay to prevent immediate close
-        setTimeout(() => {
-            document.addEventListener('click', closeMenu);
-        }, 0);
+        clearTimeout(menuTimer);
+        menuTimer = setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
     }
 };
 
@@ -169,6 +198,7 @@ const handleCreateFolderInRoot = () => {
 // Handle resize drag
 const startResize = (e) => {
     e.preventDefault();
+    stopResize?.();
 
     const startX = e.clientX;
     const startWidth = props.width;
@@ -189,6 +219,8 @@ const startResize = (e) => {
         document.body.style.userSelect = '';
     };
 
+    stopResize = handleMouseUp;
+
     // Prevent text selection during drag
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
@@ -196,9 +228,25 @@ const startResize = (e) => {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
 };
+onBeforeUnmount(() => {
+    stopResize?.();
+    clearTimeout(menuTimer);
+    document.removeEventListener('click', closeMenu);
+});
 </script>
 
 <style scoped>
+.file-search { display: flex; gap: 6px; padding: 0 12px 12px; }
+.file-search input { width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--theme-panel-border); border-radius: 6px; background: var(--theme-body-bg); color: var(--theme-body-text); font-size: 13px; }
+.sidebar-action { border: 0; background: transparent; color: var(--theme-body-text); font-size: 24px; cursor: pointer; padding: 2px 8px; }
+.search-results { overflow-y: auto; flex: 1; padding: 0 8px; }
+.search-count { color: var(--theme-meta-text); font-size: 12px; padding: 8px; }
+.search-result { display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: left; padding: 12px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--theme-body-text); cursor: pointer; }
+.search-result small { font-size: 11px; opacity: .65; overflow-wrap: anywhere; }
+.search-result strong { font-size: 13px; overflow-wrap: anywhere; }
+.search-result:hover, .search-result[aria-current] { background: var(--theme-surface-hover); }
+.file-search input:focus-visible, .sidebar-action:focus-visible, .search-result:focus-visible { outline: 2px solid var(--theme-primary); outline-offset: -2px; }
+
 /* === 侧边栏：优雅的文件导航 === */
 
 .ethereal-sidebar {

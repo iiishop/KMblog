@@ -1,5 +1,6 @@
 <template>
     <div class="markdown-preview-container">
+        <p v-if="renderError" class="render-error" role="status">{{ renderError }}</p>
         <article class="post-content markdown" ref="contentRef">
             <div v-html="htmlContent"></div>
         </article>
@@ -13,7 +14,7 @@ import fm from 'front-matter';
 // 复用MarkdownPanel.vue的渲染模块
 import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
 import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
+import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
 import mermaid from 'mermaid';
 
 // 复用MarkdownPanel.vue的Block组件
@@ -37,6 +38,7 @@ const CarouselBlock = defineAsyncComponent(() =>
 );
 
 const props = defineProps({
+    active: { type: Boolean, default: true },
     content: {
         type: String,
         required: true
@@ -51,84 +53,73 @@ const emit = defineEmits(['scroll']);
 
 const htmlContent = ref('');
 const contentRef = ref(null);
-let isScrollingFromEditor = false; // 标记是否来自编辑器的滚动
+const renderError = ref('');
+let isScrollingFromEditor = false;
+let renderTimer;
+let scrollTimer;
+let disposed = false;
+let revision = 0;
+let rendering = false;
+let pending = false;
 
-// 渲染Markdown - 完全复用MarkdownPanel.vue的逻辑
-const renderMarkdown = async (markdown) => {
+// Coalesce typing bursts, and serialize asynchronous chart rendering. Never
+// let an older render mount apps into a newer document's DOM.
+async function renderMarkdown() {
+    if (rendering || disposed || !props.active) return;
+    rendering = true;
+    pending = false;
+    const currentRevision = revision;
     try {
-        // 解析front-matter
-        const { body } = fm(markdown);
-
-        // 预处理：修复带空格的图片路径（添加尖括号）
-        const processedBody = body.replace(
-            /!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g,
-            '![$1](<$2>)'
-        );
-
-        // 使用相同的markdown-it实例渲染
-        htmlContent.value = md.render(processedBody);
-
-        // 在nextTick中渲染动态组件
+        const { body } = fm(props.content);
+        const processed = body.replace(/!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g, '![$1](<$2>)');
+        const html = md.render(processed);
+        unmountDynamicComponents(contentRef.value);
+        htmlContent.value = html;
+        renderError.value = '';
         await nextTick();
         const container = contentRef.value;
-        if (container) {
-            // 使用相同的动态组件渲染器
-            renderDynamicComponents(container, {
-                'steamgameblock': SteamGameBlock,
-                'bangumiblock': BangumiBlock,
-                'bilibilivideoblock': BilibiliVideoBlock,
-                'githubrepoblock': GithubRepoBlock,
-                'xiaohongshunoteblock': XiaohongshuNoteBlock,
-                'carouselblock': CarouselBlock
-            });
-
-            // 渲染Mermaid图表
-            await nextTick();
-            if (typeof mermaid !== 'undefined') {
-                try {
-                    mermaid.mermaidAPI.reset();
-                    await mermaid.run({
-                        nodes: container.querySelectorAll('.mermaid'),
-                    });
-
-                    // 修复SVG尺寸
-                    await nextTick();
-                    const mermaidSvgs = container.querySelectorAll('.mermaid svg');
-                    mermaidSvgs.forEach(svg => {
-                        svg.removeAttribute('width');
-                        svg.removeAttribute('height');
-                        svg.style.width = '100%';
-                        svg.style.height = '400px';
-                        svg.style.maxWidth = '100%';
-                        svg.style.maxHeight = '400px';
-                        svg.style.display = 'block';
-                        svg.style.margin = '0 auto';
-                    });
-                } catch (error) {
-                    console.warn('Mermaid rendering failed:', error);
-                }
+        if (disposed || currentRevision !== revision || !container || !props.active) return;
+        renderDynamicComponents(container, {
+            steamgameblock: SteamGameBlock, bangumiblock: BangumiBlock,
+            bilibilivideoblock: BilibiliVideoBlock, githubrepoblock: GithubRepoBlock,
+            xiaohongshunoteblock: XiaohongshuNoteBlock, carouselblock: CarouselBlock
+        });
+        const nodes = container.querySelectorAll('.mermaid');
+        if (nodes.length) {
+            try {
+                await mermaid.run({ nodes, suppressErrors: true });
+            } catch {
+                if (!disposed && currentRevision === revision) renderError.value = '图表语法暂时不完整，请继续编辑。';
             }
         }
     } catch (error) {
-        console.error('Markdown rendering failed:', error);
+        if (!disposed && currentRevision === revision) renderError.value = `预览暂未更新，请检查文章头部格式：${error.message}`;
+    } finally {
+        rendering = false;
+        if (pending && !disposed && props.active) {
+            clearTimeout(renderTimer);
+            renderTimer = setTimeout(renderMarkdown, 180);
+        }
     }
-};
-
-// 监听内容变化
-watch(() => props.content, (newContent) => {
-    renderMarkdown(newContent);
+}
+watch(() => [props.content, props.active], () => {
+    revision++;
+    pending = true;
+    clearTimeout(renderTimer);
+    if (props.active) renderTimer = setTimeout(renderMarkdown, 180);
 }, { immediate: true });
 
 // 滚动同步 - 从编辑器到预览
 watch(() => props.scrollSync, (scrollPercentage) => {
-    if (contentRef.value) {
+    if (previewContainer && props.active) {
         isScrollingFromEditor = true;
-        const container = contentRef.value.parentElement;
+        const container = previewContainer;
         const maxScroll = container.scrollHeight - container.clientHeight;
         container.scrollTop = maxScroll * scrollPercentage;
 
         // 重置标记
-        setTimeout(() => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
             isScrollingFromEditor = false;
         }, 100);
     }
@@ -153,14 +144,19 @@ let previewContainer = null;
 
 onMounted(() => {
     if (contentRef.value) {
-        previewContainer = contentRef.value.parentElement;
+        previewContainer = contentRef.value.closest('.preview-panel') || contentRef.value.parentElement;
         if (previewContainer) {
-            previewContainer.addEventListener('scroll', handlePreviewScroll);
+            previewContainer.addEventListener('scroll', handlePreviewScroll, { passive: true });
         }
     }
 });
 
 onBeforeUnmount(() => {
+    disposed = true;
+    revision++;
+    clearTimeout(renderTimer);
+    clearTimeout(scrollTimer);
+    unmountDynamicComponents(contentRef.value);
     if (previewContainer) {
         previewContainer.removeEventListener('scroll', handlePreviewScroll);
     }
@@ -168,8 +164,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.render-error { padding: 10px; border-left: 3px solid #c24b36; font-size: 13px; line-height: 1.6; }
 .markdown-preview-container {
-    overflow-y: auto;
+    overflow-wrap: anywhere;
     padding: 2rem;
     background-color: var(--theme-content-bg);
     transition: var(--theme-transition-colors);

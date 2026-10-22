@@ -118,7 +118,16 @@ export function useEditorDocument({ api, normalizePath, storageKey, onSaved = ()
         leavePromise = (async () => {
             const choice = await new Promise(resolve => { resolveLeave = resolve; leavePrompt.value = true; });
             if (choice === 'save') return save();
-            if (choice === 'discard') { removeDraft(); return true; }
+            if (choice === 'discard') {
+                hydrating = true;
+                content.value = savedContent.value;
+                hydrating = false;
+                isNew.value = false;
+                issue.value = null;
+                clearTimeout(draftTimer);
+                removeDraft();
+                return true;
+            }
             return false;
         })();
         try { return await leavePromise; }
