@@ -19,12 +19,12 @@ describe('gallery description lifecycle', () => {
         wrapper = create({ description: 'Initial' });
         await flushPromises();
         expect(renderDynamicComponents).toHaveBeenCalledTimes(1);
-        const container = wrapper.find('.description-content').element;
+        const container = wrapper.find('article.markdown').element;
         await wrapper.setProps({ description: 'Updated' });
         await flushPromises();
         expect(unmountDynamicComponents).toHaveBeenCalledWith(container);
         expect(wrapper.find('.description-content').text()).toBe('Updated');
-        const updatedContainer = wrapper.find('.description-content').element;
+        const updatedContainer = wrapper.find('article.markdown').element;
         unmountDynamicComponents.mockClear();
         wrapper.unmount();
         wrapper = null;

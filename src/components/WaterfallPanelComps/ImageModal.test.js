@@ -35,16 +35,9 @@ vi.mock('animejs', () => ({
     }),
 }));
 
-// Mock markdown-it
-vi.mock('markdown-it', () => {
-    return {
-        default: class MarkdownIt {
-            constructor() {
-                this.render = vi.fn((text) => `<p>${text}</p>`);
-            }
-        }
-    };
-});
+// Mock only the renderer boundary; retain modal and description behavior.
+vi.mock('@/components/MarkdownPanelComps/MarkdownRenender.js', () => ({ default: { render: text => `<p>${text}</p>` } }));
+vi.mock('mermaid', () => ({ default: { run: vi.fn() } }));
 
 describe('ImageModal.vue - Keyboard Support', () => {
     let wrapper;
@@ -96,6 +89,8 @@ describe('ImageModal.vue - Keyboard Support', () => {
         wrapper = mount(ImageModal, {
             props: {
                 image: mockImage,
+                images: [mockImage, mockImage, mockImage],
+                currentIndex: 1,
             },
         });
 
@@ -113,6 +108,8 @@ describe('ImageModal.vue - Keyboard Support', () => {
         wrapper = mount(ImageModal, {
             props: {
                 image: mockImage,
+                images: [mockImage, mockImage, mockImage],
+                currentIndex: 1,
             },
         });
 
@@ -153,6 +150,7 @@ describe('ImageModal.vue - Markdown Loading', () => {
         global.fetch = vi.fn(() =>
             Promise.resolve({
                 ok: true,
+                headers: { get: () => 'text/markdown' },
                 text: () => Promise.resolve('# Test Markdown'),
             })
         );

@@ -63,13 +63,14 @@ class HeaderParticle {
     if (this.y < 0) this.y = canvasHeight;
   }
 
-  draw(ctx, isDark) {
-    ctx.fillStyle = isDark
-      ? `rgba(200, 200, 255, ${this.opacity})`
-      : `rgba(102, 126, 234, ${this.opacity})`;
+  draw(ctx, color) {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -99,9 +100,10 @@ function animateParticles() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const particleColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-index').trim();
   particles.forEach(particle => {
     particle.update(canvas.width, canvas.height);
-    particle.draw(ctx, isDarkMode.value);
+    particle.draw(ctx, particleColor);
   });
 
   particleAnimationFrame = requestAnimationFrame(animateParticles);

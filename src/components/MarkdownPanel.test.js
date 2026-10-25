@@ -57,14 +57,25 @@ describe('Markdown article lifecycle', () => {
         axios.get.mockReturnValue(pending.promise);
         wrapper = create();
         const signal = axios.get.mock.calls[0][1].signal;
-        const container = wrapper.find('.post-content').element;
+        expect(wrapper.find('.post-content').exists()).toBe(false);
         wrapper.unmount();
         wrapper = null;
         expect(signal.aborted).toBe(true);
-        expect(unmountDynamicComponents).toHaveBeenCalledWith(container);
+        expect(unmountDynamicComponents).not.toHaveBeenCalled();
         pending.resolve({ data: article('Late') });
         await flushPromises();
         expect(renderDynamicComponents).not.toHaveBeenCalled();
+    });
+
+    it('releases the shared renderer after a loaded article is unmounted', async () => {
+        axios.get.mockResolvedValue({ data: article('Loaded') });
+        wrapper = create();
+        await flushPromises();
+        const container = wrapper.get('article.markdown').element;
+        unmountDynamicComponents.mockClear();
+        wrapper.unmount();
+        wrapper = null;
+        expect(unmountDynamicComponents).toHaveBeenCalledWith(container);
     });
 
     it('accepts an empty decrypted article without fetching its encrypted source', async () => {

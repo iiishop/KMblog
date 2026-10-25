@@ -848,7 +848,7 @@ body {
     inset: -4px;
     background: linear-gradient(135deg,
             var(--theme-primary),
-            var(--theme-secondary, #667eea));
+            var(--theme-secondary, #475569));
     border-radius: 20px;
     opacity: 0;
     filter: blur(12px);
@@ -863,7 +863,7 @@ body {
     inset: 0;
     background: linear-gradient(135deg,
             rgba(99, 102, 241, 0.1),
-            rgba(102, 126, 234, 0.1));
+            color-mix(in srgb, var(--theme-index) 10%, transparent));
     border-radius: 16px;
     opacity: 0;
     transition: all 0.3s ease;
@@ -909,7 +909,7 @@ body {
     color: #fff;
     background: linear-gradient(135deg,
             var(--theme-primary) 0%,
-            var(--theme-secondary, #667eea) 100%);
+            var(--theme-secondary, #475569) 100%);
     box-shadow:
         0 8px 24px rgba(99, 102, 241, 0.35),
         0 4px 12px rgba(99, 102, 241, 0.25),

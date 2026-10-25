@@ -242,12 +242,12 @@ function goToAnnouncement(index) {
 .header-icon {
     width: 2.5rem;
     height: 2.5rem;
-    background: var(--theme-gradient);
+    background: var(--theme-notice);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--theme-button-text);
+    color: var(--theme-notice-text);
     animation: pulse 2s ease-in-out infinite;
 }
 
@@ -273,10 +273,8 @@ function goToAnnouncement(index) {
     font-size: 1.8rem;
     font-weight: 700;
     margin: 0;
-    background: var(--theme-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--theme-notice);
+    -webkit-text-fill-color: currentColor;
 }
 
 .nav-indicators {
@@ -290,21 +288,21 @@ function goToAnnouncement(index) {
     height: 8px;
     border-radius: 50%;
     border: none;
-    background: var(--theme-primary-disabled);
+    background: var(--theme-notice-soft);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
 }
 
 .indicator:hover {
-    background: var(--theme-primary-hover);
+    background: var(--theme-notice);
     transform: scale(1.2);
 }
 
 .indicator.active {
     width: 24px;
     border-radius: 4px;
-    background: var(--theme-gradient);
+    background: var(--theme-notice);
 }
 
 /* === 公告容器 === */
@@ -389,7 +387,7 @@ function goToAnnouncement(index) {
 .image-overlay {
     position: absolute;
     inset: 0;
-    background: var(--theme-gradient);
+    background: var(--theme-notice-soft);
     opacity: 0.4;
 }
 
@@ -407,9 +405,9 @@ function goToAnnouncement(index) {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: var(--theme-gradient);
+    background: var(--theme-notice);
     border-radius: 20px;
-    color: var(--theme-button-text);
+    color: var(--theme-notice-text);
     font-size: 0.85rem;
     font-weight: 600;
     align-self: flex-start;
@@ -494,8 +492,8 @@ function goToAnnouncement(index) {
 }
 
 .action-btn.primary {
-    background: var(--theme-gradient);
-    color: var(--theme-button-text);
+    background: var(--theme-notice);
+    color: var(--theme-notice-text);
     box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
@@ -516,7 +514,7 @@ function goToAnnouncement(index) {
     right: 0;
     width: 150px;
     height: 150px;
-    background: var(--theme-gradient);
+    background: var(--theme-notice);
     opacity: 0.05;
     border-radius: 0 20px 0 100%;
     pointer-events: none;
@@ -544,7 +542,7 @@ function goToAnnouncement(index) {
     background: var(--theme-surface-default);
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 12px var(--theme-shadow-md);
-    color: var(--theme-primary);
+    color: var(--theme-notice);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -554,8 +552,8 @@ function goToAnnouncement(index) {
 }
 
 .nav-btn:hover:not(:disabled) {
-    background: var(--theme-gradient);
-    color: var(--theme-button-text);
+    background: var(--theme-notice);
+    color: var(--theme-notice-text);
     transform: scale(1.1);
     box-shadow: 0 6px 20px var(--theme-shadow-lg);
 }

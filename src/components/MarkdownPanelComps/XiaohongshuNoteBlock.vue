@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
+import { ref, computed, watch, onUnmounted } from 'vue';
+import { fetchBlockData } from '../../utils/blockProxy';
+import { parseHtmlData, extractNoteId } from '../../utils/xiaohongshuData';
 
 const props = defineProps({
     noteurl: String,
@@ -9,6 +10,8 @@ const props = defineProps({
 const noteData = ref(null);
 const loading = ref(true);
 const error = ref(false);
+const errorMessage = ref('');
+let controller;
 const proxiedCover = ref('');
 const proxiedAvatar = ref('');
 // Xiaohongshu Red Base
@@ -52,132 +55,6 @@ const formatStat = (num) => {
     return num.toString();
 };
 
-const fetchProxy = async (targetUrl) => {
-    const proxyGenerators = [
-        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-    ];
-    for (const getProxyUrl of proxyGenerators) {
-        try {
-            const proxyUrl = getProxyUrl(targetUrl);
-            // Create a clean axios instance without any default headers
-            const response = await axios.get(proxyUrl, {
-                headers: {
-                    'X-Auth-Token': undefined  // Explicitly remove the auth token header
-                }
-            });
-            if (response.data) return response.data;
-        } catch (e) {
-            console.warn(`Proxy request failed: ${e.message}`);
-        }
-    }
-    return null;
-};
-
-const extractNoteId = (url) => {
-    if (!url) return null;
-    try {
-        const u = new URL(url);
-        // Supports /explore/ID or /discovery/item/ID
-        const path = u.pathname.split('/').filter(Boolean);
-        const last = path[path.length - 1];
-        if (last && last.length >= 24) return last;
-    } catch (e) { }
-    // Fallback: regex for 24 hex chars or typical XHS ID format
-    const match = url.match(/[a-f0-9]{24}/i);
-    return match ? match[0] : null;
-};
-
-const parseHtmlData = (html) => {
-    try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        // 1. Try to find the script tag containing __INITIAL_STATE__
-        const scripts = doc.querySelectorAll('script');
-        let initialData = null;
-        for (const script of scripts) {
-            const text = script.textContent;
-            if (text.includes('__INITIAL_STATE__')) {
-                // More flexible regex to catch various assignments
-                const match = text.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*(?:;|$)/s) ||
-                    text.match(/__INITIAL_STATE__\s*=\s*(\{.*?\})\s*(?:;|$)/s);
-                if (match && match[1]) {
-                    try {
-                        const cleanJson = match[1].replace(/undefined/g, 'null');
-                        initialData = JSON.parse(cleanJson);
-                        break;
-                    } catch (e) { }
-                }
-            }
-        }
-
-        if (initialData && initialData.note) {
-            // Check noteDetailMap or direct note field
-            const noteMap = initialData.note.noteDetailMap;
-            // Get note from map OR fallback to direct note property
-            let noteObj = null;
-            if (noteMap) {
-                // Try to match current note via ID if possible, or just take first
-                noteObj = Object.values(noteMap)[0]?.note;
-            }
-            if (!noteObj) noteObj = initialData.note.note;
-
-            if (noteObj) {
-                // Deep extraction of user info
-                const user = noteObj.user || {};
-                const nickname = user.nickname || user.nickName || user.name || 'RED.User';
-                const avatar = user.avatar || user.avatarContent?.urlDefault || user.image || '';
-
-                return {
-                    title: noteObj.title || noteObj.desc?.slice(0, 24) || 'RED.Note',
-                    desc: noteObj.desc || '',
-                    type: noteObj.type || 'normal',
-                    user: { nickname, avatar },
-                    stats: {
-                        likes: noteObj.interactInfo?.likedCount || noteObj.interactInfo?.likeCount || 0,
-                        collects: noteObj.interactInfo?.collectedCount || noteObj.interactInfo?.collectCount || 0,
-                        comments: noteObj.interactInfo?.commentCount || 0
-                    },
-                    cover: noteObj.imageList?.[0]?.urlDefault || noteObj.cover?.urlDefault || '',
-                };
-            }
-        }
-
-        // 2. Fallback: Meta Tags (OG)
-        const ogTitle = doc.querySelector('meta[property="og:title"]')?.content ||
-            doc.querySelector('meta[name="og:title"]')?.content ||
-            doc.querySelector('title')?.innerText;
-
-        const ogImage = doc.querySelector('meta[property="og:image"]')?.content ||
-            doc.querySelector('meta[name="og:image"]')?.content;
-
-        const ogDesc = doc.querySelector('meta[property="og:description"]')?.content ||
-            doc.querySelector('meta[name="description"]')?.content;
-
-        // Try to find user info from alternative sources in HTML
-        const userNickname = doc.querySelector('.nickname')?.innerText ||
-            doc.querySelector('.user-name')?.innerText ||
-            doc.querySelector('meta[name="author"]')?.content || 'RED.User';
-
-        if (ogTitle && ogImage) {
-            return {
-                title: ogTitle,
-                desc: ogDesc,
-                type: 'normal',
-                user: { nickname: userNickname, avatar: '' },
-                stats: { likes: 0, collects: 0 },
-                cover: ogImage
-            };
-        }
-    } catch (e) {
-        console.error('Parse Error:', e);
-    }
-    return null;
-};
-
-
 const convertToWeserv = (url) => {
     if (!url || url.length < 5) return '';
     // Handle protocol-relative URLs and strip http/https
@@ -188,31 +65,38 @@ const convertToWeserv = (url) => {
 };
 
 const fetchNote = async () => {
-    // We assume props.noteurl contains the necessary tokens if required, 
-    // but usually web scraping via proxy works for basic og-tags if URL is valid.
-    if (!props.noteurl) return;
-
-    // Note: If usage requires xsec_token for access even on public web, the user needs to provide full URL.
+    controller?.abort();
+    const request = controller = new AbortController();
+    loading.value = true;
+    error.value = false;
+    errorMessage.value = '';
+    noteData.value = null;
+    proxiedCover.value = '';
+    proxiedAvatar.value = '';
     try {
-        const html = await fetchProxy(props.noteurl);
-        if (html) {
-            const data = parseHtmlData(html);
-            if (data) {
-                noteData.value = data;
-                proxiedCover.value = convertToWeserv(data.cover);
-                proxiedAvatar.value = convertToWeserv(data.user.avatar);
-                extractThemeColor();
-            } else {
-                error.value = true;
-            }
-        } else {
-            error.value = true;
+        const url = new URL(props.noteurl?.trim());
+        if (!/^https?:$/.test(url.protocol) || !/(^|\.)(xiaohongshu\.com|xhslink\.com)$/.test(url.hostname)) {
+            throw new Error('请输入完整的小红书分享链接（保留链接中的验证参数）');
         }
+        const data = await fetchBlockData(url.href, {
+            signal: request.signal,
+            parse: html => {
+                const note = parseHtmlData(html, url.href);
+                if (!note) throw new Error('未找到笔记内容，可能是验证页、失效链接或代理错误页面');
+                return note;
+            },
+        });
+        if (request.signal.aborted) return;
+        noteData.value = data;
+        proxiedCover.value = convertToWeserv(data.cover);
+        proxiedAvatar.value = convertToWeserv(data.user.avatar);
+        extractThemeColor();
     } catch (err) {
-        console.error(err);
+        if (request.signal.aborted) return;
         error.value = true;
+        errorMessage.value = err instanceof TypeError ? '请输入完整的小红书分享链接' : err.message;
     } finally {
-        loading.value = false;
+        if (!request.signal.aborted) loading.value = false;
     }
 };
 
@@ -220,8 +104,9 @@ const extractThemeColor = () => {
     if (!proxiedCover.value) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = proxiedCover.value;
+    const request = controller;
     img.onload = () => {
+        if (request?.signal.aborted) return;
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -233,6 +118,7 @@ const extractThemeColor = () => {
             accentColor.value = `rgb(${255 - r}, ${255 - b}, ${255 - g})`;
         } catch (e) { }
     };
+    img.src = proxiedCover.value;
 };
 
 // ---- Mention & Tag parsing + rendering helpers ----
@@ -297,7 +183,8 @@ const visualStats = computed(() => {
     ]
 });
 
-onMounted(() => fetchNote());
+watch(() => props.noteurl, fetchNote, { immediate: true });
+onUnmounted(() => controller?.abort());
 
 </script>
 
@@ -351,8 +238,9 @@ onMounted(() => fetchNote());
         </div>
 
         <div v-else-if="error" class="state-layer error">
-            <div class="error-msg">CONNECTION_REFUSED</div>
-            <a :href="props.noteurl" target="_blank" class="manual-link">OPEN_MANUAL</a>
+            <div class="error-msg">{{ errorMessage }}</div>
+            <a :href="props.noteurl" target="_blank" class="manual-link" rel="noopener noreferrer">打开原文</a>
+            <button type="button" class="manual-link" @click="fetchNote">重试</button>
         </div>
 
         <div v-else class="xhs-card" :style="cardStyle">
@@ -415,6 +303,10 @@ onMounted(() => fetchNote());
 </template>
 
 <style scoped>
+.error-content, .error-msg { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.error-content { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
+button.error-link, button.manual-link { cursor: pointer; font: inherit; }
+
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono&display=swap');
 
 .xhs-embed-container {

@@ -1,115 +1,31 @@
-import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it } from 'vitest';
 import FileTreeSidebar from './FileTreeSidebar.vue';
-import FileTreeNode from './FileTreeNode.vue';
-
-describe('FileTreeSidebar', () => {
-    const mockFiles = [
-        {
-            name: 'Markdowns',
-            type: 'folder',
-            path: '/Posts/Markdowns',
-            children: [
-                {
-                    name: 'test.md',
-                    type: 'file',
-                    path: '/Posts/Markdowns/test.md'
-                }
-            ]
-        }
-    ];
-
-    it('renders file tree sidebar', () => {
-        const wrapper = mount(FileTreeSidebar, {
-            props: {
-                visible: true,
-                width: 250,
-                files: mockFiles,
-                currentFile: null
-            },
-            global: {
-                stubs: {
-                    FileTreeNode: true
-                }
-            }
-        });
-
-        expect(wrapper.find('.file-tree-sidebar').exists()).toBe(true);
-        expect(wrapper.find('.sidebar-header h3').text()).toBe('文件');
+const article = { name: 'Hello.md', path: '/Posts/Markdowns/Notes/Hello.md', type: 'file' };
+const files = [{ name: 'Markdowns', path: '/Posts/Markdowns', type: 'folder', children: [{ name: 'Notes', path: '/Posts/Markdowns/Notes', type: 'folder', children: [article, { name: 'cover.png', type: 'file', path: '/Posts/Markdowns/Notes/cover.png' }] }] }];
+let wrapper;
+afterEach(() => wrapper?.unmount());
+const mountSidebar = (extra = {}) => wrapper = mount(FileTreeSidebar, { props: { files, visible: true, width: 250, ...extra }, global: { stubs: { FileTreeNode: true } } });
+describe('file browser', () => {
+    it('searches nested paths case-insensitively and opens the result via Enter', async () => {
+        mountSidebar();
+        await wrapper.get('input').setValue('NOTES hello');
+        expect(wrapper.findAll('.search-result')).toHaveLength(1);
+        await wrapper.get('input').trigger('keydown', { key: 'Enter' });
+        expect(wrapper.emitted('file-select')[0]).toEqual([article]);
     });
-
-    it('hides sidebar when visible is false', () => {
-        const wrapper = mount(FileTreeSidebar, {
-            props: {
-                visible: false,
-                width: 250,
-                files: mockFiles,
-                currentFile: null
-            },
-            global: {
-                stubs: {
-                    FileTreeNode: true
-                }
-            }
-        });
-
-        expect(wrapper.find('.file-tree-sidebar').classes()).toContain('collapsed');
+    it('shows an empty search state and restores the tree via Escape', async () => {
+        mountSidebar();
+        await wrapper.get('input').setValue('missing');
+        expect(wrapper.text()).toContain('0 篇匹配文章');
+        await wrapper.get('input').trigger('keydown', { key: 'Escape' });
+        expect(wrapper.get('.file-tree').isVisible()).toBe(true);
     });
-
-    it('emits update:visible when close button clicked', async () => {
-        const wrapper = mount(FileTreeSidebar, {
-            props: {
-                visible: true,
-                width: 250,
-                files: mockFiles,
-                currentFile: null
-            },
-            global: {
-                stubs: {
-                    FileTreeNode: true
-                }
-            }
-        });
-
-        await wrapper.find('.close-btn').trigger('click');
-        expect(wrapper.emitted('update:visible')).toBeTruthy();
+    it('closes explicitly and keeps collapsed controls out of keyboard navigation', async () => {
+        mountSidebar();
+        await wrapper.get('[aria-label="关闭文件浏览器"]').trigger('click');
         expect(wrapper.emitted('update:visible')[0]).toEqual([false]);
-    });
-
-    it('renders FileTreeNode components for each file', () => {
-        const wrapper = mount(FileTreeSidebar, {
-            props: {
-                visible: true,
-                width: 250,
-                files: mockFiles,
-                currentFile: null
-            },
-            global: {
-                components: {
-                    FileTreeNode
-                }
-            }
-        });
-
-        const nodes = wrapper.findAllComponents(FileTreeNode);
-        expect(nodes.length).toBe(mockFiles.length);
-    });
-
-    it('applies correct width style', () => {
-        const wrapper = mount(FileTreeSidebar, {
-            props: {
-                visible: true,
-                width: 300,
-                files: mockFiles,
-                currentFile: null
-            },
-            global: {
-                stubs: {
-                    FileTreeNode: true
-                }
-            }
-        });
-
-        expect(wrapper.find('.file-tree-sidebar').attributes('style')).toContain('300px');
+        await wrapper.setProps({ visible: false });
+        expect(wrapper.attributes('inert')).toBeDefined();
     });
 });

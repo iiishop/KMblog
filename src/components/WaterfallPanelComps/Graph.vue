@@ -113,6 +113,11 @@ const cardStyle = computed(() => {
         style.top = `${props.position.y}px`;
         style.width = `${props.position.width}px`;
         style.height = `${props.position.height}px`;
+    } else {
+        // The same card can also be shown outside the positioned gallery grid.
+        style.position = 'relative';
+        style.width = '100%';
+        style.aspectRatio = props.image.aspectRatio || 1;
     }
 
     return style;
@@ -120,7 +125,7 @@ const cardStyle = computed(() => {
 
 const glowStyle = computed(() => {
     return {
-        '--card-glow': props.image.dominantColor || 'hsl(250, 60%, 65%)',
+        '--card-glow': props.image.dominantColor || 'var(--theme-index)',
     };
 });
 
@@ -461,7 +466,7 @@ onBeforeUnmount(() => {
     position: absolute;
     inset: -20%;
     background: radial-gradient(circle at var(--glow-x) var(--glow-y),
-            var(--card-glow, hsl(250, 60%, 65%)) 0%,
+            var(--card-glow, var(--theme-index)) 0%,
             transparent 50%);
     opacity: 0;
     mix-blend-mode: screen;

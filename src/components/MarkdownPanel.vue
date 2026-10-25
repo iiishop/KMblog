@@ -48,16 +48,15 @@
         <div class="stat-content">
           <span class="stat-label">标签</span>
           <div class="tags-container">
-            <span v-for="tag in metadata.tags" :key="tag" class="tag">{{ tag }}</span>
+            <Tag v-for="tag in metadata.tags" :key="tag" :tagname="tag" />
           </div>
         </div>
       </div>
     </div>
 
     <!-- 文章内容 -->
-    <article class="post-content markdown" ref="contentRef">
-      <div v-html="htmlContent"></div>
-    </article>
+    <p v-if="loadError" class="render-error" role="status">{{ loadError }}</p>
+    <MarkdownContent v-if="markdownContent !== null" class="post-content" :content="markdownContent" @rendered="calculateStats" />
 
     <!-- 评论区域 -->
     <UtterancesComments v-if="metadata.title" :issueTitle="metadata.title" />
@@ -70,43 +69,27 @@
         </svg>
       </button>
     </transition>
-
-    <!-- 图片查看器 -->
-    <ImageViewer v-model:visible="viewerVisible" :imageSrc="viewerImageSrc" :imageAlt="viewerImageAlt"
-      :imageType="viewerImageType" :svgContent="viewerSvgContent" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import axios from 'axios';
-import fm from 'front-matter';
-import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
-import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
 import IconCategory from '@/components/icons/IconCategory.vue';
 import IconDate from '@/components/icons/IconDate.vue';
-import config from '@/config';
-import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import { parseMarkdownMetadata } from '@/utils';
-import { resolvePostImageUrl, prepareMarkdownImages } from '@/utils/markdownImages';
-import ImageViewer from '@/components/ImageViewer.vue';
+import { parseMarkdownMetadataSync, resolvePostImage } from '@/utils';
+import MarkdownContent from '@/components/MarkdownPanelComps/MarkdownContent.vue';
 import UtterancesComments from '@/components/UtterancesComments.vue';
-
-// 使用 Vite 的代码分割功能进行动态导入
-const SteamGameBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/SteamGameBlock.vue'));
-const BangumiBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BangumiBlock.vue'));
-const BilibiliVideoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/BilibiliVideoBlock.vue'));
-const GithubRepoBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/GithubRepoBlock.vue'));
-const XiaohongshuNoteBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/XiaohongshuNoteBlock.vue'));
-const CarouselBlock = defineAsyncComponent(() => import('./MarkdownPanelComps/CarouselBlock.vue'));
+import Tag from '@/components/PostPanelComps/Tag.vue';
 
 // 定义 props
 const props = defineProps({
   markdownUrl: {
     type: String,
-    required: true
+    default: ''
   },
+  content: { type: String, default: null },
+  scrollContainer: { type: Object, default: null },
   decryptedContent: {
     type: String,
     default: null
@@ -114,10 +97,11 @@ const props = defineProps({
 });
 
 const metadata = ref({});
-const htmlContent = ref('');
+const markdownContent = ref(null);
+const loadError = ref('');
+let loadRevision = 0;
+let loadController;
 const panelRef = ref(null);
-const contentRef = ref(null);
-const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 const headerRef = ref(null);
 const colorCanvas = ref(null);
 
@@ -125,16 +109,9 @@ const colorCanvas = ref(null);
 const readingProgress = ref(0);
 const showBackToTop = ref(false);
 
-// 图片查看器状态
-const viewerVisible = ref(false);
-const viewerImageSrc = ref('');
-const viewerImageAlt = ref('');
-const viewerImageType = ref('img'); // 'img' 或 'svg'
-const viewerSvgContent = ref('');
-
 // 动态颜色
-const dominantColor = ref({ h: 210, s: 70, l: 55 });
-const accentColor = ref({ h: 220, s: 65, l: 50 });
+const dominantColor = ref(null);
+const accentColor = ref(null);
 
 // 文章统计
 const articleStats = ref({
@@ -144,6 +121,8 @@ const articleStats = ref({
 
 // CSS变量
 const cssVars = computed(() => {
+  // 图片头图延续图片取色；没有图片或取色失败时采用主题中性色。
+  if (!metadata.value.img || !dominantColor.value || !accentColor.value) return {};
   const { h, s, l } = dominantColor.value;
   const { h: h2, s: s2, l: l2 } = accentColor.value;
 
@@ -231,8 +210,8 @@ const extractColorsFromImage = () => {
   } catch (error) {
     console.warn('无法提取图片颜色，使用默认配色:', error);
     // 使用默认配色
-    dominantColor.value = { h: 210, s: 70, l: 55 };
-    accentColor.value = { h: 220, s: 65, l: 50 };
+    dominantColor.value = null;
+    accentColor.value = null;
   }
 };
 
@@ -268,17 +247,18 @@ const rgbToHsl = (r, g, b) => {
 
 // 滚动处理
 const handleScroll = () => {
-  if (!contentRef.value || !panelRef.value) return;
+  if (!panelRef.value) return;
 
-  const panelTop = panelRef.value.offsetTop;
+  const root = props.scrollContainer;
+  const panelTop = root ? panelRef.value.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop : panelRef.value.offsetTop;
   const panelHeight = panelRef.value.scrollHeight;
-  const windowHeight = window.innerHeight;
-  const scrollY = window.scrollY;
+  const windowHeight = root ? root.clientHeight : window.innerHeight;
+  const scrollY = root ? root.scrollTop : window.scrollY;
 
   // 计算阅读进度
   const scrolled = scrollY - panelTop;
   const totalScroll = panelHeight - windowHeight;
-  const progress = Math.min(Math.max((scrolled / totalScroll) * 100, 0), 100);
+  const progress = totalScroll > 0 ? Math.min(Math.max((scrolled / totalScroll) * 100, 0), 100) : 0;
   readingProgress.value = progress;
 
   // 显示回到顶部按钮
@@ -287,185 +267,53 @@ const handleScroll = () => {
 
 // 回到顶部
 const scrollToTop = () => {
-  window.scrollTo({
+  (props.scrollContainer || window).scrollTo({
     top: 0,
     behavior: 'smooth'
   });
 };
 
-// 解析 Markdown 文件并提取 metadata 和内容
-let renderVersion = 0;
-let requestController = null;
-const parseMarkdown = async (url, decryptedText = null) => {
-  const version = ++renderVersion;
-  requestController?.abort();
-  requestController = new AbortController();
-  const isCurrent = () => version === renderVersion;
-  try {
-    let markdown;
-
-    // 如果有解密后的内容，直接使用
-    if (decryptedText !== null) {
-      markdown = decryptedText;
-      console.log('使用解密后的内容');
-    } else {
-      // 否则从 URL 加载
-      const response = await axios.get(url, { signal: requestController.signal });
-      markdown = response.data;
-    }
-    if (!isCurrent()) return;
-
-    // 使用 front-matter 解析 metadata
-    const { body } = fm(markdown);
-    const { meta } = await parseMarkdownMetadata(markdown);
-    if (!isCurrent()) return;
-    metadata.value = meta;
-    if (metadata.value.img) {
-      metadata.value.img = resolvePostImageUrl(metadata.value.img);
-    }
-    const date = new Date(metadata.value.date);
-    const hours = date.getHours();
-
-    // 格式化日期为 '年-月-日'
-    metadata.value.date = date.toLocaleDateString().replace(/\//g, '月').replace('月', '年') + '日';
-
-    // 添加时间段
-    if (hours < 6) {
-      metadata.value.date += ' 凌晨';
-    } else if (hours < 12) {
-      metadata.value.date += ' 上午';
-    } else if (hours < 18) {
-      metadata.value.date += ' 下午';
-    } else {
-      metadata.value.date += ' 晚上';
-    }
-
-    // 预处理：修复带空格的图片路径（添加尖括号）
-    const processedBody = prepareMarkdownImages(body);
-
-    // 解析 Markdown 内容
-    const rendered = md.render(processedBody);
-    unmountDynamicComponents(contentRef.value);
-    htmlContent.value = rendered;
-
-    // 计算文章统计信息
-    calculateStats(htmlContent.value);
-
-    // 在 nextTick 中手动编译和挂载组件
-    await nextTick();
-    if (!isCurrent()) return;
-    const container = contentRef.value;
-    if (container) {
-      renderDynamicComponents(container, {
-        'steamgameblock': SteamGameBlock,
-        'bangumiblock': BangumiBlock,
-        'bilibilivideoblock': BilibiliVideoBlock,
-        'githubrepoblock': GithubRepoBlock,
-        'xiaohongshunoteblock': XiaohongshuNoteBlock,
-        'carouselblock': CarouselBlock
-      });
-    }
-
-    try {
-      await mermaidRenderer.render();
-    } catch (error) {
-      console.warn('Mermaid rendering failed:', error);
-    }
-
-    // 添加图片和 Mermaid 的点击放大功能
-    await nextTick();
-    if (!isCurrent()) return;
-    setupImageClickHandlers();
-  } catch (error) {
-    if (!isCurrent() || axios.isCancel(error)) return;
-    console.error('Error fetching or parsing markdown file:', error);
-  }
-};
-
-// 设置图片和 Mermaid 图表的点击事件
-const setupImageClickHandlers = () => {
-  // 处理普通图片点击
-  const images = contentRef.value?.querySelectorAll('.markdown img');
-  images?.forEach(img => {
-    // 添加可点击样式类
-    img.classList.add('clickable-image');
-
-    // 移除旧的点击事件监听器（如果存在）
-    img.replaceWith(img.cloneNode(true));
-  });
-
-  // 重新获取克隆后的图片并添加事件监听器
-  const newImages = contentRef.value?.querySelectorAll('.markdown img');
-  newImages?.forEach(img => {
-    img.classList.add('clickable-image');
-    img.addEventListener('click', () => {
-      viewerImageType.value = 'img';
-      viewerImageSrc.value = img.src;
-      viewerImageAlt.value = img.alt || '';
-      viewerVisible.value = true;
-    });
-  });
-
-  // 处理 Mermaid 图表点击
-  const mermaidContainers = contentRef.value?.querySelectorAll('.mermaid-wrapper');
-  mermaidContainers?.forEach(container => {
-    // 添加可点击样式类
-    container.classList.add('clickable-mermaid');
-
-    // 直接添加点击事件，不使用克隆
-    // 先移除可能存在的旧事件
-    const oldHandler = container._clickHandler;
-    if (oldHandler) {
-      container.removeEventListener('click', oldHandler);
-    }
-
-    // 创建新的处理函数
-    const clickHandler = () => {
-      const mermaidDiv = container.querySelector('.mermaid');
-      if (mermaidDiv) {
-        // 获取完整的 SVG 内容
-        const svgElement = mermaidDiv.querySelector('svg');
-        if (svgElement) {
-          // 克隆 SVG 以保留所有属性和样式
-          const clonedSvg = svgElement.cloneNode(true);
-          console.log('[Mermaid Click] SVG found, outer HTML length:', clonedSvg.outerHTML.length);
-          viewerImageType.value = 'svg';
-          viewerSvgContent.value = clonedSvg.outerHTML;
-          viewerImageAlt.value = 'Mermaid 图表';
-          viewerVisible.value = true;
-        } else {
-          console.warn('[Mermaid Click] SVG element not found in mermaid div');
-        }
-      } else {
-        console.warn('[Mermaid Click] Mermaid div not found');
-      }
-    };
-
-    // 保存处理函数引用
-    container._clickHandler = clickHandler;
-    container.addEventListener('click', clickHandler);
-  });
-};
-
-// 监控 markdownUrl 和 decryptedContent 的变化
-watch(() => [props.markdownUrl, props.decryptedContent], ([newUrl, newContent]) => {
-  parseMarkdown(newUrl, newContent);
-  // 重置滚动位置和颜色
+// A draft and a fetched article differ only in where their source comes from.
+watch(() => [props.markdownUrl, props.content, props.decryptedContent], async ([url, draft, decrypted]) => {
+  const current = ++loadRevision;
+  loadController?.abort();
+  loadController = new AbortController();
   readingProgress.value = 0;
-  dominantColor.value = { h: 210, s: 70, l: 55 };
-  accentColor.value = { h: 220, s: 65, l: 50 };
+  try {
+    const markdown = draft ?? decrypted ?? (await axios.get(url, { signal: loadController.signal })).data;
+    const { meta } = parseMarkdownMetadataSync(markdown);
+    if (current !== loadRevision) return;
+    const nextMetadata = { ...meta };
+    nextMetadata.img = resolvePostImage(nextMetadata.img);
+    if (nextMetadata.date) {
+      const date = new Date(nextMetadata.date);
+      if (!Number.isNaN(date.getTime())) {
+        const hours = date.getHours();
+        nextMetadata.date = date.toLocaleDateString().replace(/\//g, '月').replace('月', '年') + '日'
+          + (hours < 6 ? ' 凌晨' : hours < 12 ? ' 上午' : hours < 18 ? ' 下午' : ' 晚上');
+      }
+    }
+    if (metadata.value.img !== nextMetadata.img) {
+      dominantColor.value = null;
+      accentColor.value = null;
+    }
+    metadata.value = nextMetadata;
+    markdownContent.value = markdown;
+    loadError.value = '';
+  } catch (error) {
+    if (current === loadRevision && !loadController.signal.aborted) loadError.value = `预览暂未更新，请检查文章头部格式或文件连接：${error.message}`;
+  }
 }, { immediate: true });
 
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll, { passive: true });
+watch(() => props.scrollContainer, (root, previous) => {
+  (previous || window).removeEventListener('scroll', handleScroll);
+  (root || window).addEventListener('scroll', handleScroll, { passive: true });
 });
-
-onBeforeUnmount(() => {
-  renderVersion++;
-  mermaidRenderer.dispose();
-  requestController?.abort();
-  unmountDynamicComponents(contentRef.value);
-  window.removeEventListener('scroll', handleScroll);
+onMounted(() => (props.scrollContainer || window).addEventListener('scroll', handleScroll, { passive: true }));
+onUnmounted(() => {
+  loadRevision++;
+  loadController?.abort();
+  (props.scrollContainer || window).removeEventListener('scroll', handleScroll);
 });
 
 const lastCategory = computed(() => {
@@ -520,10 +368,10 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   top: 0;
   left: 0;
   height: 3px;
-  background: var(--gradient);
+  background: var(--theme-reading);
   z-index: 10000;
   transition: width 0.15s ease-out;
-  box-shadow: 0 2px 8px var(--primary-color);
+  box-shadow: 0 2px 8px var(--theme-shadow-sm);
 }
 
 /* === 文章头部 === */
@@ -534,7 +382,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   /* 保持头部的 overflow hidden */
   min-height: 300px;
   max-height: 500px;
-  background: var(--theme-gradient);
+  background: var(--gradient, var(--theme-index));
   transition: var(--theme-transition-colors);
   border-radius: 1rem 1rem 0 0;
   /* 添加顶部圆角 */
@@ -714,7 +562,7 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--theme-content-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -750,22 +598,6 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   justify-content: center;
 }
 
-.tag {
-  padding: 0.4rem 1rem;
-  background: var(--theme-gradient);
-  color: var(--theme-button-text);
-  border-radius: 1.5rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: default;
-}
-
-.tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--primary-color);
-  opacity: 0.9;
-}
 
 /* === 文章内容 === */
 .post-content {
@@ -788,20 +620,20 @@ const archiveLink = computed(() => ({ name: 'ArchivePage' }));
   height: 52px;
   border-radius: 50%;
   border: none;
-  background: var(--theme-gradient);
+  background: var(--theme-button-bg);
   color: var(--theme-button-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px var(--theme-primary);
+  box-shadow: 0 4px 16px var(--theme-shadow-md);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
 }
 
 .back-to-top:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 8px 24px var(--theme-primary);
+  box-shadow: 0 8px 24px var(--theme-shadow-lg);
 }
 
 .back-to-top:active {

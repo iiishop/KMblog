@@ -101,19 +101,19 @@ onMounted(() => {
 }
 
 .icon-wrapper {
-    background: var(--theme-gradient);
+    background: var(--theme-surface-active);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px var(--theme-primary);
+    box-shadow: 0 4px 12px var(--theme-shadow-sm);
 }
 
 .header-icon {
     width: 24px;
     height: 24px;
-    color: var(--theme-button-text);
+    color: var(--theme-index);
 }
 
 .header-text {
@@ -127,10 +127,8 @@ h1 {
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
-    background: var(--theme-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--theme-index);
+    -webkit-text-fill-color: currentColor;
     transition: var(--theme-transition-colors);
 }
 
@@ -199,7 +197,7 @@ h1 {
     align-items: center;
     gap: 0.8rem;
     padding: 1rem 2rem;
-    background: var(--theme-gradient);
+    background: var(--theme-button-bg);
     color: var(--theme-button-text);
     border-radius: 50px;
     font-size: 1rem;

@@ -148,11 +148,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import config from '@/config'; // 导入全局配置
-import { parseMarkdownMetadata } from "@/utils";
+import { parseMarkdownMetadata, resolvePostImage } from "@/utils";
 const loadingGif = '/assets/loading.gif';
 
 // 使用动态导入进行代码分割
@@ -163,12 +163,18 @@ const IconDate = defineAsyncComponent(() => import('@/components/icons/IconDate.
 // 定义 props
 const props = defineProps({
     imageUrl: String,
-    markdownUrl: String
+    markdownUrl: String,
+    // Editor previews supply the current draft instead of fetching the saved file.
+    previewMetadata: { type: Object, default: null }
 });
 
 // 定义 ref 来存储图片链接和 meta 数据
-const imageSrc = ref(props.imageUrl || loadingGif);
-const metadata = ref({});
+const imageSrc = ref(resolvePostImage(props.imageUrl) || loadingGif);
+const loadedMetadata = ref({});
+const metadata = computed(() => {
+    const source = props.previewMetadata ?? loadedMetadata.value;
+    return { ...source, date: source.date ? formatDateString(source.date) : '' };
+});
 const collectionThemeImage = ref('');
 
 // 定义 imagePanelWidth
@@ -243,12 +249,7 @@ async function initializeMarkdown(url) {
 
         // 解析 Markdown 内容，仅解析 meta 数据
         const { meta } = await parseMarkdownMetadata(content);
-        metadata.value = meta;
-
-        // 格式化日期
-        if (metadata.value.date) {
-            metadata.value.date = formatDateString(metadata.value.date);
-        }
+        loadedMetadata.value = meta || {};
 
         console.log('Metadata:', metadata.value);
     } catch (error) {
@@ -258,6 +259,7 @@ async function initializeMarkdown(url) {
 
 // 去掉日期中的时间部分
 function formatDateString(dateString) {
+    if (dateString instanceof Date) return dateString.toISOString().slice(0, 10);
     // 使用正则表达式匹配 YYYY-MM-DD hh-mm-ss 格式
     const dateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
@@ -271,21 +273,24 @@ function formatDateString(dateString) {
 }
 
 // 初始化图片链接的函数
+let imageRevision = 0;
 function initializeImage(url) {
+    const current = ++imageRevision;
     console.log('Initializing image with URL:', url);
     if (url) {
         if (url.startsWith('http') || url.startsWith('/')) {
             // 处理网络图片链接 或 本地绝对路径
             imageSrc.value = loadingGif;
             const img = new Image();
-            img.src = url;
             img.onload = () => {
-                imageSrc.value = url;
+                if (current === imageRevision) imageSrc.value = url;
             };
             img.onerror = () => {
+                if (current !== imageRevision) return;
                 console.error('Failed to load image:', url);
                 imageSrc.value = '';
             };
+            img.src = url;
         } else {
             // 处理本地相对路径图片文件
             imageSrc.value = new URL(url, import.meta.url).href;
@@ -300,6 +305,9 @@ function initializeImage(url) {
 function handleImageError() {
     imageSrc.value = loadingGif;
 }
+
+// Both saved cards and draft cards use the same cover loading path.
+watch(() => props.imageUrl, url => initializeImage(resolvePostImage(url)), { immediate: true });
 
 // 计算最后一个目录和链接
 const lastCategory = computed(() => {
@@ -334,11 +342,8 @@ const backgroundStyle = computed(() => {
 // 在组件挂载时初始化链接
 onMounted(() => {
     console.log('Component mounted');
-    if (props.imageUrl) {
-        initializeImage(props.imageUrl);
-    }
     if (props.markdownUrl) {
-        initializeMarkdown(props.markdownUrl);
+        if (props.previewMetadata === null) initializeMarkdown(props.markdownUrl);
 
         // 提取并加载 collection 主题
         const collection = extractCollection(props.markdownUrl);
@@ -445,6 +450,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+
 .post-wrapper {
     width: 100%;
     display: block;
@@ -607,9 +614,9 @@ onUnmounted(() => {
     border-radius: 20px;
     padding: 2px;
     background: linear-gradient(45deg,
-            var(--theme-primary),
+            var(--theme-index),
             var(--theme-secondary),
-            var(--theme-primary));
+            var(--theme-index));
     background-size: 300% 300%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box,
         linear-gradient(#fff 0 0);
@@ -646,7 +653,7 @@ onUnmounted(() => {
         0 20px 60px var(--theme-shadow-lg),
         0 0 0 1px var(--theme-border-light),
         inset 0 1px 0 var(--theme-surface-default),
-        0 0 40px rgba(102, 126, 234, 0.3);
+        0 0 40px color-mix(in srgb, var(--theme-index) 30%, transparent);
     background: var(--theme-panel-bg);
 }
 
@@ -685,7 +692,7 @@ onUnmounted(() => {
     border-left: 2px solid transparent;
     border-image: linear-gradient(to bottom,
             transparent 0%,
-            rgba(102, 126, 234, 0.2) 50%,
+            color-mix(in srgb, var(--theme-index) 20%, transparent) 50%,
             transparent 100%) 1;
     padding-left: 1.5rem;
     display: flex;
@@ -740,12 +747,12 @@ onUnmounted(() => {
 }
 
 .title-panel:hover .title-char {
-    color: var(--theme-primary);
+    color: var(--theme-index);
     transform: translateY(-2px);
     text-shadow:
         0 5px 15px var(--theme-shadow-md),
-        0 0 20px var(--theme-primary),
-        0 0 40px var(--theme-primary);
+        0 0 20px var(--theme-index),
+        0 0 40px var(--theme-index);
     filter: brightness(1.3);
 }
 
@@ -820,7 +827,7 @@ onUnmounted(() => {
     inset: 0;
     background: linear-gradient(135deg,
             transparent 0%,
-            rgba(102, 126, 234, 0.05) 50%,
+            color-mix(in srgb, var(--theme-index) 5%, transparent) 50%,
             transparent 100%);
     background-size: 200% 200%;
     opacity: 0;
@@ -833,7 +840,7 @@ onUnmounted(() => {
     transform: translateX(8px) scale(1.02);
     box-shadow:
         0 10px 30px var(--theme-shadow-md),
-        inset 0 0 30px rgba(102, 126, 234, 0.1);
+        inset 0 0 30px color-mix(in srgb, var(--theme-index) 10%, transparent);
 }
 
 .pre-panel:hover::before {
@@ -907,7 +914,7 @@ onUnmounted(() => {
     height: 1.5px;
     background: linear-gradient(90deg,
             transparent 0%,
-            var(--theme-primary) 50%,
+            var(--theme-index) 50%,
             transparent 100%);
     position: relative;
     overflow: hidden;
@@ -968,9 +975,9 @@ onUnmounted(() => {
 
 .center-ornament {
     font-size: 1.5rem;
-    color: var(--theme-primary);
+    color: var(--theme-index);
     animation: breathe 3s ease-in-out infinite;
-    filter: drop-shadow(0 0 8px var(--theme-primary));
+    filter: drop-shadow(0 0 8px var(--theme-index));
 }
 
 @keyframes breathe {
@@ -999,7 +1006,7 @@ onUnmounted(() => {
 .accent {
     position: absolute;
     font-size: 0.6rem;
-    color: var(--theme-primary);
+    color: var(--theme-index);
     opacity: 0.4;
     animation: floatAround 8s ease-in-out infinite;
     animation-delay: calc(var(--accent-index) * 0.6s);
@@ -1109,9 +1116,9 @@ onUnmounted(() => {
     inset: -3px;
     border-radius: 12px;
     background: conic-gradient(from 0deg,
-            var(--theme-primary),
+            var(--theme-index),
             var(--theme-secondary),
-            var(--theme-primary));
+            var(--theme-index));
     opacity: 0;
     transition: opacity 0.4s ease;
     z-index: -1;
@@ -1123,7 +1130,7 @@ onUnmounted(() => {
     opacity: 1;
     box-shadow:
         0 5px 15px var(--theme-shadow-md),
-        0 0 20px var(--theme-primary);
+        0 0 20px var(--theme-index);
     transform: scale(1.15) rotate(10deg);
 }
 
@@ -1147,7 +1154,7 @@ onUnmounted(() => {
     height: 1.2rem;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
-    color: var(--theme-primary);
+    color: var(--theme-index);
 }
 
 .meta-item:hover .meta-icon {
@@ -1158,7 +1165,7 @@ onUnmounted(() => {
     position: absolute;
     inset: 0;
     border-radius: 10px;
-    border: 2px solid var(--theme-primary);
+    border: 2px solid var(--theme-index);
     opacity: 0;
 }
 
@@ -1199,7 +1206,7 @@ onUnmounted(() => {
     opacity: 0;
     transform: translateX(-10px);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    color: var(--theme-primary);
+    color: var(--theme-index);
     font-weight: bold;
 }
 
@@ -1209,7 +1216,7 @@ onUnmounted(() => {
 }
 
 .meta-item:hover .meta-link {
-    color: var(--theme-primary);
+    color: var(--theme-index);
 }
 
 /* Divider */
@@ -1229,11 +1236,11 @@ onUnmounted(() => {
     inset: -2px;
     background: linear-gradient(90deg,
             transparent 0%,
-            var(--theme-primary) 50%,
+            var(--theme-index) 50%,
             transparent 100%);
     opacity: 0;
     filter: blur(5px);
-    box-shadow: 0 0 10px var(--theme-primary);
+    box-shadow: 0 0 10px var(--theme-index);
 }
 
 .post-panel:hover .divider-glow {
@@ -1281,8 +1288,7 @@ onUnmounted(() => {
 
 .animated-tag:hover {
     transform: translateY(-3px) scale(1.05);
-    filter: drop-shadow(0 5px 15px var(--theme-primary));
-    box-shadow: 0 0 20px var(--theme-primary);
+    box-shadow: 0 3px 8px var(--theme-shadow-sm);
 }
 
 /* === 光效扫描线 === */
@@ -1735,7 +1741,7 @@ onUnmounted(() => {
         border-top: 2px solid transparent;
         border-image: linear-gradient(to right,
                 transparent 0%,
-                rgba(102, 126, 234, 0.2) 50%,
+                color-mix(in srgb, var(--theme-index) 20%, transparent) 50%,
                 transparent 100%) 1;
         padding-top: 1rem;
         flex-direction: row;
@@ -1861,7 +1867,7 @@ onUnmounted(() => {
         border-top: 2px solid transparent;
         border-image: linear-gradient(to right,
                 transparent 0%,
-                rgba(102, 126, 234, 0.2) 50%,
+                color-mix(in srgb, var(--theme-index) 20%, transparent) 50%,
                 transparent 100%) 1;
         padding-top: 1rem;
         flex-direction: row;
@@ -2007,5 +2013,14 @@ onUnmounted(() => {
     .loading-bar {
         width: 150px;
     }
+}
+/* Card responsiveness belongs to the card, so every host gets the same layout. */
+.post-wrapper { container-type: inline-size; }
+@container (max-width: 700px) {
+    .post-panel { flex-direction: column; height: auto; }
+    .image-panel { width: 100% !important; height: 180px; }
+    .content-panel { min-width: 0; padding: 20px; }
+    .content-wrapper { flex-direction: column; gap: 16px; }
+    .meta-sidebar { width: auto; min-width: 0; padding-left: 0; border-left: 0; gap: 12px; }
 }
 </style>

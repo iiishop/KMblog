@@ -1,115 +1,45 @@
 <template>
-    <div class="markdown-preview-container">
-        <article class="post-content markdown" ref="contentRef">
-            <div v-html="htmlContent"></div>
-        </article>
+    <div ref="rootRef" class="markdown-preview-container">
+        <ImageDescription v-if="source !== null && image" :image="image" :content="source" />
+        <MarkdownPanel v-else-if="source !== null" :markdown-url="markdownUrl" :content="source" :scroll-container="scrollContainer" />
     </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue';
-import fm from 'front-matter';
-import { prepareMarkdownImages } from '@/utils/markdownImages';
-
-// 复用MarkdownPanel.vue的渲染模块
-import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
-import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
-
-// 复用MarkdownPanel.vue的Block组件
-const SteamGameBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/SteamGameBlock.vue')
-);
-const BangumiBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/BangumiBlock.vue')
-);
-const BilibiliVideoBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/BilibiliVideoBlock.vue')
-);
-const GithubRepoBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/GithubRepoBlock.vue')
-);
-const XiaohongshuNoteBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/XiaohongshuNoteBlock.vue')
-);
-const CarouselBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/CarouselBlock.vue')
-);
+import { ref, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
+import MarkdownPanel from '@/components/MarkdownPanel.vue';
+import ImageDescription from '@/components/WaterfallPanelComps/ImageDescription.vue';
 
 const props = defineProps({
-    content: {
-        type: String,
-        required: true
-    },
-    scrollSync: {
-        type: Number,
-        default: 0
-    }
+    content: { type: String, required: true },
+    markdownUrl: { type: String, default: '' },
+    image: { type: Object, default: null },
+    active: { type: Boolean, default: true },
+    scrollSync: { type: Number, default: 0 }
 });
-
 const emit = defineEmits(['scroll']);
-
-const htmlContent = ref('');
-const contentRef = ref(null);
-const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
-let isScrollingFromEditor = false; // 标记是否来自编辑器的滚动
-let renderVersion = 0;
-let scrollResetTimer = null;
-
-// 渲染Markdown - 完全复用MarkdownPanel.vue的逻辑
-const renderMarkdown = async (markdown) => {
-    const version = ++renderVersion;
-    try {
-        // 解析front-matter
-        const { body } = fm(markdown);
-
-        // 预处理：修复带空格的图片路径（添加尖括号）
-        const processedBody = prepareMarkdownImages(body);
-
-        // 使用相同的markdown-it实例渲染
-        const rendered = md.render(processedBody);
-        unmountDynamicComponents(contentRef.value);
-        htmlContent.value = rendered;
-
-        // 在nextTick中渲染动态组件
-        await nextTick();
-        if (version !== renderVersion) return;
-        const container = contentRef.value;
-        if (container) {
-            // 使用相同的动态组件渲染器
-            renderDynamicComponents(container, {
-                'steamgameblock': SteamGameBlock,
-                'bangumiblock': BangumiBlock,
-                'bilibilivideoblock': BilibiliVideoBlock,
-                'githubrepoblock': GithubRepoBlock,
-                'xiaohongshunoteblock': XiaohongshuNoteBlock,
-                'carouselblock': CarouselBlock
-            });
-
-            await mermaidRenderer.render();
-        }
-    } catch (error) {
-        console.error('Markdown rendering failed:', error);
-    }
-};
-
-// 监听内容变化
-watch(() => props.content, (newContent) => {
-    renderMarkdown(newContent);
+const rootRef = ref(null);
+const source = ref(null);
+const scrollContainer = shallowRef(null);
+let renderTimer;
+let scrollTimer;
+let isScrollingFromEditor = false;
+watch(() => [props.content, props.active], () => {
+    clearTimeout(renderTimer);
+    if (props.active) renderTimer = setTimeout(() => { source.value = props.content; }, 180);
 }, { immediate: true });
 
 // 滚动同步 - 从编辑器到预览
 watch(() => props.scrollSync, (scrollPercentage) => {
-    if (contentRef.value) {
+    if (previewContainer && props.active) {
         isScrollingFromEditor = true;
-        const container = contentRef.value.parentElement;
+        const container = previewContainer;
         const maxScroll = container.scrollHeight - container.clientHeight;
         container.scrollTop = maxScroll * scrollPercentage;
 
         // 重置标记
-        clearTimeout(scrollResetTimer);
-        scrollResetTimer = setTimeout(() => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
             isScrollingFromEditor = false;
         }, 100);
     }
@@ -133,62 +63,18 @@ const handlePreviewScroll = (event) => {
 let previewContainer = null;
 
 onMounted(() => {
-    if (contentRef.value) {
-        previewContainer = contentRef.value.parentElement;
+    if (rootRef.value) {
+        previewContainer = rootRef.value.closest('.preview-panel') || rootRef.value.parentElement;
         if (previewContainer) {
-            previewContainer.addEventListener('scroll', handlePreviewScroll);
+            previewContainer.addEventListener('scroll', handlePreviewScroll, { passive: true });
         }
     }
 });
 
+onMounted(() => { scrollContainer.value = previewContainer; });
 onBeforeUnmount(() => {
-    renderVersion++;
-    mermaidRenderer.dispose();
-    clearTimeout(scrollResetTimer);
-    unmountDynamicComponents(contentRef.value);
-    if (previewContainer) {
-        previewContainer.removeEventListener('scroll', handlePreviewScroll);
-    }
+    clearTimeout(renderTimer);
+    clearTimeout(scrollTimer);
+    previewContainer?.removeEventListener('scroll', handlePreviewScroll);
 });
 </script>
-
-<style scoped>
-.markdown-preview-container {
-    overflow-y: auto;
-    padding: 2rem;
-    background-color: var(--theme-content-bg);
-    transition: var(--theme-transition-colors);
-}
-
-/* 复用MarkdownStyle.css中的样式 */
-.post-content {
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-    line-height: 1.8;
-    color: var(--theme-content-text);
-    font-size: 1.05rem;
-    transition: var(--theme-transition-colors);
-}
-
-/* 响应式设计 */
-@media (max-width: 968px) {
-    .markdown-preview-container {
-        padding: 1.5rem;
-    }
-
-    .post-content {
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 640px) {
-    .markdown-preview-container {
-        padding: 1rem;
-    }
-
-    .post-content {
-        font-size: 0.95rem;
-    }
-}
-</style>

@@ -208,8 +208,8 @@ defineExpose({
     width: 32px;
     height: 32px;
     border: none;
-    background: var(--theme-gradient);
-    color: var(--theme-button-text);
+    background: var(--theme-surface-active);
+    color: var(--theme-reading);
     border-radius: 50%;
     cursor: pointer;
     display: flex;
@@ -220,7 +220,7 @@ defineExpose({
 
 .toc-toggle:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 12px var(--theme-primary);
+    box-shadow: 0 4px 12px var(--theme-reading);
 }
 
 .toc-toggle svg {
@@ -234,7 +234,7 @@ defineExpose({
     max-height: 60vh;
     padding-right: 0.5rem;
     scrollbar-width: thin;
-    scrollbar-color: var(--theme-primary) transparent;
+    scrollbar-color: var(--theme-reading) transparent;
 }
 
 .toc-nav::-webkit-scrollbar {
@@ -246,7 +246,7 @@ defineExpose({
 }
 
 .toc-nav::-webkit-scrollbar-thumb {
-    background: var(--theme-primary);
+    background: var(--theme-reading);
     border-radius: 2px;
 }
 
@@ -281,14 +281,14 @@ defineExpose({
     top: 0;
     bottom: 0;
     width: 3px;
-    background: var(--theme-gradient);
+    background: var(--theme-reading);
     transform: scaleY(0);
     transition: transform 0.3s ease;
 }
 
 .toc-link:hover {
-    background: var(--theme-hover-bg);
-    color: var(--theme-primary);
+    background: color-mix(in srgb, var(--theme-reading) 12%, transparent);
+    color: var(--theme-reading);
     transform: translateX(4px);
 }
 
@@ -365,9 +365,9 @@ defineExpose({
 /* 活动状态 */
 .toc-active .toc-link {
     background: linear-gradient(90deg,
-            var(--theme-hover-bg) 0%,
+            color-mix(in srgb, var(--theme-reading) 12%, transparent) 0%,
             transparent 100%);
-    color: var(--theme-primary);
+    color: var(--theme-reading);
     font-weight: 600;
 }
 
@@ -376,9 +376,9 @@ defineExpose({
 }
 
 .toc-active .toc-indicator {
-    background: var(--theme-primary);
+    background: var(--theme-reading);
     transform: scale(1.3);
-    box-shadow: 0 0 8px var(--theme-primary);
+    box-shadow: 0 0 8px var(--theme-reading);
 }
 
 /* 空状态 */

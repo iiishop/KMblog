@@ -1,3 +1,4 @@
+import { resolvePostImageUrl } from '@/utils/markdownImages';
 import axios from 'axios';
 import yaml from 'yaml';
 
@@ -45,19 +46,27 @@ export function openLink(url) {
   window.open(url, '_blank');
 }
 
-// 异步解析 Markdown 文档的函数，只解析 meta 数据
-export async function parseMarkdownMetadata(content) {
+// Saved articles and drafts share the same front-matter parser.
+export function parseMarkdownMetadataSync(content) {
   const metadataRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
   const match = content.match(metadataRegex);
 
   if (match) {
-    const meta = yaml.parse(match[1]);
+    const meta = yaml.parse(match[1]) || {};
     console.debug('Parsed metadata:', meta); // 添加调试日志
     return { meta };
   } else {
     console.debug('No metadata found'); // 添加调试日志
     return { meta: {} };
   }
+}
+
+export async function parseMarkdownMetadata(content) {
+  return parseMarkdownMetadataSync(content);
+}
+
+export function resolvePostImage(image) {
+  return resolvePostImageUrl(image);
 }
 
 // 异步函数，加载单文件 Metadata.json（预生成的全部文章摘要，替代 N+1 逐个 fetch）

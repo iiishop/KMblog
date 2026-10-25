@@ -47,8 +47,19 @@ describe('Graph.vue - Click Expand Animation', () => {
         };
 
         // Mock requestAnimationFrame - don't call callback to avoid infinite loop
-        global.requestAnimationFrame = vi.fn(() => 1);
+        global.requestAnimationFrame = vi.fn(callback => { callback(); return 1; });
         global.cancelAnimationFrame = vi.fn();
+    });
+
+    it('uses the image ratio standalone and preserves gallery positioning', async () => {
+        const card = mount(Graph, { props: { image: mockImage, index: 0 } });
+        expect(card.element.style.position).toBe('relative');
+        expect(card.element.style.aspectRatio).toBe('1.5');
+        await card.setProps({ position: { x: 12, y: 20, width: 300, height: 200 } });
+        expect(card.element.style.position).toBe('absolute');
+        expect(card.element.style.width).toBe('300px');
+        expect(card.element.style.height).toBe('200px');
+        card.unmount();
     });
 
     it('should render the graph card', () => {
@@ -161,7 +172,7 @@ describe('Graph.vue - Mouse Interaction', () => {
         };
 
         // Mock requestAnimationFrame - don't call callback to avoid infinite loop
-        global.requestAnimationFrame = vi.fn(() => 1);
+        global.requestAnimationFrame = vi.fn(callback => { callback(); return 1; });
         global.cancelAnimationFrame = vi.fn();
     });
 

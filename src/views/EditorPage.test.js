@@ -1,408 +1,105 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount } from '@vue/test-utils';
-import axios from 'axios';
-
-// Mock mermaid before importing components
-vi.mock('mermaid', () => ({
-    default: {
-        initialize: vi.fn(),
-        mermaidAPI: {
-            reset: vi.fn()
-        },
-        run: vi.fn()
-    }
-}));
-
-// Mock axios
-vi.mock('axios', () => {
-    const mockAxios = {
-        defaults: {
-            headers: {
-                common: {}
-            }
-        },
-        get: vi.fn(),
-        post: vi.fn(),
-        delete: vi.fn(),
-        CancelToken: {
-            source: vi.fn(() => ({
-                token: 'mock-token',
-                cancel: vi.fn()
-            }))
-        },
-        isCancel: vi.fn((error) => error && error.name === 'CanceledError')
-    };
-    return {
-        default: mockAxios
-    };
-});
-
-// Mock MonacoEditor component
-vi.mock('@/components/Editor/MonacoEditor.vue', () => ({
-    default: {
-        name: 'MonacoEditor',
-        template: '<div class="monaco-editor-mock"></div>',
-        props: ['modelValue', 'language', 'theme'],
-        emits: ['update:modelValue', 'change', 'scroll']
-    }
-}));
-
+import { mount, flushPromises } from '@vue/test-utils';
+import { ref } from 'vue';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), delete: vi.fn() }));
+vi.mock('axios', () => ({ default: { create: () => api, isCancel: () => false } }));
+vi.mock('vue-router', () => ({ onBeforeRouteLeave: vi.fn() }));
+vi.mock('@/composables/useTheme', () => ({ useTheme: () => ({ isDarkMode: ref(false), currentMode: ref('light'), toggleTheme: vi.fn() }) }));
+vi.mock('@/components/Editor/MonacoEditor.vue', () => ({ default: { name: 'MonacoEditor', props: ['modelValue', 'options'], emits: ['update:modelValue','save'], template: '<textarea aria-label="正文" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)"></textarea>', methods: { focus() {} } } }));
+vi.mock('@/components/Editor/MarkdownPreview.vue', () => ({ default: { props: ['content','active'], template: '<div class="preview-mock">{{ content }}</div>' } }));
+vi.mock('@/components/WaterfallPanelComps/Graph.vue', () => ({ default: { name: 'Graph', props: ['image'], emits: ['click'], methods: { resetCardState() {} }, template: '<div />' } }));
+vi.mock('@/components/WaterfallPanelComps/ImageModal.vue', () => ({ default: { name: 'ImageModal', props: ['image','content'], emits: ['close'], template: '<div />' } }));
+vi.mock('@/utils/galleryImage', () => ({ loadGalleryImage: vi.fn(async file => ({ src: file.path, title: 'Image', aspectRatio: 2 })), applyGalleryMetadata: (image) => image }));
+vi.mock('@/components/PostPanelComps/Post.vue', () => ({ default: { name: 'Post', props: ['previewMetadata', 'imageUrl', 'markdownUrl'], template: '<div class="post-card-mock">{{ previewMetadata.title }} {{ previewMetadata.pre }}</div>' } }));
 import EditorPage from './EditorPage.vue';
-
-describe('EditorPage', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        // Mock URL hash params
-        delete window.location;
-        window.location = {
-            hash: '#/editor?token=test-token&api_port=8000'
-        };
-
-        // Reset axios mocks
-        axios.get.mockReset();
-        axios.post.mockReset();
-        axios.delete.mockReset();
+let wrapper;
+const file = { name: 'a.md', path: '/Posts/Markdowns/a.md', type: 'file' };
+beforeEach(() => {
+    vi.useFakeTimers();
+    api.get.mockImplementation(url => Promise.resolve({ data: url === '/files/tree' ? { tree: [{ name: 'Markdowns', path: '/Posts/Markdowns', type: 'folder', children: [file] }] } : { content: '# Original', version: { etag: '1' } } }));
+    api.post.mockResolvedValue({ data: { version: { etag: '2' } } });
+    window.location.hash = '#/editor?token=test&api_port=18000';
+});
+afterEach(() => { wrapper?.unmount(); vi.useRealTimers(); vi.restoreAllMocks(); });
+const openArticle = async () => {
+    wrapper = mount(EditorPage, { attachTo: document.body });
+    await flushPromises();
+    wrapper.findComponent({ name: 'FileTreeSidebar' }).vm.$emit('file-select', file);
+    await flushPromises();
+};
+describe('editor workspace', () => {
+    it('starts with an actionable empty state', async () => {
+        wrapper = mount(EditorPage);
+        await flushPromises();
+        expect(wrapper.text()).toContain('选择文章，开始写作');
+        expect(wrapper.find('textarea').exists()).toBe(false);
     });
-
-    it('renders the editor page with all main components', () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Check main structure
-        expect(wrapper.find('.editor-container').exists()).toBe(true);
-        expect(wrapper.find('.file-tree-sidebar').exists()).toBe(true);
-        expect(wrapper.find('.main-editor').exists()).toBe(true);
-        expect(wrapper.find('.editor-toolbar').exists()).toBe(true);
-        expect(wrapper.find('.editor-panels').exists()).toBe(true);
+    it('opens a document and saves through the keyboard shortcut', async () => {
+        await openArticle();
+        await wrapper.get('textarea').setValue('# Changed');
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, cancelable: true }));
+        await flushPromises();
+        expect(api.post).toHaveBeenCalledWith('/files/save', { path: 'Markdowns/a.md', content: '# Changed', expectedVersion: { etag: '1' } });
+        expect(wrapper.text()).toContain('已与磁盘同步');
     });
-
-    it('renders MarkdownPreview component', () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Check that preview panel exists
-        expect(wrapper.find('.preview-panel').exists()).toBe(true);
-
-        // Check that MarkdownPreview component is rendered
-        const previewComponent = wrapper.findComponent({ name: 'MarkdownPreview' });
-        expect(previewComponent.exists()).toBe(true);
+    it('retains the editor after failed save on file switch', async () => {
+        await openArticle();
+        await wrapper.get('textarea').setValue('unsaved');
+        api.post.mockRejectedValueOnce(new Error('offline'));
+        wrapper.findComponent({ name: 'FileTreeSidebar' }).vm.$emit('file-select', { ...file, name: 'b.md', path: '/Posts/Markdowns/b.md' });
+        await flushPromises();
+        const buttons = wrapper.findAll('[role="dialog"] button');
+        await buttons.find(button => button.text() === '保存并继续').trigger('click');
+        await flushPromises();
+        expect(wrapper.get('textarea').element.value).toBe('unsaved');
+        expect(wrapper.text()).toContain('保存失败');
     });
-
-    it('passes content to MarkdownPreview', async () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Set content
+    it('focus mode hides preview work and exits via Escape', async () => {
+        await openArticle();
+        await wrapper.findAll('button').find(button => button.text() === '专注').trigger('click');
+        expect(wrapper.findComponent({ name: 'MarkdownPreview' }).props('active')).toBe(false);
+        expect(wrapper.classes()).toContain('focus-mode');
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         await wrapper.vm.$nextTick();
-        wrapper.vm.content = '# Test Content';
-        await wrapper.vm.$nextTick();
-
-        // Check that MarkdownPreview receives the content
-        const previewComponent = wrapper.findComponent({ name: 'MarkdownPreview' });
-        expect(previewComponent.props('content')).toBe('# Test Content');
+        expect(wrapper.classes()).not.toContain('focus-mode');
+    });
+    it('allows keyboard resizing and exposes the resulting width', async () => {
+        await openArticle();
+        const separator = wrapper.get('[role="separator"]');
+        await separator.trigger('keydown', { key: 'ArrowRight' });
+        expect(separator.attributes('aria-valuenow')).toBe('55');
+        await separator.trigger('keydown', { key: 'Home' });
+        expect(separator.attributes('aria-valuenow')).toBe('50');
+    });
+    it('shows the actual card component above the body and updates it from unsaved edits', async () => {
+        await openArticle();
+        const card = wrapper.findComponent({ name: 'Post' });
+        const instance = card.vm;
+        expect(wrapper.get('.post-preview-section').attributes('open')).toBeDefined();
+        expect(card.props('markdownUrl')).toBe(file.path);
+        expect(card.props('previewMetadata').title).toBeUndefined();
+        await wrapper.get('textarea').setValue('---\ntitle: 草稿标题\npre: 首页卡片摘要\nimg: cover.png\ntags: [Vue]\ncategories: [技术]\n---\n正文');
+        await vi.advanceTimersByTimeAsync(180);
+        expect(card.vm).toBe(instance);
+        expect(card.props('previewMetadata')).toMatchObject({ title: '草稿标题', pre: '首页卡片摘要', tags: ['Vue'], categories: ['技术'] });
+        expect(card.props('imageUrl')).toBe('/Posts/Images/cover.png');
+        expect(api.post).not.toHaveBeenCalled();
+        expect(wrapper.find('.preview-mock').exists()).toBe(true);
+    });
+    it('opens the real gallery modal with unsaved source and supports closing it', async () => {
+        await openArticle();
+        api.get.mockResolvedValueOnce({ data: { content: '---\nimg: WaterfallGraph/example.jpg\n---\nGallery draft', version: {} } });
+        wrapper.findComponent({ name: 'FileTreeSidebar' }).vm.$emit('file-select', { name: 'example.md', path: '/Posts/WaterfallGraph/example.md', type: 'file' });
+        await flushPromises();
+        const graph = wrapper.findComponent({ name: 'Graph' });
+        expect(graph.exists()).toBe(true);
+        graph.vm.$emit('click', graph.props('image'), {});
+        await flushPromises();
+        await wrapper.get('textarea').setValue('Unsaved description');
+        expect(wrapper.findComponent({ name: 'ImageModal' }).props('content')).toBe('Unsaved description');
+        wrapper.findComponent({ name: 'ImageModal' }).vm.$emit('close');
+        await flushPromises();
+        expect(wrapper.findComponent({ name: 'ImageModal' }).exists()).toBe(false);
     });
 
-    it('passes scroll sync to MarkdownPreview', async () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Trigger scroll
-        wrapper.vm.handleEditorScroll(0.5);
-        await wrapper.vm.$nextTick();
-
-        // Check that MarkdownPreview receives the scroll position
-        const previewComponent = wrapper.findComponent({ name: 'MarkdownPreview' });
-        expect(previewComponent.props('scrollSync')).toBe(0.5);
-    });
-
-    it('toggles file tree visibility', async () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Initially visible
-        expect(wrapper.find('.file-tree-sidebar').exists()).toBe(true);
-
-        // Toggle visibility
-        wrapper.vm.fileTreeVisible = false;
-        await wrapper.vm.$nextTick();
-
-        // Should be hidden
-        expect(wrapper.find('.file-tree-sidebar').exists()).toBe(false);
-    });
-
-    it('updates save status on content change', async () => {
-        const wrapper = mount(EditorPage, {
-            global: {
-                stubs: {
-                    MonacoEditor: true
-                }
-            }
-        });
-
-        // Initially saved
-        expect(wrapper.vm.saveStatus).toBe('saved');
-
-        // Change content
-        wrapper.vm.handleContentChange();
-        await wrapper.vm.$nextTick();
-
-        // Should be unsaved
-        expect(wrapper.vm.saveStatus).toBe('unsaved');
-    });
-
-    describe('Error Handling', () => {
-        it('handles network errors gracefully', async () => {
-            // Mock network error
-            axios.get.mockRejectedValueOnce({
-                request: {},
-                message: 'Network Error'
-            });
-
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to load file tree
-            await wrapper.vm.loadFileTree();
-
-            // Should show error message
-            expect(alertSpy).toHaveBeenCalled();
-            expect(alertSpy.mock.calls[0][0]).toContain('无法连接到服务器');
-
-            alertSpy.mockRestore();
-        });
-
-        it('handles 404 errors with appropriate message', async () => {
-            // Mock 404 error
-            axios.get.mockRejectedValueOnce({
-                response: {
-                    status: 404,
-                    data: {
-                        detail: 'File not found'
-                    }
-                }
-            });
-
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to load file tree
-            await wrapper.vm.loadFileTree();
-
-            // Should show 404 error message
-            expect(alertSpy).toHaveBeenCalled();
-            expect(alertSpy.mock.calls[0][0]).toContain('文件不存在');
-
-            alertSpy.mockRestore();
-        });
-
-        it('handles 500 errors with appropriate message', async () => {
-            // Mock 500 error
-            axios.get.mockRejectedValueOnce({
-                response: {
-                    status: 500,
-                    data: {
-                        detail: 'Internal server error'
-                    }
-                }
-            });
-
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to load file tree
-            await wrapper.vm.loadFileTree();
-
-            // Should show server error message
-            expect(alertSpy).toHaveBeenCalled();
-            expect(alertSpy.mock.calls[0][0]).toContain('服务器错误');
-
-            alertSpy.mockRestore();
-        });
-
-        it('silently ignores cancelled requests', async () => {
-            // Mock axios.get to return a resolved promise first (for initial mount)
-            axios.get.mockResolvedValueOnce({
-                data: { tree: [] }
-            });
-
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Wait for initial mount to complete
-            await wrapper.vm.$nextTick();
-
-            // Now mock cancelled error for the next call
-            const cancelError = new Error('Request cancelled');
-            cancelError.name = 'CanceledError';
-            axios.isCancel.mockReturnValueOnce(true);
-            axios.get.mockRejectedValueOnce(cancelError);
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to load file tree again
-            await wrapper.vm.loadFileTree();
-
-            // Should NOT show error message for cancelled requests
-            expect(alertSpy).not.toHaveBeenCalled();
-
-            alertSpy.mockRestore();
-        });
-    });
-
-    describe('Version Conflict Handling', () => {
-        it('detects version conflicts and prompts user', async () => {
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Set up current file
-            wrapper.vm.currentFile = { path: '/Posts/Markdowns/test.md', name: 'test.md' };
-            wrapper.vm.content = 'Test content';
-            wrapper.vm.currentFileVersion = { lastModified: 1000, etag: 'old-etag' };
-
-            // Mock 409 conflict error
-            axios.post.mockRejectedValueOnce({
-                response: {
-                    status: 409,
-                    data: {
-                        error: 'version_conflict',
-                        currentVersion: { lastModified: 2000, etag: 'new-etag' }
-                    }
-                }
-            });
-
-            // Mock confirm dialog
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
-
-            // Mock reload
-            axios.get.mockResolvedValueOnce({
-                data: {
-                    content: 'Updated content',
-                    version: { lastModified: 2000, etag: 'new-etag' }
-                }
-            });
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to save
-            await wrapper.vm.handleSave();
-
-            // Should prompt user about conflict
-            expect(confirmSpy).toHaveBeenCalled();
-            expect(confirmSpy.mock.calls[0][0]).toContain('版本冲突');
-
-            confirmSpy.mockRestore();
-            alertSpy.mockRestore();
-        });
-
-        it('allows force save on conflict', async () => {
-            const wrapper = mount(EditorPage, {
-                global: {
-                    stubs: {
-                        MonacoEditor: true
-                    }
-                }
-            });
-
-            // Set up current file
-            wrapper.vm.currentFile = { path: '/Posts/Markdowns/test.md', name: 'test.md' };
-            wrapper.vm.content = 'Test content';
-            wrapper.vm.currentFileVersion = { lastModified: 1000, etag: 'old-etag' };
-
-            // Mock 409 conflict error
-            axios.post.mockRejectedValueOnce({
-                response: {
-                    status: 409,
-                    data: {
-                        error: 'version_conflict',
-                        currentVersion: { lastModified: 2000, etag: 'new-etag' }
-                    }
-                }
-            });
-
-            // Mock confirm dialog - user chooses to force save
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
-
-            // Mock successful force save
-            axios.post.mockResolvedValueOnce({
-                data: {
-                    success: true,
-                    version: { lastModified: 3000, etag: 'newest-etag' }
-                }
-            });
-
-            // Mock alert
-            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
-            // Try to save
-            await wrapper.vm.handleSave();
-
-            // Should have called save twice (initial + force)
-            expect(axios.post).toHaveBeenCalledTimes(2);
-            expect(wrapper.vm.saveStatus).toBe('saved');
-
-            confirmSpy.mockRestore();
-            alertSpy.mockRestore();
-        });
-    });
 });

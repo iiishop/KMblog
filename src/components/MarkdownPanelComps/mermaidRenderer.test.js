@@ -57,6 +57,23 @@ describe('lazy Mermaid rendering', () => {
         expect(mock.run).toHaveBeenCalledTimes(2);
     });
 
+    it('uses the active semantic palette when rendering a diagram', async () => {
+        const style = document.documentElement.style;
+        style.setProperty('--theme-index', '#123456');
+        style.setProperty('--theme-reading', '#234567');
+        style.setProperty('--theme-surface-active', '#345678');
+        try {
+            await surface('graph TD; A-->B').renderer.render();
+            expect(mock.initialize).toHaveBeenLastCalledWith(expect.objectContaining({
+                themeVariables: expect.objectContaining({
+                    primaryBorderColor: '#123456', todayLineColor: '#234567', mainBkg: '#345678'
+                })
+            }));
+        } finally {
+            ['--theme-index', '--theme-reading', '--theme-surface-active'].forEach(key => style.removeProperty(key));
+        }
+    });
+
     it('serializes surfaces and skips work disposed while waiting', async () => {
         let finish;
         mock.run.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));

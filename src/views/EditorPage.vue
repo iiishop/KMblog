@@ -1,7 +1,8 @@
 <template>
-    <div class="editor-container">
+    <div class="editor-container" :class="{ 'focus-mode': focusMode }">
         <!-- File Tree Sidebar -->
-        <FileTreeSidebar v-model:visible="fileTreeVisible" v-model:width="fileTreeWidth" :files="fileTree"
+        <button v-if="fileTreeVisible && !focusMode" class="sidebar-backdrop" aria-label="关闭文件浏览器" @click="fileTreeVisible = false"></button>
+        <FileTreeSidebar ref="fileTreeRef" :visible="fileTreeVisible && !focusMode" @update:visible="fileTreeVisible = $event" v-model:width="fileTreeWidth" :files="fileTree"
             :current-file="currentFile" @file-select="handleFileSelect" @file-create="handleFileCreate"
             @file-delete="handleFileDelete" @file-move="handleFileMove" @file-rename="handleFileRename"
             @folder-create="handleFolderCreate" @folder-delete="handleFolderDelete"
@@ -13,7 +14,7 @@
             <EditorToolbar :save-status="saveStatus" :file-name="currentFileName" :last-save-time="lastSaveTime"
                 :disabled="!currentFile || isOpening || !!draft"
                 @save="handleSave" @insert-format="handleInsertFormat" @insert-block="handleInsertBlock"
-                @toggle-file-tree="fileTreeVisible = !fileTreeVisible" />
+                @toggle-file-tree="toggleFileTree" />
 
             <div v-if="fileTreeError" class="editor-notice error" role="alert">
                 <span>{{ fileTreeError }}</span>
@@ -45,38 +46,34 @@
                 <span v-if="fileTreeLoading" role="status">正在加载文件列表…</span>
             </div>
 
-            <!-- Mobile View Toggle -->
-            <div v-if="currentFile" class="mobile-view-toggle">
-                <button @click="mobileView = 'edit'" :class="{ active: mobileView === 'edit' }" class="view-toggle-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    <span>编辑</span>
-                </button>
-                <button @click="mobileView = 'preview'" :class="{ active: mobileView === 'preview' }"
-                    class="view-toggle-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    <span>预览</span>
-                </button>
+            <div v-if="currentFile" class="workspace-bar">
+                <button @click="searchFiles" title="查找文章 · Ctrl / ⌘ + P" class="path-button">⌕ <span>{{ currentFile.path.replace('/Posts/', '') }}</span></button>
+                <div class="view-switch" role="group" aria-label="编辑器布局">
+                    <button @click="setLayout('edit')" :aria-pressed="effectiveLayout === 'edit'">编辑</button>
+                    <button v-if="!isNarrow" @click="setLayout('split')" :aria-pressed="effectiveLayout === 'split'">双栏</button>
+                    <button @click="setLayout('preview')" :aria-pressed="effectiveLayout === 'preview'">预览</button>
+                </div>
+                <label v-if="effectiveLayout === 'split'" class="sync-toggle"><input v-model="syncScroll" type="checkbox" />同步滚动</label>
+                <button @click="focusMode = !focusMode" :aria-pressed="focusMode" title="专注写作 · Esc 退出">{{ focusMode ? '退出专注' : '专注' }}</button>
             </div>
 
             <!-- Editor and Preview Panels -->
-            <div v-if="currentFile" class="editor-panels" :aria-busy="isOpening">
+            <div v-if="currentFile" class="editor-panels" ref="panelsRef" :aria-busy="isOpening" :class="`layout-${effectiveLayout}`" :style="{ '--editor-width': splitRatio + '%' }">
                 <!-- Edit Panel -->
-                <div class="edit-panel" :class="{ 'mobile-hidden': mobileView === 'preview' }">
+                <div class="edit-panel" v-show="effectiveLayout !== 'preview'">
                     <MonacoEditor v-model="content" language="markdown" :theme="editorTheme"
                         :document-key="currentFile.path" :options="{ readOnly: isOpening || !!draft }"
                         :current-file-name="currentFileName" :api-base="API_BASE" :scroll-sync="previewScrollTop"
-                        @change="handleContentChange" @scroll="handleEditorScroll" @format-request="handleInsertFormat"
+                        @save="handleSave" @search-files="searchFiles" @notice="notify" @cursor="cursor = $event" @scroll="handleEditorScroll" @format-request="handleInsertFormat"
                         ref="monacoEditorRef" />
                 </div>
 
+                <div v-show="effectiveLayout === 'split'" class="panel-splitter" role="separator" tabindex="0"
+                    aria-label="调整编辑区宽度" aria-orientation="vertical" :aria-valuenow="splitRatio" :aria-valuemin="35" :aria-valuemax="70"
+                    @pointerdown="startPanelResize" @pointermove="resizePanels" @pointerup="resizingPanels = false" @lostpointercapture="resizingPanels = false"
+                    @keydown="resizePanelsByKey" @dblclick="splitRatio = 50"></div>
                 <!-- Preview Panel -->
-                <div class="preview-panel" :class="{ 'mobile-hidden': mobileView === 'edit' }" ref="previewPanelRef">
+                <div class="preview-panel" v-show="effectiveLayout !== 'edit'" ref="previewPanelRef">
                     <!-- WaterfallGraph 图片预览 - 使用 Graph 组件 -->
                     <div v-if="isWaterfallGraphFile && graphData" class="graph-preview-section">
                         <div class="preview-header">
@@ -90,39 +87,34 @@
                         </div>
                         <div v-show="showGraphPreview" class="graph-preview-content">
                             <div class="graph-preview-wrapper">
-                                <Graph :image="graphData" :index="0" :column="0" />
+                                <Graph :key="graphData.src" ref="graphRef" :image="graphData" :index="0" :column="0" @click="openGraphPreview" />
                             </div>
                         </div>
                     </div>
 
-                    <!-- 普通文章预览 - 使用 Post 组件 -->
-                    <div v-else-if="currentMetadata && currentFile && !isWaterfallGraphFile"
-                        class="post-preview-section">
-                        <div class="preview-header">
-                            <div class="preview-label">文章卡片预览</div>
-                            <button @click="togglePostPreview" class="collapse-btn"
-                                :class="{ 'collapsed': !showPostPreview }">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
+                    <details v-else-if="!isWaterfallGraphFile" class="post-preview-section" open>
+                        <summary>文章卡片预览 <span>首页样式 · 当前草稿</span></summary>
+                        <div class="post-preview-card">
+                            <Post :key="currentFile.path" :markdown-url="currentFile.path"
+                                :image-url="coverUrl" :preview-metadata="cardMetadata" />
                         </div>
-                        <div v-show="showPostPreview" class="post-preview-content">
-                            <Post :key="postPreviewKey"
-                                :imageUrl="currentMetadata.img ? `/Posts/Images/${currentMetadata.img}` : ''"
-                                :markdownUrl="virtualMarkdownUrl" />
-                        </div>
-                    </div>
+                    </details>
 
                     <!-- Markdown内容预览 -->
                     <div class="markdown-preview-section">
                         <div v-if="currentMetadata || isWaterfallGraphFile" class="preview-label">Markdown渲染预览</div>
-                        <MarkdownPreview :content="content" :scroll-sync="editorScrollTop"
+                        <MarkdownPreview :key="currentFile.path" :markdown-url="currentFile.path" :image="isWaterfallGraphFile ? (graphData || { src: graphImagePath }) : null" :content="content" :active="effectiveLayout !== 'edit'" :scroll-sync="editorScrollTop"
                             @scroll="handlePreviewScroll" />
                     </div>
                 </div>
             </div>
+            <footer v-if="currentFile" class="editor-statusbar">
+                <span>{{ documentStats.words.toLocaleString() }} 字 / 词 · 约 {{ documentStats.minutes }} 分钟阅读</span>
+                <span class="cursor-position">行 {{ cursor.lineNumber }}，列 {{ cursor.column }}</span>
+                <span>{{ isOpening ? '正在打开…' : isSaving ? '正在保存…' : isDirty ? '有未保存修改' : '已与磁盘同步' }}</span>
+            </footer>
         </div>
+        <ImageModal v-if="graphModalOpen && graphData" :image="graphData" :content="content" :trigger-card-rect="graphCardRect" @close="closeGraphPreview" />
         <EditorLeaveDialog v-if="leavePrompt" :file-name="currentFileName" @answer="session.answerLeave" />
     </div>
 </template>
@@ -133,13 +125,15 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { useEditorDocument } from '@/composables/useEditorDocument';
 import EditorLeaveDialog from '@/components/Editor/EditorLeaveDialog.vue';
 import axios from 'axios';
-import fm from 'front-matter';
+import { parseMarkdownMetadataSync, resolvePostImage } from '@/utils';
+import { loadGalleryImage, applyGalleryMetadata } from '@/utils/galleryImage';
 import MonacoEditor from '@/components/Editor/MonacoEditor.vue';
 import MarkdownPreview from '@/components/Editor/MarkdownPreview.vue';
 import FileTreeSidebar from '@/components/Editor/FileTreeSidebar.vue';
 import EditorToolbar from '@/components/Editor/EditorToolbar.vue';
 import Post from '@/components/PostPanelComps/Post.vue';
 import Graph from '@/components/WaterfallPanelComps/Graph.vue';
+import ImageModal from '@/components/WaterfallPanelComps/ImageModal.vue';
 import { useTheme } from '@/composables/useTheme';
 
 // Error handling utility
@@ -149,7 +143,6 @@ const handleApiError = (error, context = '') => {
 
     if (axios.isCancel(error)) {
         // Silently ignore cancellation errors
-        console.log(`[EditorPage] ${context} Request cancelled`);
         return null;
     }
 
@@ -207,15 +200,12 @@ const urlParams = getHashParams();
 const authToken = urlParams.get('token');
 const apiPort = urlParams.get('api_port');
 
-console.log('Auth Token:', authToken ? 'Present' : 'Missing');
-console.log('API Port:', apiPort);
 
 // Use current hostname instead of hardcoded 127.0.0.1
 // This allows LAN access to work properly
 const currentHost = window.location.hostname;
 const API_BASE = apiPort ? `http://${currentHost}:${apiPort}/api` : `http://${currentHost}:8000/api`;
 
-console.log('API Base URL:', API_BASE);
 
 // Create authenticated axios instance for backend API calls only
 const apiClient = axios.create({
@@ -246,9 +236,10 @@ const fileTreeWidth = ref(250);
 const session = useEditorDocument({
     api: apiClient,
     normalizePath: normalizePathForAPI,
-    storageKey: `kmblog-editor-draft:${API_BASE}`,
-    describeError: error => handleApiError(error, 'Document'),
-    onSaved: () => refreshPostPreview()
+    // The API chooses a new free port on every launch. Drafts must survive it;
+    // localStorage already scopes this namespace to the frontend origin.
+    storageKey: 'kmblog-editor-draft:v1',
+    describeError: error => handleApiError(error, 'Document')
 });
 const { currentFile, content, saveStatus, lastSaveTime, isDirty, isSaving, isOpening,
     issue, draft, draftWarning, leavePrompt } = session;
@@ -272,13 +263,54 @@ const previewScrollTop = ref(0);
 const isScrollingFromPreview = ref(false);
 const monacoEditorRef = ref(null);
 const previewPanelRef = ref(null);
-const mobileView = ref('edit'); // 'edit' or 'preview' - for mobile view toggle
-const showPostPreview = ref(true); // 控制文章卡片预览的显示/隐藏
+const fileTreeRef = ref(null);
+const panelsRef = ref(null);
+const cursor = ref({ lineNumber: 1, column: 1 });
+const layout = ref('split');
+const focusMode = ref(false);
+const isNarrow = ref(window.innerWidth <= 900);
+const syncScroll = ref(true);
+const splitRatio = ref(50);
+const resizingPanels = ref(false);
+const effectiveLayout = computed(() => focusMode.value ? 'edit' : isNarrow.value && layout.value === 'split' ? 'edit' : layout.value);
+try {
+    const preferences = JSON.parse(localStorage.getItem('kmblog-editor-layout') || '{}');
+    if (['edit', 'split', 'preview'].includes(preferences.layout)) layout.value = preferences.layout;
+    if (Number.isFinite(preferences.ratio)) splitRatio.value = Math.max(35, Math.min(70, preferences.ratio));
+} catch { /* Layout preferences are optional. */ }
+watch([layout, splitRatio], () => {
+    try { localStorage.setItem('kmblog-editor-layout', JSON.stringify({ layout: layout.value, ratio: splitRatio.value })); } catch { /* Optional. */ }
+});
+const setLayout = value => { focusMode.value = false; layout.value = value; };
+const toggleFileTree = () => { fileTreeVisible.value = focusMode.value || !fileTreeVisible.value; focusMode.value = false; };
+const searchFiles = async () => { focusMode.value = false; fileTreeVisible.value = true; await nextTick(); fileTreeRef.value?.focusSearch(); };
+const updateViewport = () => { isNarrow.value = window.innerWidth <= 900; };
+const startPanelResize = event => { resizingPanels.value = true; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); };
+const resizePanels = event => {
+    if (!resizingPanels.value || !panelsRef.value) return;
+    const bounds = panelsRef.value.getBoundingClientRect();
+    splitRatio.value = Math.round(Math.max(35, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)));
+};
+const resizePanelsByKey = event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home'].includes(event.key)) return;
+    event.preventDefault();
+    splitRatio.value = event.key === 'Home' ? 50 : Math.max(35, Math.min(70, splitRatio.value + (event.key === 'ArrowLeft' ? -5 : 5)));
+};
+const previewContent = ref('');
+let metadataTimer;
+watch(content, value => {
+    clearTimeout(metadataTimer);
+    metadataTimer = setTimeout(() => { previewContent.value = value; }, 180);
+});
+const documentStats = computed(() => {
+    const words = (previewContent.value.match(/[\u3400-\u9fff]|[a-zA-Z0-9]+/g) || []).length;
+    return { words, minutes: Math.max(1, Math.ceil(words / 350)) };
+});
+const coverUrl = computed(() => resolvePostImage(currentMetadata.value?.img));
 const showGraphPreview = ref(true); // 控制图片卡片预览的显示/隐藏
-const postPreviewKey = ref(0); // 用于强制刷新 Post 组件
 
 // Theme management
-const { currentMode, isDarkMode } = useTheme();
+const { isDarkMode } = useTheme();
 
 // Computed Monaco theme based on global theme
 const editorTheme = computed(() => {
@@ -287,22 +319,17 @@ const editorTheme = computed(() => {
 
 // 解析当前文件的metadata用于Post组件显示
 const currentMetadata = computed(() => {
-    if (!content.value) return null;
+    if (!previewContent.value) return null;
 
     try {
-        const parsed = fm(content.value);
-        return parsed.attributes || null;
+        return parseMarkdownMetadataSync(previewContent.value).meta;
     } catch (error) {
         console.error('[EditorPage] Failed to parse front-matter:', error);
         return null;
     }
 });
 
-// 为Post组件生成虚拟的markdownUrl
-const virtualMarkdownUrl = computed(() => {
-    if (!currentFile.value) return '';
-    return currentFile.value.path;
-});
+const cardMetadata = computed(() => currentMetadata.value || {});
 
 // 检查当前文件是否在 WaterfallGraph 文件夹内
 const isWaterfallGraphFile = computed(() => {
@@ -310,72 +337,69 @@ const isWaterfallGraphFile = computed(() => {
     return currentFile.value.path.includes('WaterfallGraph');
 });
 
-// 为 Graph 组件准备数据
-const graphData = computed(() => {
-    console.log('[EditorPage] Computing graphData...');
-    console.log('[EditorPage] isWaterfallGraphFile:', isWaterfallGraphFile.value);
-    console.log('[EditorPage] currentMetadata:', currentMetadata.value);
-
-    if (!isWaterfallGraphFile.value || !currentMetadata.value) {
-        console.log('[EditorPage] graphData is null - conditions not met');
-        return null;
-    }
-
-    // 从 metadata 中提取图片路径
-    const imgPath = currentMetadata.value.img;
-    console.log('[EditorPage] imgPath from metadata:', imgPath);
-
-    if (!imgPath) {
-        console.log('[EditorPage] graphData is null - no img in metadata');
-        return null;
-    }
-
-    // 构建完整的图片 URL
-    // imgPath 可能是: "WaterfallGraph/image.jpg" 或 "/Posts/WaterfallGraph/image.jpg"
-    let imageUrl;
-    if (imgPath.startsWith('/')) {
-        imageUrl = imgPath; // 已经是完整路径
-    } else if (imgPath.startsWith('Posts/')) {
-        imageUrl = '/' + imgPath; // 添加前导斜杠
-    } else {
-        imageUrl = '/Posts/' + imgPath; // 添加 /Posts/ 前缀
-    }
-    console.log('[EditorPage] Constructed imageUrl:', imageUrl);
-
-    // 构建 Graph 组件需要的 image 对象
-    const data = {
-        src: imageUrl,
-        alt: currentMetadata.value.title || currentFileName.value,
-        title: currentMetadata.value.title || (currentFileName.value ? currentFileName.value.replace('.md', '') : ''),
-        date: currentMetadata.value.date || new Date().toLocaleDateString(),
-        aspectRatio: currentMetadata.value.aspectRatio || 1,
-        dominantColor: currentMetadata.value.dominantColor || 'hsl(250, 60%, 65%)'
+const graphRef = ref(null);
+const graphModalOpen = ref(false);
+const graphCardRect = ref(null);
+const baseGraphImage = ref(null);
+const siblingImagePath = computed(() => {
+    if (!isWaterfallGraphFile.value) return '';
+    const descriptionPath = currentFile.value.path;
+    const findImage = nodes => {
+        for (const node of nodes) {
+            if (/\.(png|jpe?g|gif|webp|svg|avif)$/i.test(node.path || '') && node.path.replace(/\.[^.]+$/, '.md') === descriptionPath) return node.path;
+            const nested = node.children && findImage(node.children);
+            if (nested) return nested;
+        }
+        return '';
     };
-
-    console.log('[EditorPage] graphData computed:', data);
-    return data;
+    return findImage(fileTree.value);
 });
-
-// 切换文章卡片预览显示状态
-const togglePostPreview = () => {
-    showPostPreview.value = !showPostPreview.value;
-};
+const graphImagePath = computed(() => {
+    if (!isWaterfallGraphFile.value) return '';
+    // Gallery cards use the image beside the description, regardless of its img field.
+    if (siblingImagePath.value) return siblingImagePath.value;
+    const path = currentMetadata.value?.img;
+    if (!path) return '';
+    return /^(https?:\/\/|\/)/i.test(path) ? path : path.startsWith('Posts/') ? '/' + path : '/Posts/' + path;
+});
+let graphRevision = 0;
+watch(graphImagePath, async path => {
+    const current = ++graphRevision;
+    baseGraphImage.value = null;
+    closeGraphPreview();
+    if (!path) return;
+    try {
+        const image = await loadGalleryImage({ path, name: path.split('/').pop(), directory: path.slice(0, path.lastIndexOf('/')) });
+        if (current === graphRevision) baseGraphImage.value = image;
+    } catch (error) {
+        if (current === graphRevision) notify(`图片预览加载失败：${error.message}`);
+    }
+});
+const graphData = computed(() => {
+    if (!baseGraphImage.value) return null;
+    try { return applyGalleryMetadata(baseGraphImage.value, previewContent.value); }
+    catch { return baseGraphImage.value; }
+});
+function openGraphPreview(image, rect) {
+    graphCardRect.value = rect;
+    graphModalOpen.value = true;
+}
+function closeGraphPreview() {
+    graphModalOpen.value = false;
+    graphRef.value?.resetCardState();
+}
+watch(() => currentFile.value?.path, () => {
+    clearTimeout(metadataTimer);
+    previewContent.value = content.value;
+    closeGraphPreview();
+});
 
 // 切换图片卡片预览显示状态
 const toggleGraphPreview = () => {
     showGraphPreview.value = !showGraphPreview.value;
 };
 
-// 强制刷新 Post 组件
-const refreshPostPreview = () => {
-    postPreviewKey.value++;
-    console.log('[EditorPage] Post preview refreshed, key:', postPreviewKey.value);
-};
-
-// Saving and local draft persistence are driven by the document session.
-const handleContentChange = () => {};
-
-// Load file tree
+// Fetch the current directory tree.
 const loadFileTree = async () => {
     fileTreeLoading.value = true;
     fileTreeError.value = '';
@@ -393,8 +417,8 @@ const handleFileSelect = async file => {
     if (file.type !== 'file') return;
     if (await session.open(file)) {
         editorScrollTop.value = previewScrollTop.value = 0;
-        mobileView.value = 'edit';
-        if (window.innerWidth <= 768) fileTreeVisible.value = false;
+        if (isNarrow.value) layout.value = 'edit';
+        if (isNarrow.value) fileTreeVisible.value = false;
         await nextTick();
         monacoEditorRef.value?.focus();
     }
@@ -404,8 +428,8 @@ const handleImageFileSelect = async ({ imagePath, mdPath, imageNode }) => {
     const file = { path: mdPath, name: mdPath.split('/').pop(), type: 'file' };
     if (await session.open(file, { createContent: () => generateImageDescriptionTemplate(imagePath, imageNode) })) {
         editorScrollTop.value = previewScrollTop.value = 0;
-        mobileView.value = 'edit';
-        if (window.innerWidth <= 768) fileTreeVisible.value = false;
+        if (isNarrow.value) layout.value = 'edit';
+        if (isNarrow.value) fileTreeVisible.value = false;
     }
 };
 
@@ -430,7 +454,7 @@ title: ${filenameWithoutExt}
 date: ${new Date().toISOString().split('T')[0]}
 img: ${relativeImgPath}
 aspectRatio: 1
-dominantColor: hsl(250, 60%, 65%)
+dominantColor: var(--theme-index)
 ---
 
 # ${filenameWithoutExt}
@@ -438,8 +462,6 @@ dominantColor: hsl(250, 60%, 65%)
 在这里添加图片描述...
 `;
 
-    console.log('[EditorPage] Generated template for image:', filename);
-    console.log('[EditorPage] Image path in metadata:', relativeImgPath);
     return template;
 };
 
@@ -452,7 +474,6 @@ const handleFileCreate = async ({ folder, fileName }) => {
     const filePath = `${folder.path}/${fullFileName}`;
     const normalizedPath = normalizePathForAPI(filePath);
 
-    console.log('[EditorPage] Creating file:', filePath, '-> API path:', normalizedPath);
 
     try {
         await apiClient.post('/files/create', {
@@ -461,7 +482,6 @@ const handleFileCreate = async ({ folder, fileName }) => {
             collection: folder.name
         });
 
-        console.log('[EditorPage] File created successfully');
 
         // Reload file tree
         await loadFileTree();
@@ -496,13 +516,11 @@ const handleFileDelete = async (file) => {
     if (currentFile.value?.path === file.path && !await session.canLeave()) return;
     try {
         const normalizedPath = normalizePathForAPI(file.path);
-        console.log('[EditorPage] Deleting file:', file.path, '-> API path:', normalizedPath);
 
         await apiClient.delete('/files/delete', {
             params: { path: normalizedPath }
         });
 
-        console.log('[EditorPage] File deleted successfully');
 
         // If deleted file was current file, clear editor
         if (currentFile.value && currentFile.value.path === file.path) {
@@ -522,9 +540,6 @@ const handleFileDelete = async (file) => {
 // Handle file move
 const handleFileMove = async ({ file, targetFolder }) => {
     if (currentFile.value?.path === file.path && !await session.canLeave()) return;
-    console.log('[EditorPage] handleFileMove called');
-    console.log('[EditorPage] File:', file);
-    console.log('[EditorPage] Target folder:', targetFolder);
 
     // Construct new path
     const fileName = file.name;
@@ -532,34 +547,26 @@ const handleFileMove = async ({ file, targetFolder }) => {
     const newPath = `${targetFolderPath}/${fileName}`;
     const oldPath = normalizePathForAPI(file.path);
 
-    console.log('[EditorPage] API paths - from:', oldPath, 'to:', newPath);
 
     // Don't move if already in target folder
     if (oldPath === newPath) {
-        console.log('[EditorPage] Same path, skipping move');
         return;
     }
 
     try {
-        console.log('[EditorPage] Sending move request to API...');
         const response = await apiClient.post('/files/move', {
             from: oldPath,
             to: newPath
         });
 
-        console.log('[EditorPage] Move response:', response.data);
-        console.log('[EditorPage] File moved successfully');
 
         // Update current file path if it was moved
         if (currentFile.value && currentFile.value.path === file.path) {
             session.relocate(targetFolder.path + '/' + fileName);
-            console.log('[EditorPage] Updated current file path');
         }
 
         // Reload file tree
-        console.log('[EditorPage] Reloading file tree...');
         await loadFileTree();
-        console.log('[EditorPage] File tree reloaded');
     } catch (error) {
         const errorMessage = handleApiError(error, 'Move File');
         if (errorMessage) {
@@ -571,21 +578,15 @@ const handleFileMove = async ({ file, targetFolder }) => {
 // Handle file rename
 const handleFileRename = async ({ node, newName }) => {
     if (currentFile.value && (currentFile.value.path === node.path || currentFile.value.path.startsWith(node.path + '/')) && !await session.canLeave()) return;
-    console.log('[EditorPage] handleFileRename called');
-    console.log('[EditorPage] Node:', node);
-    console.log('[EditorPage] New name:', newName);
 
     const normalizedPath = normalizePathForAPI(node.path);
 
     try {
-        console.log('[EditorPage] Sending rename request to API...');
         const response = await apiClient.post('/files/rename', {
             path: normalizedPath,
             new_name: newName
         });
 
-        console.log('[EditorPage] Rename response:', response.data);
-        console.log('[EditorPage] File/folder renamed successfully');
 
         // Update current file path if it was renamed
         if (currentFile.value && (currentFile.value.path === node.path || currentFile.value.path.startsWith(node.path + '/'))) {
@@ -593,7 +594,6 @@ const handleFileRename = async ({ node, newName }) => {
             const newFileName = node.type === 'folder' || newName.endsWith('.md') ? newName : `${newName}.md`;
             const suffix = currentFile.value.path.slice(node.path.length);
             session.relocate(`${parentPath}/${newFileName}${suffix}`, suffix ? currentFileName.value : newFileName);
-            console.log('[EditorPage] Updated current file path');
         }
 
         // Reload file tree
@@ -608,21 +608,15 @@ const handleFileRename = async ({ node, newName }) => {
 
 // Handle folder create
 const handleFolderCreate = async ({ parentFolder, folderName }) => {
-    console.log('[EditorPage] handleFolderCreate called');
-    console.log('[EditorPage] Parent folder:', parentFolder);
-    console.log('[EditorPage] Folder name:', folderName);
 
     const normalizedPath = normalizePathForAPI(parentFolder.path);
 
     try {
-        console.log('[EditorPage] Sending create folder request to API...');
         const response = await apiClient.post('/folders/create', {
             path: normalizedPath,
             name: folderName
         });
 
-        console.log('[EditorPage] Create folder response:', response.data);
-        console.log('[EditorPage] Folder created successfully');
 
         // Reload file tree
         await loadFileTree();
@@ -637,18 +631,14 @@ const handleFolderCreate = async ({ parentFolder, folderName }) => {
 // Handle folder delete
 const handleFolderDelete = async (folder) => {
     if (currentFile.value?.path.startsWith(folder.path + '/') && !await session.canLeave()) return;
-    console.log('[EditorPage] handleFolderDelete called');
-    console.log('[EditorPage] Folder:', folder);
 
     const normalizedPath = normalizePathForAPI(folder.path);
 
     try {
-        console.log('[EditorPage] Sending delete folder request to API...');
         await apiClient.delete('/folders/delete', {
             params: { path: normalizedPath }
         });
 
-        console.log('[EditorPage] Folder deleted successfully');
 
         // If current file was in deleted folder, clear editor
         if (currentFile.value && currentFile.value.path.startsWith(folder.path + '/')) {
@@ -667,9 +657,6 @@ const handleFolderDelete = async (folder) => {
 
 // Handle external file drop (for WaterfallGraph folder)
 const handleExternalFileDrop = async ({ files, targetFolder }) => {
-    console.log('[EditorPage] handleExternalFileDrop called');
-    console.log('[EditorPage] Files:', files.length);
-    console.log('[EditorPage] Target folder:', targetFolder);
 
     if (!files || files.length === 0) {
         console.warn('[EditorPage] No files to upload');
@@ -683,7 +670,6 @@ const handleExternalFileDrop = async ({ files, targetFolder }) => {
         `\n\n确认上传?`;
 
     if (!confirm(confirmMessage)) {
-        console.log('[EditorPage] Upload cancelled by user');
         return;
     }
 
@@ -693,11 +679,9 @@ const handleExternalFileDrop = async ({ files, targetFolder }) => {
     const errors = [];
 
     // 显示上传进度
-    console.log('[EditorPage] Starting upload...');
 
     for (const file of files) {
         try {
-            console.log(`[EditorPage] Uploading: ${file.name}`);
 
             const formData = new FormData();
             formData.append('file', file);
@@ -710,7 +694,6 @@ const handleExternalFileDrop = async ({ files, targetFolder }) => {
             });
 
             successCount++;
-            console.log(`[EditorPage] ✓ Uploaded: ${file.name}`);
         } catch (error) {
             failCount++;
             const errorMessage = handleApiError(error, `Upload ${file.name}`);
@@ -731,24 +714,26 @@ const handleExternalFileDrop = async ({ files, targetFolder }) => {
 
     // 重新加载文件树
     if (successCount > 0) {
-        console.log('[EditorPage] Reloading file tree...');
         await loadFileTree();
     }
 };
 
 // Handle editor scroll
 const handleEditorScroll = (scrollPercentage) => {
-    if (isScrollingFromPreview.value) return; // 如果是预览触发的滚动，忽略
+    if (!syncScroll.value || effectiveLayout.value !== 'split' || isScrollingFromPreview.value) return; // 如果是预览触发的滚动，忽略
     editorScrollTop.value = scrollPercentage;
 };
 
 // Handle preview scroll
+let previewScrollTimer;
 const handlePreviewScroll = (scrollPercentage) => {
+    if (!syncScroll.value || effectiveLayout.value !== 'split') return;
     isScrollingFromPreview.value = true;
     previewScrollTop.value = scrollPercentage;
 
     // 重置标记
-    setTimeout(() => {
+    clearTimeout(previewScrollTimer);
+    previewScrollTimer = setTimeout(() => {
         isScrollingFromPreview.value = false;
     }, 100);
 };
@@ -956,7 +941,11 @@ const downloadDraft = () => {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+const handleFocusEscape = event => { if (event.key === 'Escape') focusMode.value = false; };
 const handleEditorShortcut = event => {
+    if (event.defaultPrevented) return;
+    if (event.key === 'Escape' && focusMode.value) { focusMode.value = false; return; }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') { event.preventDefault(); void searchFiles(); return; }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         if (!isOpening.value) void handleSave();
@@ -974,30 +963,28 @@ const handleBeforeUnload = (e) => {
     }
 };
 
-// 监听内容变化，当 metadata 更新时刷新预览
-watch(() => currentMetadata.value, (newMetadata, oldMetadata) => {
-    // 只有当 metadata 真正发生变化时才刷新
-    if (newMetadata && oldMetadata && JSON.stringify(newMetadata) !== JSON.stringify(oldMetadata)) {
-        console.log('[EditorPage] Metadata changed, refreshing preview');
-        refreshPostPreview();
-    }
-}, { deep: true });
-
 // Lifecycle hooks
 onMounted(async () => {
     // Add beforeunload listener
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('keydown', handleEditorShortcut);
+    window.addEventListener('keydown', handleFocusEscape, true);
+    window.addEventListener('resize', updateViewport);
 
     // Load file tree
     await loadFileTree();
 });
 
 onBeforeUnmount(() => {
+    graphRevision++;
+    clearTimeout(metadataTimer);
+    clearTimeout(previewScrollTimer);
+    window.removeEventListener('resize', updateViewport);
     // Clean up
     window.removeEventListener('beforeunload', handleBeforeUnload);
     clearTimeout(notificationTimer);
     window.removeEventListener('keydown', handleEditorShortcut);
+    window.removeEventListener('keydown', handleFocusEscape, true);
 
 });
 </script>
@@ -1013,459 +1000,43 @@ onBeforeUnmount(() => {
 .editor-empty p { max-width: 420px; line-height: 1.8; color: var(--theme-meta-text); margin: 0 0 10px; }
 .empty-mark { font-size: 52px; color: var(--theme-primary); }
 
-.editor-container {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    background-color: var(--theme-body-bg);
-    color: var(--theme-body-text);
-    overflow: hidden;
-    transition: var(--theme-transition-colors);
+.editor-container { display: flex; height: 100vh; height: 100dvh; width: 100%; overflow: hidden; background: var(--theme-body-bg); color: var(--theme-body-text); }
+.main-editor { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.workspace-bar { display: flex; gap: 12px; align-items: center; min-height: 46px; padding: 6px 16px; border-bottom: 1px solid var(--theme-panel-border); background: var(--theme-panel-bg); flex-shrink: 0; }
+.workspace-bar button { border: 1px solid var(--theme-panel-border); border-radius: 5px; background: transparent; color: inherit; padding: 6px 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.workspace-bar button:focus-visible, .panel-splitter:focus-visible { outline: 2px solid var(--theme-primary); outline-offset: -2px; }
+.workspace-bar .path-button { flex: 1; display: flex; gap: 6px; min-width: 0; border: 0; text-align: left; color: var(--theme-meta-text); }
+.path-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-switch { display: flex; gap: 2px; }
+.view-switch button[aria-pressed="true"], .workspace-bar > button[aria-pressed="true"] { color: var(--theme-primary); background: var(--theme-surface-hover); border-color: var(--theme-primary); }
+.sync-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.editor-panels { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.edit-panel, .preview-panel { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.layout-split .edit-panel { flex: 0 0 var(--editor-width, 50%); }
+.preview-panel { overflow-y: auto; background: var(--theme-panel-bg); }
+.panel-splitter { flex: 0 0 6px; cursor: col-resize; touch-action: none; background: var(--theme-panel-border); }
+.panel-splitter:hover, .panel-splitter:focus-visible { background: var(--theme-primary); }
+.post-preview-section, .graph-preview-section { margin: 16px 20px 0; border: 1px solid var(--theme-panel-border); border-radius: 8px; }
+.post-preview-section summary { cursor: pointer; padding: 12px; font-size: 12px; }
+.post-preview-section summary span { float: right; color: var(--theme-meta-text); }
+.post-preview-card { padding: 16px; }
+.preview-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; }
+.preview-label { color: var(--theme-meta-text); font-size: 12px; padding: 12px 20px 0; }
+.collapse-btn { width: 28px; height: 28px; border: 0; border-radius: 5px; color: inherit; background: var(--theme-surface-hover); cursor: pointer; }
+.collapse-btn svg { width: 16px; }
+.collapse-btn.collapsed svg { transform: rotate(-90deg); }
+.graph-preview-wrapper { max-width: 400px; margin: 16px auto; }
+.editor-statusbar { display: flex; justify-content: space-between; gap: 12px; padding: 7px 16px; border-top: 1px solid var(--theme-panel-border); color: var(--theme-meta-text); font-size: 11px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.focus-mode :deep(.toolbar-tools > .tool-group), .focus-mode :deep(.toolbar-tools > .dropdown), .focus-mode :deep(.toolbar-tools > .divider), .focus-mode :deep(.toolbar-tools > .format-btn), .focus-mode :deep(.mobile-tools-toggle) { display: none; }
+.focus-mode .edit-panel { max-width: 1000px; margin: 0 auto; }
+.sidebar-backdrop { display: none; }
+@media (max-width: 900px) {
+    .workspace-bar { padding: 6px 8px; gap: 5px; }
+    .sync-toggle { display: none; }
+    .editor-container > :deep(.ethereal-sidebar) { position: fixed; top: 0; bottom: 0; left: 0; z-index: 1501; max-width: 85vw; }
+    .sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 1500; border: 0; background: #0006; }
+    .editor-statusbar { padding: 7px 8px; font-size: 10px; }
+    .cursor-position { display: none; }
 }
-
-/* Main Editor */
-.main-editor {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* Mobile View Toggle */
-.mobile-view-toggle {
-    display: none;
-    gap: 8px;
-    padding: 8px 16px;
-    background: var(--theme-surface-default);
-    border-bottom: 1px solid var(--theme-panel-border);
-    transition: var(--theme-transition-colors);
-}
-
-.view-toggle-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    border: 1px solid var(--theme-border-light);
-    background: var(--theme-panel-bg);
-    color: var(--theme-panel-text);
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.view-toggle-btn svg {
-    width: 18px;
-    height: 18px;
-}
-
-.view-toggle-btn:hover {
-    background: var(--theme-surface-hover);
-    border-color: var(--theme-primary);
-}
-
-.view-toggle-btn.active {
-    background: var(--theme-gradient);
-    color: white;
-    border-color: transparent;
-}
-
-/* Editor Panels */
-.editor-panels {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-}
-
-.edit-panel,
-.preview-panel {
-    flex: 1;
-    overflow: hidden;
-}
-
-.edit-panel {
-    border-right: 1px solid var(--theme-panel-border);
-    transition: var(--theme-transition-colors);
-}
-
-.preview-panel {
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    background: var(--theme-panel-bg);
-    transition: var(--theme-transition-colors);
-}
-
-/* Post预览区域 */
-.post-preview-section,
-.graph-preview-section {
-    padding: 0;
-    background: var(--theme-surface-default);
-    border-bottom: 2px solid var(--theme-panel-border);
-    flex-shrink: 0;
-    transition: var(--theme-transition-colors);
-}
-
-/* 预览区域头部 */
-.preview-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg,
-            var(--theme-panel-bg) 0%,
-            var(--theme-surface-default) 100%);
-    border-bottom: 1px solid var(--theme-panel-border);
-    transition: var(--theme-transition-colors);
-    position: relative;
-}
-
-/* 头部装饰线 */
-.preview-header::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 1.5rem;
-    right: 1.5rem;
-    height: 2px;
-    background: linear-gradient(90deg,
-            transparent 0%,
-            var(--theme-primary) 20%,
-            var(--theme-secondary, #475569) 80%,
-            transparent 100%);
-    opacity: 0.6;
-}
-
-/* 折叠按钮 - 更显眼的设计 */
-.collapse-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 2px solid var(--theme-primary);
-    background: linear-gradient(135deg,
-            var(--theme-primary) 0%,
-            var(--theme-secondary, #475569) 100%);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    color: white;
-    box-shadow:
-        0 4px 12px rgba(99, 102, 241, 0.25),
-        0 2px 4px rgba(0, 0, 0, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-/* 按钮光晕效果 */
-.collapse-btn::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    background: linear-gradient(135deg,
-            var(--theme-primary),
-            var(--theme-secondary, #475569));
-    border-radius: 14px;
-    opacity: 0;
-    filter: blur(8px);
-    transition: opacity 0.3s ease;
-    z-index: -1;
-}
-
-.collapse-btn:hover {
-    transform: scale(1.1) translateY(-2px);
-    box-shadow:
-        0 8px 24px rgba(99, 102, 241, 0.4),
-        0 4px 8px rgba(0, 0, 0, 0.15);
-    border-color: transparent;
-}
-
-.collapse-btn:hover::before {
-    opacity: 0.6;
-}
-
-.collapse-btn:active {
-    transform: scale(0.95) translateY(0);
-}
-
-.collapse-btn svg {
-    width: 20px;
-    height: 20px;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.collapse-btn.collapsed {
-    background: var(--theme-surface-hover);
-    color: var(--theme-content-text);
-    border-color: var(--theme-border-light);
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.collapse-btn.collapsed::before {
-    opacity: 0;
-}
-
-.collapse-btn.collapsed:hover {
-    background: linear-gradient(135deg,
-            var(--theme-primary) 0%,
-            var(--theme-secondary, #475569) 100%);
-    color: white;
-    border-color: var(--theme-primary);
-}
-
-.collapse-btn.collapsed svg {
-    transform: rotate(-90deg);
-}
-
-/* 脉冲动画 - 吸引注意力 */
-@keyframes buttonPulse {
-
-    0%,
-    100% {
-        box-shadow:
-            0 4px 12px rgba(99, 102, 241, 0.25),
-            0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    50% {
-        box-shadow:
-            0 6px 20px rgba(99, 102, 241, 0.4),
-            0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-}
-
-.collapse-btn:not(.collapsed) {
-    animation: buttonPulse 2s ease-in-out infinite;
-}
-
-/* 预览内容区域 */
-.post-preview-content,
-.graph-preview-content {
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-}
-
-/* Graph 预览包装器 - 固定尺寸以适配预览 */
-.graph-preview-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.graph-preview-wrapper .graph-card {
-    position: relative !important;
-    width: 100% !important;
-    height: auto !important;
-    aspect-ratio: var(--card-aspect-ratio, 1);
-}
-
-.preview-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--theme-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    transition: var(--theme-transition-colors);
-    position: relative;
-    padding-left: 1rem;
-}
-
-/* 标签前的装饰图标 */
-.preview-label::before {
-    content: '●';
-    position: absolute;
-    left: 0;
-    color: var(--theme-primary);
-    animation: labelPulse 2s ease-in-out infinite;
-}
-
-@keyframes labelPulse {
-
-    0%,
-    100% {
-        opacity: 0.6;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-}
-
-/* Markdown预览区域 */
-.markdown-preview-section {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 0;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-    .editor-panels {
-        flex-direction: column;
-    }
-
-    .edit-panel {
-        border-right: none;
-        border-bottom: 1px solid var(--theme-panel-border);
-    }
-}
-
-/* Mobile Optimizations */
-@media (max-width: 768px) {
-
-    /* Show mobile view toggle */
-    .mobile-view-toggle {
-        display: flex;
-    }
-
-    /* Single view mode on mobile */
-    .editor-panels {
-        flex-direction: row;
-    }
-
-    .edit-panel,
-    .preview-panel {
-        flex: 0 0 100%;
-        border: none;
-        transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-
-    /* Hide inactive view */
-    .mobile-hidden {
-        display: none;
-    }
-
-    /* Optimize preview sections for mobile */
-    .post-preview-section,
-    .graph-preview-section {
-        padding: 0;
-    }
-
-    .preview-header {
-        padding: 0.75rem 1rem;
-    }
-
-    .preview-header::after {
-        left: 1rem;
-        right: 1rem;
-    }
-
-    .post-preview-content,
-    .graph-preview-content {
-        padding: 1rem;
-    }
-
-    .collapse-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 10px;
-    }
-
-    .collapse-btn svg {
-        width: 18px;
-        height: 18px;
-    }
-
-    .graph-preview-wrapper {
-        max-width: 100%;
-    }
-
-    .markdown-preview-section {
-        padding: 1rem;
-    }
-
-    .preview-label {
-        font-size: 0.7rem;
-    }
-
-    /* Adjust editor container for mobile */
-    .editor-container {
-        height: 100dvh;
-        /* Use dynamic viewport height for mobile browsers */
-    }
-
-    /* Make file tree overlay on mobile */
-    .editor-container :deep(.file-tree-sidebar) {
-        position: fixed;
-        z-index: 1000;
-        height: 100dvh;
-    }
-
-    /* Optimize toolbar for mobile */
-    .main-editor :deep(.ethereal-toolbar) {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-    }
-}
-
-/* Extra small devices */
-@media (max-width: 480px) {
-    .mobile-view-toggle {
-        padding: 6px 12px;
-    }
-
-    .view-toggle-btn {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-
-    .view-toggle-btn svg {
-        width: 16px;
-        height: 16px;
-    }
-
-    .view-toggle-btn span {
-        display: none;
-    }
-
-    /* Show only icons on very small screens */
-    .view-toggle-btn {
-        min-width: 44px;
-        /* Touch target size */
-    }
-}
-
-/* Landscape mobile optimization */
-@media (max-width: 768px) and (orientation: landscape) {
-    .mobile-view-toggle {
-        padding: 4px 12px;
-    }
-
-    .view-toggle-btn {
-        padding: 6px 12px;
-    }
-}
-
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-
-    /* Increase touch targets */
-    .view-toggle-btn {
-        min-height: 44px;
-    }
-
-    /* Improve scrolling performance */
-    .preview-panel {
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Prevent text selection during touch interactions */
-    .mobile-view-toggle {
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-    }
-}
+@media (prefers-reduced-motion: reduce) { .workspace-bar *, .editor-statusbar * { animation: none !important; transition: none !important; } }
 </style>

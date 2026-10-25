@@ -94,19 +94,19 @@ onMounted(async () => {
 }
 
 .icon-wrapper {
-    background: var(--theme-gradient);
+    background: var(--theme-surface-active);
     padding: 10px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px var(--theme-primary);
+    box-shadow: 0 4px 12px var(--theme-shadow-sm);
 }
 
 .header-icon {
     width: 22px;
     height: 22px;
-    color: var(--theme-button-text);
+    color: var(--theme-index);
 }
 
 .header-text {
@@ -120,10 +120,8 @@ onMounted(async () => {
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
-    background: var(--theme-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--theme-index);
+    -webkit-text-fill-color: currentColor;
     transition: var(--theme-transition-colors);
 }
 

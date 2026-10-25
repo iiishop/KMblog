@@ -89,7 +89,7 @@ const decrypt = async () => {
 }
 
 .unlock-card {
-    background: white;
+    background: var(--theme-panel-bg);
     border-radius: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     padding: 3rem;
@@ -117,13 +117,13 @@ const decrypt = async () => {
 }
 
 h2 {
-    color: #333;
+    color: var(--theme-panel-text);
     margin-bottom: 0.5rem;
     font-size: 1.5rem;
 }
 
 .hint {
-    color: #666;
+    color: var(--theme-meta-text);
     margin-bottom: 2rem;
     font-size: 0.95rem;
 }
@@ -135,9 +135,11 @@ h2 {
 }
 
 .password-input {
+    background: var(--theme-input-bg);
+    color: var(--theme-input-text);
     flex: 1;
     padding: 0.75rem 1rem;
-    border: 2px solid #e0e0e0;
+    border: 2px solid var(--theme-input-border);
     border-radius: 0.5rem;
     font-size: 1rem;
     transition: border-color 0.3s;
@@ -145,18 +147,18 @@ h2 {
 
 .password-input:focus {
     outline: none;
-    border-color: #4CAF50;
+    border-color: var(--theme-input-border-focus);
 }
 
 .password-input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--theme-input-disabled);
     cursor: not-allowed;
 }
 
 .unlock-button {
     padding: 0.75rem 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--theme-button-bg);
+    color: var(--theme-button-text);
     border: none;
     border-radius: 0.5rem;
     font-size: 1rem;
@@ -167,7 +169,7 @@ h2 {
 
 .unlock-button:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px var(--theme-shadow-md);
 }
 
 .unlock-button:disabled {
@@ -176,9 +178,9 @@ h2 {
 }
 
 .error-message {
-    color: #f44336;
+    color: var(--theme-error);
     padding: 0.75rem;
-    background: #ffebee;
+    background: color-mix(in srgb, var(--theme-error) 10%, var(--theme-panel-bg));
     border-radius: 0.5rem;
     font-size: 0.9rem;
     margin-top: 1rem;
@@ -186,7 +188,7 @@ h2 {
 
 .progress-bar {
     height: 4px;
-    background: #e0e0e0;
+    background: var(--theme-surface-active);
     border-radius: 2px;
     overflow: hidden;
     margin-top: 1rem;
@@ -194,7 +196,7 @@ h2 {
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: var(--theme-reading);
     animation: progress 1.5s ease-in-out infinite;
 }
 

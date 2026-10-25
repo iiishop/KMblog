@@ -94,7 +94,7 @@ const particleColor = computed(() => {
             : main + 'E6';
     }
     const isDark = currentTheme.value === 'dark' || currentTheme.value === 'night';
-    return isDark ? 'rgba(167, 139, 250, 0.9)' : 'rgba(102, 126, 234, 0.9)';
+    return getComputedStyle(document.documentElement).getPropertyValue('--theme-index').trim() || (isDark ? '#b2becb' : '#475569');
 });
 
 // 粒子类

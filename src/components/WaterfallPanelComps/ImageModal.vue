@@ -153,54 +153,21 @@
                 </div>
 
                 <!-- 右侧：描述（只在有描述且非全屏模式时显示） -->
-                <div v-if="hasDescription && !isFullscreen" class="modal-description-section">
-                    <div class="description-header">
-                        <h2 class="description-title">图片描述</h2>
-                    </div>
-                    <div class="description-content" ref="contentRef">
-                        <!-- Markdown 渲染 - 使用完整的渲染系统 -->
-                        <div v-html="renderedDescription" class="markdown-body"></div>
-                    </div>
-
-                    <!-- 评论区域 -->
-                    <div class="comments-section">
-                        <UtterancesComments :issueTitle="`图片: ${image.alt || image.src}`" />
-                    </div>
-                </div>
+                <ImageDescription v-if="hasDescription && !isFullscreen" :image="image" :content="descriptionSource" />
             </div>
         </div>
     </teleport>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 
-// 使用完整的 Markdown 渲染系统
-import md from '@/components/MarkdownPanelComps/MarkdownRenender.js';
-import '@/components/MarkdownPanelComps/MarkdownStyle.css';
-import { renderDynamicComponents, unmountDynamicComponents } from '@/components/MarkdownPanelComps/DynamicComponentRenderer.js';
-import { createMermaidRenderer } from '@/components/MarkdownPanelComps/mermaidRenderer';
-import config from '@/config';
+import ImageDescription from './ImageDescription.vue';
+import { hasGalleryDescription } from '@/utils/galleryImage';
 
-// 导入所有嵌入式组件
-const SteamGameBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/SteamGameBlock.vue')
-);
-const BangumiBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/BangumiBlock.vue')
-);
-const BilibiliVideoBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/BilibiliVideoBlock.vue')
-);
-const GithubRepoBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/GithubRepoBlock.vue')
-);
-const XiaohongshuNoteBlock = defineAsyncComponent(() =>
-    import('@/components/MarkdownPanelComps/XiaohongshuNoteBlock.vue')
-);
-import UtterancesComments from '@/components/UtterancesComments.vue';
 
 const props = defineProps({
+    content: { type: String, default: null },
     image: {
         type: Object,
         required: true
@@ -227,8 +194,6 @@ const emit = defineEmits(['close', 'next', 'prev']);
 
 // Refs
 const modalRef = ref(null);
-const contentRef = ref(null);
-const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 
 // 状态
 const isOpen = ref(false);
@@ -278,58 +243,22 @@ const canGoNext = computed(() => {
     return props.images && props.images.length > 1 && props.currentIndex < props.images.length - 1;
 });
 
-const renderedDescription = computed(() => {
-    const desc = mdDescription.value || props.description;
-    if (!desc) return '';
+const descriptionSource = computed(() => props.content ?? (mdDescription.value || props.description));
 
-    // 最后一道防线：检查是否是 HTML 页面
-    const trimmed = desc.trim().toLowerCase();
-    if (trimmed.startsWith('<!doctype') ||
-        trimmed.startsWith('<html') ||
-        trimmed.includes('<!doctype html>')) {
-        console.warn('[ImageModal] Blocked HTML content from rendering');
-        return '';
-    }
-
-    // 移除 front-matter metadata（YAML 格式）
-    let content = desc;
-    if (content.startsWith('---')) {
-        const endIndex = content.indexOf('---', 3);
-        if (endIndex !== -1) {
-            // 跳过 metadata 部分
-            content = content.substring(endIndex + 3).trim();
-        }
-    }
-
-    // 使用完整的 markdown-it 渲染器（支持代码高亮、LaTeX、Mermaid等）
-    return md.render(content);
-});
-
-// 检查是否有描述内容
-const hasDescription = computed(() => {
-    const desc = mdDescription.value || props.description;
-    if (!desc) return false;
-
-    // 检查是否是 HTML 错误页面
-    const trimmed = desc.trim().toLowerCase();
-    if (trimmed.startsWith('<!doctype') ||
-        trimmed.startsWith('<html') ||
-        trimmed.includes('<!doctype html>')) {
-        return false;
-    }
-
-    return true;
-});
+const hasDescription = computed(() => hasGalleryDescription(descriptionSource.value));
 
 // 加载关联的 .md 文件
+let descriptionRevision = 0;
 async function loadMarkdownDescription() {
-    if (!props.image.mdPath) {
+    const current = ++descriptionRevision;
+    if (props.content !== null || !props.image.mdPath) {
         mdDescription.value = '';
         return;
     }
 
     try {
         const response = await fetch(props.image.mdPath);
+        if (current !== descriptionRevision) return;
 
         // 只处理成功的响应
         if (!response.ok) {
@@ -347,6 +276,7 @@ async function loadMarkdownDescription() {
         }
 
         const text = await response.text();
+        if (current !== descriptionRevision) return;
 
         // 检查内容是否为空或只有空白字符
         if (!text || !text.trim()) {
@@ -372,6 +302,7 @@ async function loadMarkdownDescription() {
         console.log('[ImageModal] Successfully loaded .md file');
 
     } catch (error) {
+        if (current !== descriptionRevision) return;
         console.log('[ImageModal] Failed to load markdown description:', error);
         mdDescription.value = '';
     }
@@ -553,8 +484,8 @@ function handleKeydown(e) {
 }
 
 // 监听图片变化
-watch(() => props.image, (newVal) => {
-    if (newVal) {
+watch(() => [props.image.src, props.image.mdPath, props.content !== null], () => {
+    if (props.image) {
         isOpen.value = true;
         resetImageState();
         loadMarkdownDescription();
@@ -573,39 +504,12 @@ watch(isOpen, (newVal) => {
     }
 });
 
-// 监听描述内容变化，渲染动态组件和 Mermaid
-watch([renderedDescription, isFullscreen], async (_, __, onCleanup) => {
-    let cancelled = false;
-    onCleanup(() => { cancelled = true; });
-    unmountDynamicComponents(contentRef.value);
-    await nextTick();
-    if (cancelled) return;
-    const container = contentRef.value;
-    if (container) {
-        // 渲染动态组件（Bilibili, Steam, Bangumi, GitHub, Xiaohongshu）
-        renderDynamicComponents(container, {
-            'bilibilivideoblock': BilibiliVideoBlock,
-            'steamgameblock': SteamGameBlock,
-            'bangumiblock': BangumiBlock,
-            'githubrepoblock': GithubRepoBlock,
-            'xiaohongshunoteblock': XiaohongshuNoteBlock
-        });
-
-        try {
-            await mermaidRenderer.render();
-        } catch (error) {
-            console.warn('[ImageModal] Mermaid rendering failed:', error);
-        }
-    }
-}, { immediate: true });
-
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
 });
 
-onBeforeUnmount(() => {
-    mermaidRenderer.dispose();
-    unmountDynamicComponents(contentRef.value);
+onUnmounted(() => {
+    descriptionRevision++;
     document.removeEventListener('keydown', handleKeydown);
 });
 </script>
@@ -769,8 +673,8 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-btn.active {
-    background: rgba(99, 102, 241, 0.3);
-    color: #818cf8;
+    background: color-mix(in srgb, var(--theme-on-image-action) 20%, transparent);
+    color: var(--theme-on-image-action);
 }
 
 .toolbar-btn svg {
@@ -917,483 +821,28 @@ onBeforeUnmount(() => {
 }
 
 /* 描述区域 - 小红书风格 */
-.modal-description-section {
-    flex: 0 0 40%;
-    background: #fafafa;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid #e8e8e8;
-}
-
-.description-header {
-    padding: 2rem 2.5rem 1rem;
-    background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
-    border-bottom: 1px solid #e8e8e8;
-    flex-shrink: 0;
-}
-
-.description-title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #222;
-    letter-spacing: -0.02em;
-}
-
-.description-content {
-    padding: 2rem 2.5rem;
-    flex: 1;
-}
 
 /* 评论区域 */
-.comments-section {
-    padding: 0 2.5rem 2rem;
-    border-top: 1px solid #e8e8e8;
-    margin-top: 1rem;
-}
-
-.comments-section :deep(.utterances-comments) {
-    margin: 1rem 0 0 0;
-    padding: 1.5rem;
-    background: #fff;
-}
 
 /* Markdown 样式 - 小红书风格 */
-.markdown-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    font-size: 0.95rem;
-    line-height: 1.8;
-    color: #333;
-}
-
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3 {
-    font-weight: 600;
-    color: #222;
-    margin-top: 1.5rem;
-    margin-bottom: 0.8rem;
-}
-
-.markdown-body h1 {
-    font-size: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eee;
-}
-
-.markdown-body h2 {
-    font-size: 1.3rem;
-}
-
-.markdown-body h3 {
-    font-size: 1.1rem;
-}
-
-.markdown-body p {
-    margin-bottom: 1rem;
-    color: #333;
-}
-
-.markdown-body code {
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
-    background: #f5f5f5;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    font-size: 0.9em;
-    color: #e83e8c;
-}
-
-.markdown-body pre {
-    background: #f8f8f8;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 1rem 0;
-    border: 1px solid #eee;
-}
-
-.markdown-body pre code {
-    background: none;
-    padding: 0;
-    color: #333;
-}
-
-.markdown-body a {
-    color: #ff2442;
-    text-decoration: none;
-}
-
-.markdown-body a:hover {
-    text-decoration: underline;
-}
-
-.markdown-body img {
-    max-width: 100%;
-    border-radius: 8px;
-    margin: 1rem 0;
-}
-
-.markdown-body blockquote {
-    border-left: 3px solid #ff2442;
-    padding-left: 1rem;
-    margin: 1rem 0;
-    color: #666;
-    font-style: italic;
-}
 
 /* 滚动条样式 - 小红书风格 */
-.modal-description-section::-webkit-scrollbar {
-    width: 6px;
-}
-
-.modal-description-section::-webkit-scrollbar-track {
-    background: #f5f5f5;
-}
-
-.modal-description-section::-webkit-scrollbar-thumb {
-    background: #ddd;
-    border-radius: 3px;
-}
-
-.modal-description-section::-webkit-scrollbar-thumb:hover {
-    background: #ccc;
-}
 
 /* ========================================
    嵌入式 Block 组件强制移动端样式
    ======================================== */
 
 /* 强制所有 Block 组件使用移动端布局 */
-.modal-description-section :deep(.bili-embed-neo),
-.modal-description-section :deep(.steam-card),
-.modal-description-section :deep(.xhs-embed-container),
-.modal-description-section :deep(.bangumi-card) {
-    margin: 1.5rem 0 !important;
-}
 
 /* Bilibili Block - 强制垂直布局 */
-.modal-description-section :deep(.bili-card-glass) {
-    flex-direction: column !important;
-    padding: 0.75rem !important;
-    gap: 0.75rem !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .media-column) {
-    flex: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .data-column) {
-    width: 100% !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .video-title) {
-    font-size: 14px !important;
-    margin-bottom: 8px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .video-description-deck) {
-    padding: 6px 10px !important;
-    margin-bottom: 10px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .deck-content) {
-    font-size: 12px !important;
-    -webkit-line-clamp: 2 !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .stats-matrix) {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px 10px !important;
-    margin-bottom: 12px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .stat-info) {
-    font-size: 9px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .data-footer) {
-    padding-top: 10px !important;
-    gap: 10px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .cyclotron-avatar) {
-    width: 36px !important;
-    height: 36px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .author-id) {
-    font-size: 12px !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .creator-bio) {
-    font-size: 9px !important;
-    max-width: 100% !important;
-}
-
-.modal-description-section :deep(.bili-card-glass .feedback-sector) {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
-}
 
 /* Steam Block - 强制垂直布局 */
-.modal-description-section :deep(.steam-card .card-content) {
-    flex-direction: column !important;
-    padding: 10px !important;
-    gap: 12px !important;
-}
-
-.modal-description-section :deep(.steam-card .left-col) {
-    width: 100% !important;
-    max-width: 100% !important;
-}
-
-.modal-description-section :deep(.steam-card .right-col) {
-    width: 100% !important;
-}
-
-.modal-description-section :deep(.steam-card .game-title) {
-    font-size: 1.1rem !important;
-}
-
-.modal-description-section :deep(.steam-card .meta-row) {
-    font-size: 0.75rem !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-}
-
-.modal-description-section :deep(.steam-card .tags-row) {
-    gap: 4px !important;
-}
-
-.modal-description-section :deep(.steam-card .tag) {
-    font-size: 0.65rem !important;
-    padding: 1px 5px !important;
-}
-
-.modal-description-section :deep(.steam-card .game-desc) {
-    font-size: 0.75rem !important;
-    -webkit-line-clamp: 2 !important;
-}
-
-.modal-description-section :deep(.steam-card .action-row) {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 10px !important;
-    padding: 6px 10px !important;
-}
-
-.modal-description-section :deep(.steam-card .price-block) {
-    justify-content: center !important;
-}
-
-.modal-description-section :deep(.steam-card .store-btn) {
-    width: 100% !important;
-    justify-content: center !important;
-    padding: 8px 14px !important;
-    font-size: 0.85rem !important;
-}
 
 /* Xiaohongshu Block - 强制垂直布局 */
-.modal-description-section :deep(.xhs-card) {
-    flex-direction: column !important;
-    padding: 0.75rem !important;
-    gap: 0.75rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .media-area) {
-    flex: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-shadow: 8px 8px 0 var(--theme-red-deep) !important;
-}
-
-.modal-description-section :deep(.xhs-card .content-area) {
-    width: 100% !important;
-}
-
-.modal-description-section :deep(.xhs-card .xhs-header) {
-    gap: 8px !important;
-    margin-bottom: 1rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .brand-tag) {
-    font-size: 9px !important;
-    letter-spacing: 2px !important;
-    padding: 2px 6px !important;
-}
-
-.modal-description-section :deep(.xhs-card .note-title) {
-    font-size: 1.3rem !important;
-    margin-bottom: 1rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .note-abstract) {
-    font-size: 0.8rem !important;
-    max-height: 80px !important;
-    margin-bottom: 1.5rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .chips-left) {
-    gap: 8px !important;
-}
-
-.modal-description-section :deep(.xhs-card .tag-chip) {
-    font-size: 8px !important;
-    padding: 2px 8px !important;
-}
-
-.modal-description-section :deep(.xhs-card .meta-footer) {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 12px !important;
-    margin-top: 1rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .user-avatar) {
-    width: 24px !important;
-    height: 24px !important;
-}
-
-.modal-description-section :deep(.xhs-card .user-name) {
-    font-size: 0.75rem !important;
-}
-
-.modal-description-section :deep(.xhs-card .stats-row) {
-    width: 100% !important;
-    justify-content: flex-start !important;
-    gap: 15px !important;
-}
-
-.modal-description-section :deep(.xhs-card .stat-pill) {
-    font-size: 9px !important;
-    gap: 4px !important;
-}
 
 /* Bangumi Block - 强制垂直布局 */
-.modal-description-section :deep(.bangumi-card .card-content) {
-    flex-direction: column !important;
-    padding: 0.75rem !important;
-    gap: 0.75rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .cover-column) {
-    width: 100% !important;
-    max-width: 160px !important;
-    margin: 0 auto !important;
-    gap: 0.75rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .cover-wrapper) {
-    border-radius: 10px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .cover-img) {
-    min-height: 120px !important;
-    border-radius: 10px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .action-btn) {
-    padding: 6px 8px !important;
-    font-size: 0.75rem !important;
-    gap: 4px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .btn-icon svg) {
-    width: 12px !important;
-    height: 12px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .info-column) {
-    width: 100% !important;
-}
-
-.modal-description-section :deep(.bangumi-card .header-section) {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 0.75rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .title) {
-    font-size: 1.1rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .rating-badge) {
-    text-align: center !important;
-    width: 100% !important;
-}
-
-.modal-description-section :deep(.bangumi-card .score-box) {
-    justify-content: center !important;
-}
-
-.modal-description-section :deep(.bangumi-card .score-val) {
-    font-size: 1.5rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .score-suffix) {
-    font-size: 0.8rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .score-count) {
-    font-size: 0.65rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .distribution-bar) {
-    height: 4px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .tags-container) {
-    justify-content: center !important;
-    gap: 5px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .tag-pill) {
-    font-size: 0.65rem !important;
-    padding: 2px 6px !important;
-}
-
-.modal-description-section :deep(.bangumi-card .summary-text) {
-    font-size: 0.8rem !important;
-    text-align: left !important;
-}
-
-.modal-description-section :deep(.bangumi-card .summary-text.collapsed) {
-    -webkit-line-clamp: 2 !important;
-    line-clamp: 2 !important;
-}
-
-.modal-description-section :deep(.bangumi-card .infobox-grid) {
-    grid-template-columns: 1fr !important;
-    gap: 6px !important;
-    padding-top: 0.75rem !important;
-    text-align: left !important;
-}
-
-.modal-description-section :deep(.bangumi-card .info-item) {
-    font-size: 0.7rem !important;
-}
-
-.modal-description-section :deep(.bangumi-card .info-key) {
-    font-size: 0.65rem !important;
-}
 
 /* GitHub Block - 如果存在的话 */
-.modal-description-section :deep(.github-repo-card) {
-    padding: 0.75rem !important;
-}
-
-.modal-description-section :deep(.github-repo-card .repo-title) {
-    font-size: 1rem !important;
-}
-
-.modal-description-section :deep(.github-repo-card .repo-description) {
-    font-size: 0.8rem !important;
-}
 
 /* 响应式 */
 @media (max-width: 968px) {
@@ -1406,14 +855,6 @@ onBeforeUnmount(() => {
 
     .modal-image-section {
         flex: 1;
-    }
-
-    .modal-description-section {
-        width: 100%;
-        max-width: none;
-        height: 40%;
-        border-left: none;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* 移动端工具栏 - 更紧凑 */
@@ -1529,25 +970,8 @@ onBeforeUnmount(() => {
     }
 
     /* 移动端描述区域 */
-    .description-header {
-        padding: 1.5rem 1.5rem 0.75rem;
-    }
-
-    .description-title {
-        font-size: 1.1rem;
-    }
-
-    .description-content {
-        padding: 1.5rem;
-    }
 
     /* 在移动端模式下，Block 组件保持紧凑 */
-    .modal-description-section :deep(.bili-embed-neo),
-    .modal-description-section :deep(.steam-card),
-    .modal-description-section :deep(.xhs-embed-container),
-    .modal-description-section :deep(.bangumi-card) {
-        margin: 1rem 0 !important;
-    }
 }
 
 /* 小屏移动端 (≤ 480px) */
@@ -1664,33 +1088,8 @@ onBeforeUnmount(() => {
     }
 
     /* 描述区域 */
-    .description-header {
-        padding: 1rem 1rem 0.5rem;
-    }
-
-    .description-title {
-        font-size: 1rem;
-    }
-
-    .description-content {
-        padding: 1rem;
-    }
 
     /* Markdown 内容 */
-    .markdown-body {
-        font-size: 0.9rem;
-    }
-
-    .markdown-body h1 {
-        font-size: 1.3rem;
-    }
-
-    .markdown-body h2 {
-        font-size: 1.15rem;
-    }
-
-    .markdown-body h3 {
-        font-size: 1rem;
-    }
 }
+
 </style>
