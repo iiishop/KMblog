@@ -36,6 +36,11 @@ const headerRect = ref({ left: 0, top: 0, width: 0, height: 0 });
 const particleCanvas = ref(null);
 let particleAnimationFrame = null;
 let particles = [];
+let scrollFrame = null;
+let mouseFrame = null;
+let searchTimer = null;
+let themeTimer = null;
+let logoTimer = null;
 
 // 粒子类
 class HeaderParticle {
@@ -91,6 +96,7 @@ function animateParticles() {
 
   const canvas = particleCanvas.value;
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -117,10 +123,12 @@ function toggleSearch() {
   if (isSearchOpen.value) {
     isMenuOpen.value = false;
     // 延迟聚焦到输入框
-    setTimeout(() => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
       document.querySelector('.search-input')?.focus();
     }, 300);
   } else {
+    clearTimeout(searchTimer);
     searchQuery.value = '';
   }
 }
@@ -131,7 +139,8 @@ function toggleTheme() {
   const themeBtn = document.querySelector('.theme-btn');
   if (themeBtn) {
     themeBtn.classList.add('theme-switching');
-    setTimeout(() => {
+    clearTimeout(themeTimer);
+    themeTimer = setTimeout(() => {
       themeBtn.classList.remove('theme-switching');
     }, 600);
   }
@@ -144,13 +153,14 @@ let scrollTicking = false;
 function handleScroll() {
   if (scrollTicking) return;
   scrollTicking = true;
-  requestAnimationFrame(() => {
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = null;
     scrollTicking = false;
     isScrolled.value = window.scrollY > 50;
 
     // 滚动进度仅在必要时更新（进度条显示的，低频即可）
     const windowHeight = document.documentElement.scrollHeight - window.innerHeight;
-    scrollProgress.value = (window.scrollY / windowHeight) * 100;
+    scrollProgress.value = windowHeight > 0 ? Math.min(100, Math.max(0, (window.scrollY / windowHeight) * 100)) : 0;
   });
 }
 
@@ -159,11 +169,15 @@ let mouseTicking = false;
 function handleMouseMove(e) {
   if (mouseTicking) return;
   mouseTicking = true;
-  requestAnimationFrame(() => {
+  // currentTarget is cleared after event dispatch; capture it before scheduling.
+  const target = e.currentTarget;
+  const { clientX, clientY } = e;
+  mouseFrame = requestAnimationFrame(() => {
+    mouseFrame = null;
     mouseTicking = false;
-    const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.value = ((e.clientX - rect.left) / rect.width);
-    mouseY.value = ((e.clientY - rect.top) / rect.height);
+    const rect = target.getBoundingClientRect();
+    mouseX.value = rect.width > 0 ? ((clientX - rect.left) / rect.width) : 0;
+    mouseY.value = rect.height > 0 ? ((clientY - rect.top) / rect.height) : 0;
     headerRect.value = rect;
   });
 }
@@ -173,7 +187,8 @@ function handleLogoClick() {
   // 触发波纹动画
   const logo = document.querySelector('.logo');
   logo?.classList.add('logo-clicked');
-  setTimeout(() => {
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => {
     logo?.classList.remove('logo-clicked');
   }, 600);
 }
@@ -208,6 +223,11 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+  if (mouseFrame !== null) cancelAnimationFrame(mouseFrame);
+  clearTimeout(searchTimer);
+  clearTimeout(themeTimer);
+  clearTimeout(logoTimer);
   window.removeEventListener('scroll', handleScroll);
   window.removeEventListener('resize', initParticles);
 

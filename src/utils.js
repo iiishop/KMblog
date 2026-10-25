@@ -1,3 +1,4 @@
+import { resolvePostImageUrl } from '@/utils/markdownImages';
 import axios from 'axios';
 import yaml from 'yaml';
 
@@ -65,8 +66,7 @@ export async function parseMarkdownMetadata(content) {
 }
 
 export function resolvePostImage(image) {
-  if (!image) return '';
-  return /^(https?:\/\/|\/)/i.test(image) ? image : `/Posts/Images/${image}`;
+  return resolvePostImageUrl(image);
 }
 
 // 异步函数，加载单文件 Metadata.json（预生成的全部文章摘要，替代 N+1 逐个 fetch）

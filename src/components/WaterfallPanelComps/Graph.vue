@@ -136,10 +136,8 @@ const imageSrc = computed(() => {
 
 // 事件处理
 function handleMouseEnter(e) {
-    // 使用 nextTick 确保 DOM 更新后再添加 class，让 transition 生效
-    requestAnimationFrame(() => {
-        isHovered.value = true;
-    });
+    // Do not defer this state: a queued frame can run after mouseleave.
+    isHovered.value = true;
     emit('mouseenter', props.index);
 }
 
@@ -228,6 +226,10 @@ function handleImageError() {
 // 设置 Intersection Observer
 function setupIntersectionObserver() {
     if (!cardRef.value) return;
+    if (typeof IntersectionObserver === 'undefined') {
+        shouldLoadImage.value = true;
+        return;
+    }
 
     const options = {
         root: null, // 使用视口作为根

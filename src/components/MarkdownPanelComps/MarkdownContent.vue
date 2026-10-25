@@ -14,7 +14,8 @@ import { ref, watch, nextTick, onBeforeUnmount, defineAsyncComponent } from 'vue
 import fm from 'front-matter';
 import md from './MarkdownRenender.js';
 import './MarkdownStyle.css';
-import mermaid from 'mermaid';
+import { createMermaidRenderer } from './mermaidRenderer';
+import { prepareMarkdownImages } from '@/utils/markdownImages';
 import { renderDynamicComponents, unmountDynamicComponents } from './DynamicComponentRenderer.js';
 import ImageViewer from '@/components/ImageViewer.vue';
 
@@ -29,6 +30,7 @@ const components = {
 const props = defineProps({ content: { type: String, default: '' } });
 const emit = defineEmits(['rendered']);
 const contentRef = ref(null);
+const mermaidRenderer = createMermaidRenderer(() => contentRef.value);
 const htmlContent = ref('');
 const renderError = ref('');
 const viewerVisible = ref(false);
@@ -49,7 +51,7 @@ async function render() {
   const container = contentRef.value;
   try {
     const { body } = fm(props.content);
-    const html = md.render(body.replace(/!\[([^\]]*)\]\(([^)<>]+\s+[^)<>]+)\)/g, '![$1](<$2>)'));
+    const html = md.render(prepareMarkdownImages(body));
     unmountDynamicComponents(container);
     htmlContent.value = html;
     renderError.value = '';
@@ -58,20 +60,12 @@ async function render() {
     await nextTick();
     if (disposed || current !== revision) return;
     renderDynamicComponents(container, components);
-    const nodes = container.querySelectorAll('.mermaid');
-    if (nodes.length) {
-      try {
-        await mermaid.run({ nodes });
-      } catch {
-        if (!disposed && current === revision) renderError.value = '图表语法暂时不完整，请检查图表内容。';
-      }
-      if (disposed || current !== revision) return;
-      container.querySelectorAll('.mermaid svg').forEach(svg => {
-        svg.removeAttribute('width');
-        svg.removeAttribute('height');
-        Object.assign(svg.style, { width: '100%', height: '400px', maxWidth: '100%', maxHeight: '400px', display: 'block', margin: '0 auto' });
-      });
+    try {
+      await mermaidRenderer.render();
+    } catch {
+      if (!disposed && current === revision) renderError.value = '图表语法暂时不完整，请检查图表内容。';
     }
+    if (disposed || current !== revision) return;
     container.querySelectorAll('img').forEach(img => img.classList.add('clickable-image'));
     container.querySelectorAll('.mermaid-wrapper').forEach(el => el.classList.add('clickable-mermaid'));
   } catch (error) {
@@ -101,6 +95,7 @@ watch(() => props.content, () => { revision++; void render(); }, { flush: 'post'
 watch(contentRef, () => { void render(); });
 onBeforeUnmount(() => {
   disposed = true;
+  mermaidRenderer.dispose();
   revision++;
   unmountDynamicComponents(contentRef.value);
 });
