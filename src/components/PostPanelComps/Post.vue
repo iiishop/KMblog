@@ -164,6 +164,8 @@ const IconDate = defineAsyncComponent(() => import('@/components/icons/IconDate.
 const props = defineProps({
     imageUrl: String,
     markdownUrl: String,
+    // Published list cards already have all display fields in Metadata.json.
+    postMetadata: { type: Object, default: null },
     // Editor previews supply the current draft instead of fetching the saved file.
     previewMetadata: { type: Object, default: null }
 });
@@ -172,7 +174,7 @@ const props = defineProps({
 const imageSrc = ref(resolvePostImage(props.imageUrl) || loadingGif);
 const loadedMetadata = ref({});
 const metadata = computed(() => {
-    const source = props.previewMetadata ?? loadedMetadata.value;
+    const source = props.previewMetadata ?? props.postMetadata ?? loadedMetadata.value;
     return { ...source, date: source.date ? formatDateString(source.date) : '' };
 });
 const collectionThemeImage = ref('');
@@ -343,7 +345,7 @@ const backgroundStyle = computed(() => {
 onMounted(() => {
     console.log('Component mounted');
     if (props.markdownUrl) {
-        if (props.previewMetadata === null) initializeMarkdown(props.markdownUrl);
+        if (props.previewMetadata === null && props.postMetadata === null) initializeMarkdown(props.markdownUrl);
 
         // 提取并加载 collection 主题
         const collection = extractCollection(props.markdownUrl);

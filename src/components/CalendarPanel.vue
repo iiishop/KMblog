@@ -1162,51 +1162,14 @@ export default {
     },
     async loadEvents() {
       try {
-        // 获取所有 markdown 文件列表
-        const response = await fetch('/assets/PostDirectory.json')
-        const postDirectory = await response.json()
-
-        const allEvents = []
-        const allPaths = []
-
-        // 收集所有文章路径
-        const collectPaths = (obj) => {
-          if (Array.isArray(obj)) {
-            obj.forEach(item => {
-              if (item.path) allPaths.push(item.path)
-            })
-          } else if (typeof obj === 'object') {
-            Object.values(obj).forEach(value => collectPaths(value))
-          }
-        }
-
-        collectPaths(postDirectory)
-
-        console.log(`找到 ${allPaths.length} 篇文章`)
-
-        // 遍历所有文章
-        for (const path of allPaths) {
-          try {
-            // 读取文章内容
-            const contentResponse = await fetch(path)
-            if (!contentResponse.ok) continue
-
-            const content = await contentResponse.text()
-
-            // 从 frontmatter 提取日期
-            const dateMatch = content.match(/^---\s*\n[\s\S]*?date:\s*(.+?)\n[\s\S]*?---/)
-            const articleDate = dateMatch ? dateMatch[1].trim() : null
-
-            // 解析 Mermaid Gantt
-            const events = this.parseMermaidGantt(content, path, articleDate)
-            if (events.length > 0) {
-              console.log(`从 ${path} 解析到 ${events.length} 个事件`)
-              allEvents.push(...events)
-            }
-          } catch (error) {
-            console.warn(`无法加载文章 ${path}:`, error)
-          }
-        }
+        // Only Gantt source blocks are published here; keep the existing parser
+        // and scheduling rules without downloading unrelated article bodies.
+        const response = await fetch('/assets/Calendar.json')
+        if (!response.ok) throw new Error(`Calendar index: ${response.status}`)
+        const entries = await response.json()
+        const allEvents = entries.flatMap(entry =>
+          this.parseMermaidGantt(entry.content, entry.path, entry.date || null)
+        )
 
         this.events = allEvents
         console.log(`✅ 成功加载 ${allEvents.length} 个日历事件`)

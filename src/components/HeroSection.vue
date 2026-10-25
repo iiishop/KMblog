@@ -10,13 +10,22 @@ const particlesInitialized = ref(false);
 const particleCanvas = ref(null);
 let particleAnimationFrame = null;
 let particles = [];
+let scrollFrame = null;
+let particleInitTimeout = null;
+let visibilityObserver = null;
+let heroVisible = true;
 
 // 获取当前主题
 const currentTheme = computed(() => themeManager.currentTheme.value);
 
 // 滚动监听
 const handleScroll = () => {
-    scrollY.value = window.scrollY;
+    if (scrollFrame !== null) return;
+    scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        // Below the hero, all three effects have reached their final state.
+        scrollY.value = Math.max(0, Math.min(window.scrollY, heroHeight.value));
+    });
 };
 
 // 计算背景遮挡和模糊效果
@@ -130,21 +139,35 @@ class Particle {
 
 onMounted(() => {
     heroHeight.value = window.innerHeight;
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+    document.addEventListener('visibilitychange', syncParticleAnimation);
+    if (typeof IntersectionObserver !== 'undefined') {
+        visibilityObserver = new IntersectionObserver(([entry]) => {
+            heroVisible = entry.isIntersecting;
+            syncParticleAnimation();
+        });
+        visibilityObserver.observe(particleCanvas.value);
+    }
 
     // 提取背景图片颜色
     extractColorsFromImage();
 
     // 延迟初始化粒子效果
-    setTimeout(() => {
+    particleInitTimeout = setTimeout(() => {
         initializeCanvasParticles();
-        animateParticles();
+        syncParticleAnimation();
     }, 300);
 });
 
 onUnmounted(() => {
     window.removeEventListener('scroll', handleScroll);
     window.removeEventListener('resize', handleResize);
+    document.removeEventListener('visibilitychange', syncParticleAnimation);
+    visibilityObserver?.disconnect();
+    clearTimeout(particleInitTimeout);
+    if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
     if (resizeTimeout) clearTimeout(resizeTimeout);
     if (particleAnimationFrame) {
         cancelAnimationFrame(particleAnimationFrame);
@@ -173,6 +196,7 @@ const initializeCanvasParticles = () => {
 // 动画粒子（已移除 O(n²) 连线，shadowBlur → 半透明 fill）
 // ponytail: 120 粒子纯绘制 < 0.5ms/帧，连线开销 ~7ms/帧已砍掉
 const animateParticles = () => {
+    particleAnimationFrame = null;
     if (!particleCanvas.value) return;
 
     const canvas = particleCanvas.value;
@@ -189,19 +213,29 @@ const animateParticles = () => {
     particleAnimationFrame = requestAnimationFrame(animateParticles);
 };
 
+function syncParticleAnimation() {
+    if (!heroVisible || document.hidden) {
+        if (particleAnimationFrame !== null) cancelAnimationFrame(particleAnimationFrame);
+        particleAnimationFrame = null;
+    } else if (particlesInitialized.value && particleAnimationFrame === null) {
+        particleAnimationFrame = requestAnimationFrame(animateParticles);
+    }
+}
+
 // 监听窗口大小变化（节流）
 let resizeTimeout = null;
 const handleResize = () => {
     if (resizeTimeout) return;
     resizeTimeout = setTimeout(() => {
         resizeTimeout = null;
+        heroHeight.value = window.innerHeight;
+        handleScroll();
         if (particleCanvas.value) {
             particleCanvas.value.width = window.innerWidth;
             particleCanvas.value.height = window.innerHeight;
         }
     }, 200);
 };
-window.addEventListener('resize', handleResize, { passive: true });
 
 // 从背景图片提取颜色
 const extractColorsFromImage = () => {

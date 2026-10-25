@@ -375,11 +375,15 @@ const tipFloatLeft = ref(0);
 const handleFloatListScroll = () => {
     if (isMobile.value) return;
 
+    const hasInfoFloat = infoListFloatComponents.value.length > 0 || !!slots['float-info'];
+    const hasTipFloat = tipListFloatComponents.value.length > 0 || !!slots['float-tip'];
+    if (!hasInfoFloat && !hasTipFloat) return;
+
     const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 96;
     const targetTop = headerHeight + 32; // header高度 + 2rem (假设 1rem = 16px)
 
     // 处理 InfoList 的 FloatList
-    if (infoListRef.value) {
+    if (hasInfoFloat && infoListRef.value) {
         const contextEl = infoListRef.value.querySelector('.context');
         const floatEl = infoListRef.value.querySelector('.FloatList');
 
@@ -400,7 +404,7 @@ const handleFloatListScroll = () => {
     }
 
     // 处理 TipList 的 FloatList
-    if (tipListRef.value) {
+    if (hasTipFloat && tipListRef.value) {
         const contextEl = tipListRef.value.querySelector('.context');
         const floatEl = tipListRef.value.querySelector('.FloatList');
 
@@ -486,6 +490,24 @@ const updateHeaderHeight = () => {
     }
 };
 
+let layoutFrame = null;
+let headerObserver = null;
+let disposed = false;
+const handleLayoutScroll = () => {
+    if (layoutFrame !== null) return;
+    layoutFrame = requestAnimationFrame(() => {
+        layoutFrame = null;
+        handleFloatListScroll();
+        checkScrollPosition();
+    });
+};
+const handleLayoutResize = () => {
+    checkMobile();
+    updateHeaderHeight();
+    handleLayoutScroll();
+    startLayoutRatioWatch();
+};
+
 onMounted(async () => {
     // Ensure theme system is initialized before loading components
     if (!themeManager.currentTheme.value) {
@@ -500,6 +522,7 @@ onMounted(async () => {
     await loadComponents(config.InfoListDown, infoListDownComponents);
     await loadComponents(config.InfoListFloat, infoListFloatComponents);
     await loadComponents(config.TipListFloat, tipListFloatComponents);
+    if (disposed) return;
 
     // 初始化
     checkMobile();
@@ -512,19 +535,13 @@ onMounted(async () => {
     toggleTipList();
     handleFloatListScroll();
 
-    window.addEventListener('scroll', handleFloatListScroll);
-    window.addEventListener('scroll', checkScrollPosition); // 添加滚动监听
-    window.addEventListener('resize', () => {
-        checkMobile();
-        updateHeaderHeight();
-        handleFloatListScroll();
-        startLayoutRatioWatch();
-    });
+    window.addEventListener('scroll', handleLayoutScroll, { passive: true });
+    window.addEventListener('resize', handleLayoutResize, { passive: true });
 
     // 监听 header 高度变化
-    const headerObserver = new ResizeObserver(() => {
+    headerObserver = new ResizeObserver(() => {
         updateHeaderHeight();
-        handleFloatListScroll();
+        handleLayoutScroll();
     });
     const header = document.querySelector('.header-menu');
     if (header) {
@@ -533,10 +550,12 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    disposed = true;
     if (layoutRatioObserver) layoutRatioObserver.disconnect();
-    window.removeEventListener('scroll', handleFloatListScroll);
-    window.removeEventListener('scroll', checkScrollPosition);
-    window.removeEventListener('resize', checkMobile);
+    headerObserver?.disconnect();
+    if (layoutFrame !== null) cancelAnimationFrame(layoutFrame);
+    window.removeEventListener('scroll', handleLayoutScroll);
+    window.removeEventListener('resize', handleLayoutResize);
     // 清理
     document.body.style.overflow = '';
 });

@@ -109,56 +109,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import globalVar from '@/globalVar';
-import axios from 'axios';
-import { parseMarkdownMetadata } from "@/utils";
+import { isAnnouncement, newestFirst } from '@/utils/postIndex';
 
 const router = useRouter();
 const currentIndex = ref(0);
-const announcements = ref([]);
-
-// 获取并解析带'公告'标签的文章
-async function loadAnnouncements() {
-    const allPosts = globalVar.markdowns;
-    const announcementPosts = [];
-
-    for (const [key, post] of Object.entries(allPosts)) {
-        try {
-            // 获取文章内容
-            const response = await axios.get(key.startsWith('http') ? key : new URL(key, import.meta.url).href);
-            const content = response.data;
-
-            // 解析元数据
-            const { meta } = await parseMarkdownMetadata(content);
-
-            // 检查是否有'公告'标签
-            if (meta.tags && (Array.isArray(meta.tags) ? meta.tags.includes('公告') : meta.tags === '公告')) {
-                announcementPosts.push({
-                    key,
-                    imageUrl: post.imageUrl,
-                    metadata: meta
-                });
-            }
-        } catch (error) {
-            console.error(`Failed to load announcement from ${key}:`, error);
-        }
-    }
-
-    // 按日期排序（最新的在前）
-    announcementPosts.sort((a, b) => {
-        const dateA = new Date(a.metadata.date || 0);
-        const dateB = new Date(b.metadata.date || 0);
-        return dateB - dateA;
-    });
-
-    announcements.value = announcementPosts;
-}
-
-onMounted(() => {
-    loadAnnouncements();
-});
+const announcements = Object.entries(globalVar.markdowns)
+    .filter(([, post]) => isAnnouncement(post))
+    .sort(([, a], [, b]) => newestFirst(a, b))
+    .map(([key, post]) => ({ key, imageUrl: post.imageUrl, metadata: post }));
 
 // 格式化日期
 function formatDate(dateString) {
@@ -179,7 +140,7 @@ function getCardStyle(index) {
         // 当前和未浏览的卡片
         return {
             '--offset': offset,
-            '--z-index': announcements.value.length - index
+            '--z-index': announcements.length - index
         };
     }
 }
@@ -213,7 +174,7 @@ function prevAnnouncement() {
 }
 
 function nextAnnouncement() {
-    if (currentIndex.value < announcements.value.length - 1) {
+    if (currentIndex.value < announcements.length - 1) {
         currentIndex.value++;
     }
 }

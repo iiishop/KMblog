@@ -8,6 +8,7 @@ from datetime import datetime
 from urllib import request, error, parse as urlparse
 from utility import parse_markdown_metadata, read_markdowns, find_first_image, read_file_safe
 from path_utils import get_base_path, get_posts_path, get_assets_path
+from calendar_index import build_calendar_index
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -1124,6 +1125,11 @@ class Generate(Command):
         metadata = self._build_metadata()
         with open(metadata_output_path, 'w', encoding='utf-8') as json_file:
             json.dump(metadata, json_file, indent=2, ensure_ascii=False)
+
+        # Keep the calendar source index in sync whenever articles are generated.
+        calendar_output_path = os.path.join(assets_path, 'Calendar.json')
+        with open(calendar_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(build_calendar_index(posts_path), json_file, indent=2, ensure_ascii=False)
 
         # Output posts directory to JSON file
         with open(posts_output_path, 'w', encoding='utf-8') as json_file:

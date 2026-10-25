@@ -13,6 +13,17 @@ const render = props => wrapper = mount(Post, { props, global: { stubs: {
 } } });
 
 describe('article card draft preview', () => {
+    it('renders published index metadata without downloading the article', async () => {
+        render({ markdownUrl: '/Posts/Markdowns/example.md', postMetadata: {
+            title: 'Published', pre: 'Saved summary', tags: ['Vue'], categories: ['技术'], date: '2026-10-22 12:00:00'
+        } });
+        await flushPromises();
+        expect(wrapper.get('.title-text').text()).toBe('Published');
+        expect(wrapper.get('.pre-text').text()).toBe('Saved summary');
+        expect(wrapper.text()).toContain('2026-10-22');
+        expect(wrapper.text()).toContain('技术');
+        expect(axios.get).not.toHaveBeenCalled();
+    });
     it('renders and updates draft fields without fetching the saved article', async () => {
         render({ markdownUrl: '/Posts/Markdowns/example.md', previewMetadata: { title: '初稿', pre: '首页摘要', tags: ['Vue'], categories: ['技术'], date: new Date('2026-10-22T00:00:00Z') } });
         expect(wrapper.get('.title-text').text()).toBe('初稿');

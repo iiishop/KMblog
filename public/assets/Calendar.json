@@ -1,0 +1,17 @@
+[
+  {
+    "path": "/Posts/Markdowns/阶段汇总.md",
+    "date": "2023-04-25 21:31:10",
+    "content": "```mermaid\ngantt\ndateFormat YYYY-MM-DD\naxisFormat %d\nsection 策划\n\t剧本（最终版）:a1,2023-02-16,2023-02-16\n\t武器框架:a2,after a1,2023-02-17\n\t人设（初版x）:a3,after a2,2023-02-18\n```"
+  },
+  {
+    "path": "/Posts/UCL/casa0021 Tasks Manage.md",
+    "date": "2026-02-01 04:37:20",
+    "content": "```mermaid\ngantt\n    title ESP32 Butterfly System: Linear Technical Roadmap (Feb 6 - Mar 22)\n    dateFormat  YYYY-MM-DD\n    axisFormat  %m-%d\n\n    section Connectivity (Pre-Hardware)\n    Tailscale & WireGuard Porting (6h)      :b1, 2026-02-06, 2026-02-11\n    P2P STUN & Hole Punching Logic (6h)     :b2, 2026-02-12, 2026-02-16\n    Failover Algorithm Development (5h)      :b3, 2026-02-17, 2026-02-19\n\n    section User Interface (Pre-Hardware)\n    SoftAP & Provisioning Web Server (6h)   :c1, 2026-02-20, 2026-02-22\n    Management Web Dashboard UI (6h)         :c2, 2026-02-23, 2026-02-26\n    Global Telemetry Logging (6h)            :c3, 2026-02-27, 2026-02-28\n\n    section System Reliability (Pre-Hardware)\n    Multi-Device Sync Simulation (6h)       :d1, 2026-03-01, 2026-03-03\n    FOTA Remote Update System (6h)          :d2, 2026-03-04, 2026-03-08\n\n    section Integration (Post-Hardware)\n    PWM Actuation Lib Integration (6h)      :a1, 2026-03-09, 2026-03-11\n    Bio-mimicry Patterns Tuning (6h)        :a2, 2026-03-12, 2026-03-15\n    BMS & Power State Verification (6h)     :a3, 2026-03-16, 2026-03-18\n\n    section Final Delivery\n    Full System Stress Testing & Final Debug (6h)         :d3, 2026-03-19, 2026-03-22\n```"
+  },
+  {
+    "path": "/Posts/游戏设计/DearDeer新企划.md",
+    "date": "2022-10-02 06:26:29",
+    "content": "```mermaid\n\tgantt\n\ttitle 简化时间图\n\tdateFormat YYYY-MM-DD\n\taxisFormat %m/%d\n\tsection 制作\n\t企划书制作 :2022-09-30,3d\n\t新人招收 :2022-10-02,10d\n\t环境搭建及前期工作 :2022-10-01,14d\n\t剧情撰写 :2022-10-05,30d\n\t程序策划及实验 :a,2022-11-01,14d\n\t制作 :b,after a,60d\n\t测试 :after b,10d\n\t```\n\n```mermaid\n\tgantt\n\ttitle 现期时间图\n\tdateFormat YYYY-MM-DD\n\taxisFormat %m/%d\n\t剧情撰写 :2022-11-10,40d\n\tdemo制作 :a,2022-11-01,50d\n\t剧情逻辑抽象 :b,after a,4d\n\t程序逻辑抽象 :c,after b,3d\n\t制作(暂定) :after c,30d\n\t```"
+  }
+]

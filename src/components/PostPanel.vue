@@ -3,58 +3,15 @@ import { onMounted, ref, computed, defineAsyncComponent, watch, nextTick } from 
 import globalVar from '@/globalVar';
 import gsap from 'gsap';
 import config from '@/config';
-import axios from 'axios';
-import { parseMarkdownMetadata } from "@/utils";
+import { selectPosts } from '@/utils/postIndex';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const Post = defineAsyncComponent(() => import('@/components/PostPanelComps/Post.vue'));
 
-const posts = ref({});
+const posts = selectPosts(globalVar.markdowns);
 const currentPage = ref(1);
 const dynamicPostsPerPage = ref(config.PostsPerPage); // 动态每页文章数
 const sidebarHeight = ref(0);
-const mainPanelHeight = ref(0);
-
-// 过滤掉带'公告'标签、title 为 'About' 的文章，以及 WaterfallGraph 文件夹内的文章
-async function filterAnnouncements() {
-    const allPosts = globalVar.markdowns;
-    const filteredPosts = {};
-
-    for (const [key, post] of Object.entries(allPosts)) {
-        try {
-            // 检查是否在 WaterfallGraph 文件夹内
-            const isInWaterfallGraph = key.includes('/WaterfallGraph/') || key.includes('\\WaterfallGraph\\');
-
-            // 如果在 WaterfallGraph 文件夹内，直接跳过
-            if (isInWaterfallGraph) {
-                console.log(`[PostPanel] Skipping WaterfallGraph file: ${key}`);
-                continue;
-            }
-
-            // 获取文章内容
-            const response = await axios.get(key.startsWith('http') ? key : new URL(key, import.meta.url).href);
-            const content = response.data;
-
-            // 解析元数据
-            const { meta } = await parseMarkdownMetadata(content);
-
-            // 检查是否有'公告'标签或 title 为 'About'
-            const hasAnnouncementTag = meta.tags && (Array.isArray(meta.tags) ? meta.tags.includes('公告') : meta.tags === '公告');
-            const isAboutPage = meta.title && meta.title.toLowerCase() === 'about';
-
-            // 如果既没有'公告'标签也不是 About 页面，则加入列表
-            if (!hasAnnouncementTag && !isAboutPage) {
-                filteredPosts[key] = post;
-            }
-        } catch (error) {
-            console.error(`Failed to check tags for ${key}:`, error);
-            // 如果解析失败，还是保留这篇文章
-            filteredPosts[key] = post;
-        }
-    }
-
-    posts.value = filteredPosts;
-}
 
 // 计算侧边栏高度并动态调整每页文章数
 function calculateDynamicPostsPerPage() {
@@ -113,16 +70,17 @@ function calculateDynamicPostsPerPage() {
 
 // 使用 ResizeObserver 监听侧边栏高度变化
 let resizeObserver = null;
+let resizeTimeout = null;
+const layoutTimeouts = [];
+let disposed = false;
 
 function setupResizeObserver() {
     if (typeof ResizeObserver === 'undefined') return;
 
     resizeObserver = new ResizeObserver(() => {
         // 使用 debounce 避免频繁计算
-        if (window.resizeTimeout) {
-            clearTimeout(window.resizeTimeout);
-        }
-        window.resizeTimeout = setTimeout(() => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
             calculateDynamicPostsPerPage();
         }, 300);
     });
@@ -136,51 +94,45 @@ function setupResizeObserver() {
 }
 
 onMounted(async () => {
-    await filterAnnouncements();
-
     // 等待 DOM 渲染完成后计算
     await nextTick();
+    if (disposed) return;
 
     // 多次尝试计算，确保侧边栏已经渲染完成
-    setTimeout(() => {
+    layoutTimeouts.push(setTimeout(() => {
         calculateDynamicPostsPerPage();
-    }, 500);
+    }, 500));
 
-    setTimeout(() => {
+    layoutTimeouts.push(setTimeout(() => {
         calculateDynamicPostsPerPage();
-    }, 1000);
+    }, 1000));
 
-    setTimeout(() => {
+    layoutTimeouts.push(setTimeout(() => {
         calculateDynamicPostsPerPage();
         setupResizeObserver();
-    }, 1500);
+    }, 1500));
 });
 
 // 组件卸载时清理
 import { onUnmounted } from 'vue';
 onUnmounted(() => {
+    disposed = true;
     if (resizeObserver) {
         resizeObserver.disconnect();
     }
-    if (window.resizeTimeout) {
-        clearTimeout(window.resizeTimeout);
-    }
+    clearTimeout(resizeTimeout);
+    layoutTimeouts.forEach(clearTimeout);
 });
 
 const totalPages = computed(() => {
-    return Math.max(1, Math.ceil(Object.keys(posts.value).length / dynamicPostsPerPage.value));
+    return Math.max(1, Math.ceil(posts.length / dynamicPostsPerPage.value));
 });
 
 const paginatedPosts = computed(() => {
-    // 先将所有文章转换为数组并按日期降序排序
-    const sortedPosts = Object.keys(posts.value)
-        .map(key => ({ key, ...posts.value[key] }))
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // 然后进行分页
+    // 摘要已排序，只挂载当前页的卡片。
     const start = (currentPage.value - 1) * dynamicPostsPerPage.value;
     const end = start + dynamicPostsPerPage.value;
-    const paginatedResult = sortedPosts.slice(start, end);
+    const paginatedResult = posts.slice(start, end);
 
     console.log(`Current Page: ${currentPage.value}, Posts per page: ${dynamicPostsPerPage.value}, Start: ${start}, End: ${end}`);
     return paginatedResult;
@@ -264,8 +216,8 @@ function onLeave(el, done) {
     <div class="PostPanel">
         <transition-group name="list" tag="div" class="posts" @before-enter="onBeforeEnter" @enter="onEnter"
             @leave="onLeave" appear>
-            <Post v-for="(post, index) in paginatedPosts" :key="post.key" :imageUrl="post.imageUrl"
-                :markdownUrl="post.key" :data-index="index" />
+            <Post v-for="(post, index) in paginatedPosts" :key="post.url" :imageUrl="post.imageUrl"
+                :markdownUrl="post.url" :postMetadata="post" :data-index="index" />
         </transition-group>
         <div class="pagination" v-show="totalPages > 1">
             <button class="pg-nav pg-first" v-show="currentPage > 1" @click="goToFirst" aria-label="First page">«</button>
