@@ -35,6 +35,20 @@ afterEach(() => {
 });
 
 describe('hero background work', () => {
+    it('keeps glyph shadows static while moving the title group', async () => {
+        const shadowLayer = wrapper.get('.hero-title-shadow');
+        const shadow = shadowLayer.attributes('style');
+        expect(shadowLayer.attributes('aria-hidden')).toBe('true');
+        expect(wrapper.get('.hero-title-stroke').attributes('aria-hidden')).toBe('true');
+        vi.spyOn(window, 'scrollY', 'get').mockReturnValue(200);
+        window.dispatchEvent(new Event('scroll'));
+        tick();
+        await wrapper.vm.$nextTick();
+        expect(wrapper.get('.hero-title').attributes('style')).toContain('translateY(100px)');
+        expect(shadowLayer.attributes('style')).toBe(shadow);
+        expect(shadow).toContain('text-shadow');
+        expect(wrapper.get('.hero-title').attributes('style')).not.toContain('text-shadow');
+    });
     it('pauses particles only when offscreen and resumes them when visible', () => {
         vi.advanceTimersByTime(300);
         tick();

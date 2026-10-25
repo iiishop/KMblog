@@ -926,9 +926,10 @@ onUnmounted(() => {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
+    left: 0;
     width: 100%;
     height: 100%;
+    transform: translateX(-100%);
     background: linear-gradient(90deg,
             transparent 0%,
             rgba(255, 255, 255, 0.4) 50%,
@@ -947,11 +948,11 @@ onUnmounted(() => {
 
     0%,
     100% {
-        left: -100%;
+        transform: translateX(-100%);
     }
 
     50% {
-        left: 100%;
+        transform: translateX(100%);
     }
 }
 
@@ -959,12 +960,11 @@ onUnmounted(() => {
 
     0%,
     100% {
-        right: -100%;
-        left: auto;
+        transform: translateX(100%);
     }
 
     50% {
-        right: 100%;
+        transform: translateX(-100%);
     }
 }
 

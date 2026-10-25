@@ -4,7 +4,7 @@
         <div class="baselayout-background-overlay"></div>
 
         <HeadMenu />
-        <div class="Scene">
+        <div class="Scene" ref="sceneRef">
             <!-- 桌面端：左侧切换按钮 -->
             <button v-if="shouldShowTipList && !isInfoLeftPosition && !isMobile && shouldShowToggleBtn"
                 :class="['toggle-btn', 'right-btn', { hidden: isTipListHidden }]" @click="toggleTipList">→</button>
@@ -188,6 +188,8 @@ import { themeManager } from '@/composables/useTheme';
 
 // 使用 Vite 的代码分割功能进行动态导入
 const HeadMenu = defineAsyncComponent(() => import('@/components/HeadMenu.vue'));
+const sceneRef = ref(null);
+let layoutHeaderHeight = 96;
 
 const props = defineProps({
     showTipList: {
@@ -379,8 +381,7 @@ const handleFloatListScroll = () => {
     const hasTipFloat = tipListFloatComponents.value.length > 0 || !!slots['float-tip'];
     if (!hasInfoFloat && !hasTipFloat) return;
 
-    const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 96;
-    const targetTop = headerHeight + 32; // header高度 + 2rem (假设 1rem = 16px)
+    const targetTop = layoutHeaderHeight + 32; // header高度 + 2rem
 
     // 处理 InfoList 的 FloatList
     if (hasInfoFloat && infoListRef.value) {
@@ -482,11 +483,16 @@ const mainListStyle = computed(() => {
     }
 });
 // 动态更新 header 高度
-const updateHeaderHeight = () => {
+const updateHeaderHeight = (observedHeight) => {
     const header = document.querySelector('.header-menu');
-    if (header) {
-        const headerHeight = header.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', `${headerHeight + 16}px`);
+    if (header && sceneRef.value) {
+        const headerHeight = typeof observedHeight === 'number' ? Math.round(observedHeight) : header.offsetHeight;
+        const nextHeight = headerHeight + 16;
+        if (sceneRef.value.style.paddingTop === `${nextHeight}px`) return;
+        layoutHeaderHeight = nextHeight;
+        // This measurement only affects Scene spacing. An inherited root custom
+        // property used to invalidate styles throughout the page, including Hero.
+        sceneRef.value.style.paddingTop = `${nextHeight}px`;
     }
 };
 
@@ -539,8 +545,8 @@ onMounted(async () => {
     window.addEventListener('resize', handleLayoutResize, { passive: true });
 
     // 监听 header 高度变化
-    headerObserver = new ResizeObserver(() => {
-        updateHeaderHeight();
+    headerObserver = new ResizeObserver(([entry]) => {
+        updateHeaderHeight(entry?.borderBoxSize?.[0]?.blockSize);
         handleLayoutScroll();
     });
     const header = document.querySelector('.header-menu');
@@ -630,10 +636,11 @@ body {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    padding-top: var(--header-height, 6rem);
+    padding-top: 6rem;
     width: 100%;
     min-height: 100vh;
-    transition: all 0.3s ease-in-out;
+    /* Header padding already animates. Follow its measured height directly
+       instead of starting another padding transition on every observer update. */
 }
 
 .InfoList,
@@ -1207,7 +1214,7 @@ body {
     }
 
     .Scene {
-        padding-top: var(--header-height, 4rem);
+        padding-top: 4rem;
         padding-bottom: 1rem;
     }
 
@@ -1235,7 +1242,7 @@ body {
 /* 小屏移动端 (≤ 480px) */
 @media (max-width: 480px) {
     .Scene {
-        padding-top: var(--header-height, 3.5rem);
+        padding-top: 3.5rem;
     }
 
     .MainList {

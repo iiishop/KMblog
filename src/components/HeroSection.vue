@@ -70,23 +70,26 @@ const titleParallaxStyle = computed(() => {
     };
 });
 
-// 大标题样式（包含颜色、阴影和视差效果）
+// Animate the title as a group; keep the expensive glyph effects static inside.
 const heroTitleStyle = computed(() => {
     const parallax = titleParallaxStyle.value;
     return {
         color: titleColors.value.main,
-        textShadow: `
-            0 0 10px ${titleColors.value.shadow},
-            0 0 20px ${titleColors.value.shadow},
-            0 0 30px ${titleColors.value.shadow},
-            0 0 40px ${titleColors.value.shadow},
-            2px 2px 4px rgba(0,0,0,0.8),
-            -2px -2px 4px rgba(255,255,255,0.3)
-        `,
         transform: parallax.transform,
         opacity: parallax.opacity
     };
 });
+
+const heroTitleShadowStyle = computed(() => ({
+    textShadow: `
+        0 0 10px ${titleColors.value.shadow},
+        0 0 20px ${titleColors.value.shadow},
+        0 0 30px ${titleColors.value.shadow},
+        0 0 40px ${titleColors.value.shadow},
+        2px 2px 4px rgba(0,0,0,0.8),
+        -2px -2px 4px rgba(255,255,255,0.3)
+    `
+}));
 
 // 大标题颜色提取（简化版，从背景图片色系提取）
 const titleColors = ref({
@@ -304,7 +307,11 @@ const extractColorsFromImage = () => {
         <div class="hero-content">
             <!-- 大标题 -->
             <h1 class="hero-title" :style="heroTitleStyle">
-                {{ config.HeroTitle || config.BlogName }}
+                <span class="hero-title-ink">
+                    <span class="hero-title-shadow" :style="heroTitleShadowStyle" aria-hidden="true">{{ config.HeroTitle || config.BlogName }}</span>
+                    <span class="hero-title-stroke" aria-hidden="true">{{ config.HeroTitle || config.BlogName }}</span>
+                    <span class="hero-title-fill">{{ config.HeroTitle || config.BlogName }}</span>
+                </span>
             </h1>
 
             <!-- 小标题（打字机效果） -->
@@ -402,13 +409,33 @@ export default defineComponent({
     transition: opacity 0.2s ease-out;
     will-change: transform, opacity;
     /* 移除 animation，会覆盖 inline style 的 transform */
+}
 
-    /* 描边效果 */
+.hero-title-ink {
+    display: inline-block;
+    position: relative;
+    /* Apply the existing glow once to the assembled stroke and fill. */
+    filter: drop-shadow(0 0 20px currentColor);
+}
+
+.hero-title-shadow,
+.hero-title-stroke {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    user-select: none;
+}
+
+.hero-title-stroke {
+    /* Stroked glyph shadows fall back to repeated software painting in Firefox.
+       Draw the outline once above the shadows, beneath the ordinary fill. */
     -webkit-text-stroke: 2px rgba(0, 0, 0, 0.3);
     paint-order: stroke fill;
+    text-shadow: none;
+}
 
-    /* 溢出发光效果 */
-    filter: drop-shadow(0 0 20px currentColor);
+.hero-title-fill {
+    position: relative;
 }
 
 @keyframes titleFloat {
@@ -455,6 +482,9 @@ export default defineComponent({
 @media (max-width: 768px) {
     .hero-title {
         font-size: clamp(2rem, 8vw, 4rem);
+    }
+
+    .hero-title-stroke {
         -webkit-text-stroke: 1px rgba(0, 0, 0, 0.3);
     }
 
